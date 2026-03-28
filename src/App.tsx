@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { 
   Search, 
   ShoppingCart, 
@@ -27,11 +27,97 @@ import {
   Play,
   Youtube
 } from "lucide-react";
-import { motion, AnimatePresence, useScroll, useTransform } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from "motion/react";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
 
 // --- Components ---
+
+const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuHidden: boolean; count: number; key?: string }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (trigger > 0 && isMenuHidden) {
+      setIsVisible(true);
+      const timer = setTimeout(() => setIsVisible(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [trigger, isMenuHidden]);
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          key="cart-splash-container"
+          initial={{ opacity: 0, x: 200 }}
+          animate={{ 
+            opacity: 1, 
+            x: 0,
+            transition: { type: "spring", damping: 20, stiffness: 100 }
+          }}
+          exit={{ 
+            opacity: 0, 
+            x: 200,
+            transition: { duration: 0.3 }
+          }}
+          className="fixed top-1/2 -translate-y-1/2 right-4 z-[100] flex items-center"
+        >
+          <div className="relative w-16 h-16 bg-brand-blue rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center border-2 border-brand-yellow">
+            {/* Stars Animation */}
+            {[...Array(6)].map((_, i) => (
+              <motion.div
+                key={`splash-star-${i}`}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ 
+                  scale: [0, 1.2, 0],
+                  opacity: [0, 1, 0],
+                  x: Math.cos(i * 60 * Math.PI / 180) * 50,
+                  y: Math.sin(i * 60 * Math.PI / 180) * 50,
+                }}
+                transition={{ 
+                  duration: 1, 
+                  delay: i * 0.05,
+                  ease: "easeOut"
+                }}
+                className="absolute"
+              >
+                <Star className="w-4 h-4 text-brand-yellow fill-brand-yellow" />
+              </motion.div>
+            ))}
+            
+            <motion.div
+              animate={{ 
+                scale: [1, 1.2, 1],
+                rotate: [0, -10, 10, 0]
+              }}
+              transition={{ duration: 0.5, repeat: 1 }}
+            >
+              <ShoppingCart className="w-8 h-8 text-brand-yellow fill-brand-yellow" />
+            </motion.div>
+
+            {/* Yellow Bubble for Count (Bolla Gialla) */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring" }}
+              className="absolute -top-1 -right-1 w-7 h-7 bg-brand-yellow text-brand-dark text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-lg"
+            >
+              {count}
+            </motion.div>
+
+            {/* Splash Ring */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0.5 }}
+              animate={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              className="absolute inset-0 rounded-full border-2 border-brand-yellow"
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 function ProductCard({ product, onClick, onAddToCart, index }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number }) {
   return (
@@ -74,7 +160,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       >
         <div className="flex">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className={`w-3 h-3 ${i < Math.floor(product.rating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
+            <Star key={`card-star-${i}`} className={`w-3 h-3 ${i < Math.floor(product.rating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
           ))}
         </div>
         <span className="text-[10px] text-blue-600 font-medium">{product.reviews}</span>
@@ -104,7 +190,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
   );
 }
 
-const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void }) => {
+const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; key?: string }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -167,6 +253,7 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
           {/* Thumbnails */}
           <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar pb-2">
             <button 
+              key="main-thumb"
               onClick={() => setActiveImage(product.image)}
               className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent"}`}
             >
@@ -174,7 +261,7 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
             </button>
             {product.gallery.map((img, idx) => (
               <button 
-                key={idx}
+                key={`gallery-${idx}`}
                 onClick={() => setActiveImage(img)}
                 className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent"}`}
               >
@@ -330,6 +417,7 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
   onClose: () => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemove: (id: string) => void;
+  key?: string;
 }) => {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -417,7 +505,7 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
   );
 };
 
-const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void }) => {
+const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void; key?: string }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -534,7 +622,34 @@ export default function App() {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [cartTrigger, setCartTrigger] = useState(0);
+  const [showFloatingMenu, setShowFloatingMenu] = useState(true);
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+  const lastScrollY = useRef(0);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  const { scrollY } = useScroll();
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+
+    const direction = latest > lastScrollY.current ? "down" : "up";
+    
+    if (direction === "down" && latest > 100) {
+      setShowFloatingMenu(false);
+    } else {
+      setShowFloatingMenu(true);
+    }
+
+    setIsHeaderHidden(latest > 100);
+
+    // Show after 500ms of no scrolling (stopped)
+    scrollTimeout.current = setTimeout(() => {
+      setShowFloatingMenu(true);
+    }, 500);
+
+    lastScrollY.current = latest;
+  });
   useEffect(() => {
     const timer = setInterval(() => {
       setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
@@ -563,6 +678,7 @@ export default function App() {
       }
       return [...prev, { ...product, quantity: 1 }];
     });
+    setCartTrigger(prev => prev + 1);
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -580,7 +696,6 @@ export default function App() {
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 150], [1, 0]);
   const heroY = useTransform(scrollY, [0, 150], [0, -40]);
 
@@ -639,14 +754,23 @@ export default function App() {
               onClick={() => setIsCartOpen(true)}
               className="relative flex items-center text-white gap-1"
             >
-              <div className="relative">
+              <motion.div 
+                key={cartTrigger}
+                animate={cartTrigger > 0 ? { scale: [1, 1.25, 1], rotate: [0, -10, 10, 0] } : {}}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="relative"
+              >
                 <ShoppingCart className="w-7 h-7" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-brand-yellow text-brand-dark text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-brand-blue">
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-brand-yellow text-brand-dark text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-brand-blue"
+                  >
                     {cartCount}
-                  </span>
+                  </motion.span>
                 )}
-              </div>
+              </motion.div>
               <span className="text-sm font-bold hidden sm:inline">Carrello</span>
             </button>
             <button 
@@ -678,7 +802,7 @@ export default function App() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                key={cat}
+                key={`${selectedCategory}-${cat}-${idx}`}
                 onClick={() => selectedCategory === "Tutti" ? setSelectedCategory(cat) : setSelectedSubcategory(cat)}
                 className={`whitespace-nowrap pb-1 border-b-2 transition-all ${
                   (selectedCategory === "Tutti" ? selectedCategory === cat : selectedSubcategory === cat)
@@ -982,29 +1106,30 @@ export default function App() {
       </footer>
 
       {/* Floating Bottom Nav (Native App Style) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="fixed bottom-6 right-6 z-50">
         <motion.nav 
           initial={false}
           animate={{ 
             width: isMenuExpanded ? "auto" : "64px",
             paddingLeft: isMenuExpanded ? "24px" : "0px",
             paddingRight: isMenuExpanded ? "24px" : "0px",
+            y: showFloatingMenu ? 0 : 100,
+            opacity: showFloatingMenu ? 1 : 0,
+            scale: showFloatingMenu ? 1 : 0.8
           }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 30,
+            opacity: { duration: 0.2 }
+          }}
           className="bg-brand-blue backdrop-blur-lg border border-white/10 h-16 rounded-full flex items-center justify-center gap-8 shadow-2xl overflow-hidden"
         >
-          <button 
-            onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-            className={`flex flex-col items-center gap-1 transition-colors min-w-[64px] ${isMenuExpanded ? "text-brand-yellow" : "text-brand-yellow"}`}
-          >
-            <Home className="w-6 h-6" />
-            {isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-widest text-white">Home</span>}
-          </button>
-
           <AnimatePresence>
             {isMenuExpanded && (
               <>
                 <motion.button 
+                  key="nav-explore"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
@@ -1014,6 +1139,7 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white">Esplora</span>
                 </motion.button>
                 <motion.button 
+                  key="nav-favorites"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
@@ -1023,6 +1149,7 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white">Preferiti</span>
                 </motion.button>
                 <motion.button 
+                  key="nav-chat"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
@@ -1034,6 +1161,14 @@ export default function App() {
               </>
             )}
           </AnimatePresence>
+
+          <button 
+            onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+            className={`flex flex-col items-center gap-1 transition-colors min-w-[64px] ${isMenuExpanded ? "text-brand-yellow" : "text-brand-yellow"}`}
+          >
+            <Home className="w-6 h-6" />
+            {isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-widest text-white">Home</span>}
+          </button>
         </motion.nav>
       </div>
 
@@ -1041,6 +1176,7 @@ export default function App() {
       <AnimatePresence>
         {selectedProduct && (
           <ProductSheet 
+            key="product-sheet"
             product={selectedProduct} 
             onClose={() => setSelectedProduct(null)} 
             onAddToCart={addToCart}
@@ -1048,6 +1184,7 @@ export default function App() {
         )}
         {isCartOpen && (
           <CartDrawer 
+            key="cart-drawer"
             items={cart} 
             onClose={() => setIsCartOpen(false)} 
             onUpdateQuantity={updateQuantity}
@@ -1055,9 +1192,16 @@ export default function App() {
           />
         )}
         <SideMenu 
+          key="side-menu"
           isOpen={isSideMenuOpen} 
           onClose={() => setIsSideMenuOpen(false)} 
           onSelectCategory={setSelectedCategory}
+        />
+        <CartSplash 
+          key="cart-splash"
+          trigger={cartTrigger} 
+          isMenuHidden={isHeaderHidden} 
+          count={cartCount} 
         />
       </AnimatePresence>
     </div>
