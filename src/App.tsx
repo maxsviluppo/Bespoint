@@ -60,7 +60,7 @@ const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuH
             x: 200,
             transition: { duration: 0.3 }
           }}
-          className="fixed top-1/2 -translate-y-1/2 right-4 z-[100] flex items-center"
+          className="fixed bottom-6 right-6 z-[100] flex items-center"
         >
           <div className="relative w-16 h-16 bg-brand-blue rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center border-2 border-brand-yellow">
             {/* Stars Animation */}
@@ -620,33 +620,15 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
-  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [cartTrigger, setCartTrigger] = useState(0);
-  const [showFloatingMenu, setShowFloatingMenu] = useState(true);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const lastScrollY = useRef(0);
-  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-
-    const direction = latest > lastScrollY.current ? "down" : "up";
-    
-    if (direction === "down" && latest > 100) {
-      setShowFloatingMenu(false);
-    } else {
-      setShowFloatingMenu(true);
-    }
-
     setIsHeaderHidden(latest > 100);
-
-    // Show after 500ms of no scrolling (stopped)
-    scrollTimeout.current = setTimeout(() => {
-      setShowFloatingMenu(true);
-    }, 500);
 
     lastScrollY.current = latest;
   });
@@ -1104,73 +1086,6 @@ export default function App() {
           <p>&copy; 2026 BESPOINT S.r.l. - Tutti i diritti riservati - P.IVA 12345678901</p>
         </div>
       </footer>
-
-      {/* Floating Bottom Nav (Native App Style) */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <motion.nav 
-          initial={false}
-          animate={{ 
-            width: isMenuExpanded ? "auto" : "64px",
-            paddingLeft: isMenuExpanded ? "24px" : "0px",
-            paddingRight: isMenuExpanded ? "24px" : "0px",
-            y: showFloatingMenu ? 0 : 100,
-            opacity: showFloatingMenu ? 1 : 0,
-            scale: showFloatingMenu ? 1 : 0.8
-          }}
-          transition={{ 
-            type: "spring", 
-            stiffness: 400, 
-            damping: 30,
-            opacity: { duration: 0.2 }
-          }}
-          className="bg-brand-blue backdrop-blur-lg border border-white/10 h-16 rounded-full flex items-center justify-center gap-8 shadow-2xl overflow-hidden"
-        >
-          <AnimatePresence>
-            {isMenuExpanded && (
-              <>
-                <motion.button 
-                  key="nav-explore"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
-                >
-                  <Compass className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Esplora</span>
-                </motion.button>
-                <motion.button 
-                  key="nav-favorites"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
-                >
-                  <Heart className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Preferiti</span>
-                </motion.button>
-                <motion.button 
-                  key="nav-chat"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
-                >
-                  <MessageCircle className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Chat</span>
-                </motion.button>
-              </>
-            )}
-          </AnimatePresence>
-
-          <button 
-            onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-            className={`flex flex-col items-center gap-1 transition-colors min-w-[64px] ${isMenuExpanded ? "text-brand-yellow" : "text-brand-yellow"}`}
-          >
-            <Home className="w-6 h-6" />
-            {isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-widest text-white">Home</span>}
-          </button>
-        </motion.nav>
-      </div>
 
       {/* Modals & Sheets */}
       <AnimatePresence>
