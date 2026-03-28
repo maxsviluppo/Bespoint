@@ -417,6 +417,92 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
   );
 };
 
+const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void }) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+          />
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 bottom-0 w-80 bg-brand-blue text-white z-[70] shadow-2xl flex flex-col p-6"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center">
+                  <span className="text-brand-dark font-black text-lg italic">B</span>
+                </div>
+                <h2 className="text-xl font-bold italic tracking-tighter">BESPOINT</h2>
+              </div>
+              <button onClick={onClose} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6 overflow-y-auto no-scrollbar flex-1">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Account</h3>
+                <button className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                  <User className="w-5 h-5 text-brand-yellow" />
+                  <span className="font-bold">Il mio profilo</span>
+                </button>
+                <button className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                  <ShoppingCart className="w-5 h-5 text-brand-yellow" />
+                  <span className="font-bold">I miei ordini</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Categorie</h3>
+                {CATEGORIES.map(cat => (
+                  <button 
+                    key={cat} 
+                    onClick={() => {
+                      onSelectCategory(cat);
+                      onClose();
+                    }}
+                    className="flex items-center justify-between w-full p-3 hover:bg-white/5 rounded-xl transition-colors"
+                  >
+                    <span className="font-bold">{cat}</span>
+                    <ChevronRight className="w-4 h-4 text-white/40" />
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Supporto</h3>
+                <button className="flex items-center gap-3 w-full p-3 hover:bg-white/5 rounded-xl transition-colors">
+                  <Phone className="w-5 h-5 text-white/40" />
+                  <span className="font-bold">Contattaci</span>
+                </button>
+                <button className="flex items-center gap-3 w-full p-3 hover:bg-white/5 rounded-xl transition-colors">
+                  <Mail className="w-5 h-5 text-white/40" />
+                  <span className="font-bold">Email</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/10">
+              <button className="w-full bg-brand-yellow text-brand-dark py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
+                Esci
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
+
 // --- Main App ---
 
 const HERO_IMAGES = [
@@ -445,6 +531,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
 
@@ -562,29 +649,16 @@ export default function App() {
               </div>
               <span className="text-sm font-bold hidden sm:inline">Carrello</span>
             </button>
-            <button className="text-white hover:text-brand-yellow transition-colors">
+            <button 
+              onClick={() => setIsSideMenuOpen(true)}
+              className="text-white hover:text-brand-yellow transition-colors"
+            >
               <Menu className="w-8 h-8" />
             </button>
           </div>
         </motion.div>
 
-        {/* Mobile Search Bar (Always visible or moves up) */}
-        <div className="px-4 py-2 md:hidden">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Cerca su Bespoint..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-11 bg-white rounded-lg pl-4 pr-12 text-base shadow-inner focus:outline-none"
-            />
-            <button className="absolute right-0 top-0 h-full px-4 bg-brand-yellow rounded-r-lg">
-              <Search className="w-5 h-5 text-brand-dark" />
-            </button>
-          </div>
-        </div>
-
-        {/* Secondary Nav / Categories */}
+        {/* Secondary Nav / Categories (NOW ABOVE SEARCH) */}
         <div className="bg-brand-blue border-t border-white/10 px-4 py-2 flex items-center text-xs font-bold text-white/90 overflow-hidden">
           {selectedCategory !== "Tutti" && (
             <div className="flex-shrink-0 bg-brand-blue pr-4 z-20 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.3)] relative">
@@ -615,6 +689,22 @@ export default function App() {
                 {cat}
               </motion.button>
             ))}
+          </div>
+        </div>
+
+        {/* Mobile Search Bar (NOW BELOW CATEGORIES) */}
+        <div className="px-4 py-2 md:hidden border-t border-white/5">
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Cerca su Bespoint..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-11 bg-white rounded-lg pl-4 pr-12 text-base shadow-inner focus:outline-none"
+            />
+            <button className="absolute right-0 top-0 h-full px-4 bg-brand-yellow rounded-r-lg">
+              <Search className="w-5 h-5 text-brand-dark" />
+            </button>
           </div>
         </div>
       </header>
@@ -964,6 +1054,11 @@ export default function App() {
             onRemove={removeFromCart}
           />
         )}
+        <SideMenu 
+          isOpen={isSideMenuOpen} 
+          onClose={() => setIsSideMenuOpen(false)} 
+          onSelectCategory={setSelectedCategory}
+        />
       </AnimatePresence>
     </div>
   );
