@@ -7,7 +7,9 @@ import {
   Star, 
   Plus, 
   Minus, 
+  Maximize,
   ChevronRight, 
+  ChevronLeft,
   ArrowLeft,
   Home,
   Grid,
@@ -27,7 +29,7 @@ import {
   Play,
   Youtube
 } from "lucide-react";
-import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
 
@@ -194,9 +196,18 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (carouselRef.current) {
+      const scrollAmount = carouselRef.current.offsetWidth * 0.8;
+      carouselRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   const relatedProducts = useMemo(() => {
-    return PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+    return PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 8);
   }, [product]);
 
   return (
@@ -222,7 +233,10 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
         
         <div className="overflow-y-auto pb-32 px-6">
           {/* Main Image & Gallery */}
-          <div className="relative aspect-square rounded-3xl overflow-hidden mb-4 bg-gray-50 border border-gray-100">
+          <div 
+            className="relative aspect-square rounded-3xl overflow-hidden mb-4 bg-gray-50 border border-gray-100 cursor-pointer group"
+            onClick={() => setIsLightboxOpen(true)}
+          >
             <AnimatePresence mode="wait">
               <motion.img 
                 key={activeImage}
@@ -236,6 +250,12 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                 referrerPolicy="no-referrer"
               />
             </AnimatePresence>
+            
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+              <div className="bg-white/80 backdrop-blur-md p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                <Maximize className="w-6 h-6 text-brand-dark" />
+              </div>
+            </div>
             
             <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
               <button 
@@ -356,24 +376,123 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
             </div>
           )}
 
-          {/* Related Products */}
-          <div className="space-y-6 mb-12">
-            <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Prodotti Correlati</h4>
-            <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4">
+          {/* Reviews Section (Amazon Style) */}
+          <div className="space-y-8 mb-12">
+            <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Recensioni Clienti</h4>
+            
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* Rating Summary */}
+              <div className="w-full md:w-1/3 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-5 h-5 ${s <= Math.round(product.rating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
+                    ))}
+                  </div>
+                  <span className="text-xl font-black text-brand-dark">{product.rating} su 5</span>
+                </div>
+                <p className="text-xs text-gray-500 font-bold">{product.reviews} valutazioni globali</p>
+                
+                <div className="space-y-2">
+                  {[
+                    { stars: 5, percentage: 75 },
+                    { stars: 4, percentage: 15 },
+                    { stars: 3, percentage: 5 },
+                    { stars: 2, percentage: 3 },
+                    { stars: 1, percentage: 2 },
+                  ].map((row) => (
+                    <div key={row.stars} className="flex items-center gap-3 text-xs">
+                      <span className="w-12 font-bold text-blue-600 hover:underline cursor-pointer">{row.stars} stelle</span>
+                      <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden border border-gray-200">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${row.percentage}%` }}
+                          className="h-full bg-brand-yellow"
+                        />
+                      </div>
+                      <span className="w-8 text-right text-gray-500 font-bold">{row.percentage}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Individual Reviews */}
+              <div className="flex-1 space-y-6">
+                {[
+                  { user: "Marco R.", date: "15 Marzo 2026", title: "Qualità eccellente", text: "Prodotto arrivato in anticipo. La qualità dei materiali è superiore alle aspettative. Bespoint non delude mai.", rating: 5 },
+                  { user: "Elena V.", date: "2 Febbraio 2026", title: "Ottimo rapporto qualità/prezzo", text: "Facile da installare e molto funzionale. Lo consiglio vivamente per chi cerca affidabilità.", rating: 4 },
+                ].map((rev, i) => (
+                  <div key={i} className="space-y-2 pb-6 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <span className="text-sm font-bold text-brand-dark">{rev.user}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className={`w-3 h-3 ${s <= rev.rating ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs font-black text-brand-dark">{rev.title}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold">Recensito il {rev.date}</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">{rev.text}</p>
+                    <div className="flex items-center gap-4 pt-2">
+                      <button className="px-4 py-1 border border-gray-300 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-colors">Utile</button>
+                      <button className="text-[10px] text-gray-400 font-bold hover:underline">Segnala</button>
+                    </div>
+                  </div>
+                ))}
+                <button className="text-sm font-bold text-blue-600 hover:underline">Leggi tutte le {product.reviews} recensioni</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Related Products Carousel */}
+          <div className="space-y-4 mb-12">
+            <div className="flex items-center justify-between pr-6">
+              <h4 className="font-black text-[10px] uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Prodotti Correlati</h4>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => scroll('left')}
+                  className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark active:scale-90 transition-transform"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => scroll('right')}
+                  className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark active:scale-90 transition-transform"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div 
+              ref={carouselRef}
+              className="flex overflow-x-auto no-scrollbar gap-3 pb-4 snap-x snap-mandatory px-0.5 scroll-smooth"
+            >
               {relatedProducts.map((p, idx) => (
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
                   viewport={{ once: true }}
                   key={p.id} 
-                  className="min-w-[140px] bg-white border border-gray-100 rounded-2xl p-3 shadow-sm"
+                  className="flex-shrink-0 w-[calc(50%-6px)] snap-start bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col"
                 >
                   <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-gray-50">
                     <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
-                  <h5 className="text-[10px] font-bold text-brand-dark line-clamp-1 mb-1">{p.name}</h5>
-                  <p className="text-xs font-black text-brand-blue">€{p.price.toFixed(2)}</p>
+                  <h5 className="text-[10px] font-bold text-brand-dark line-clamp-2 mb-1 h-8">{p.name}</h5>
+                  <div className="mt-auto pt-2 border-t border-gray-50 flex items-center justify-between">
+                    <p className="text-xs font-black text-brand-blue">€{p.price.toFixed(2)}</p>
+                    <div className="flex items-center gap-0.5">
+                      <Star className="w-2 h-2 text-brand-yellow fill-brand-yellow" />
+                      <span className="text-[8px] font-bold">{p.rating}</span>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -408,6 +527,53 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
           </button>
         </div>
       </motion.div>
+
+      {/* Fullscreen Lightbox */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-4"
+          >
+            <div className="absolute top-6 right-6 flex gap-4">
+              <button 
+                onClick={() => setIsLightboxOpen(false)}
+                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-4xl aspect-square sm:aspect-video rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <img 
+                src={activeImage} 
+                alt={product.name} 
+                className="w-full h-full object-contain bg-black"
+                referrerPolicy="no-referrer"
+              />
+            </motion.div>
+            
+            <div className="mt-8 flex gap-3 overflow-x-auto no-scrollbar max-w-full px-4">
+              {[product.image, ...product.gallery].map((img, idx) => (
+                <button 
+                  key={idx}
+                  onClick={() => setActiveImage(img)}
+                  className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-white/20"}`}
+                >
+                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
@@ -620,6 +786,7 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("newest");
   const [heroIndex, setHeroIndex] = useState(0);
   const [cartTrigger, setCartTrigger] = useState(0);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
@@ -644,13 +811,21 @@ export default function App() {
   }, [selectedCategory]);
 
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter(p => {
+    const filtered = PRODUCTS.filter(p => {
       const matchesCategory = selectedCategory === "Tutti" || p.category === selectedCategory;
       const matchesSubcategory = selectedSubcategory === "Tutti" || p.subcategory === selectedSubcategory;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSubcategory && matchesSearch;
     });
-  }, [selectedCategory, selectedSubcategory, searchQuery]);
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "price-asc") return a.price - b.price;
+      if (sortBy === "price-desc") return b.price - a.price;
+      if (sortBy === "rating") return b.rating - a.rating;
+      if (sortBy === "newest") return parseInt(b.id) - parseInt(a.id);
+      return 0;
+    });
+  }, [selectedCategory, selectedSubcategory, searchQuery, sortBy]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -678,14 +853,27 @@ export default function App() {
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const heroOpacity = useTransform(scrollY, [0, 150], [1, 0]);
-  const heroY = useTransform(scrollY, [0, 150], [0, -40]);
+  
+  // Smooth scroll-driven animations
+  const smoothScrollY = useSpring(scrollY, { stiffness: 100, damping: 30, restDelta: 0.001 });
+  
+  const heroOpacity = useTransform(smoothScrollY, [0, 150], [1, 0]);
+  const heroY = useTransform(smoothScrollY, [0, 150], [0, -40]);
 
-  // Header animations
-  const headerTopHeight = useTransform(scrollY, [0, 100], [64, 0]);
-  const headerTopOpacity = useTransform(scrollY, [0, 80], [1, 0]);
-  const headerTopScale = useTransform(scrollY, [0, 100], [1, 0.95]);
-  const parallaxY = useTransform(scrollY, [500, 1500], [0, -100]);
+  // Header animations with springs for "weight"
+  const headerTopHeightRaw = useTransform(smoothScrollY, [0, 100], [64, 0]);
+  const headerTopHeight = useSpring(headerTopHeightRaw, { stiffness: 400, damping: 40 });
+  
+  const headerTopOpacityRaw = useTransform(smoothScrollY, [0, 80], [1, 0]);
+  const headerTopOpacity = useSpring(headerTopOpacityRaw, { stiffness: 400, damping: 40 });
+  
+  const headerTopScaleRaw = useTransform(smoothScrollY, [0, 100], [1, 0.98]);
+  const headerTopScale = useSpring(headerTopScaleRaw, { stiffness: 400, damping: 40 });
+
+  const headerShadowOpacity = useTransform(smoothScrollY, [0, 100], [0, 0.2]);
+  const headerBgColor = useTransform(smoothScrollY, [0, 100], ["rgba(1, 31, 75, 1)", "rgba(1, 31, 75, 0.95)"]);
+  
+  const parallaxY = useTransform(smoothScrollY, [500, 1500], [0, -100]);
 
   return (
     <div className="min-h-screen pb-24 bg-gray-100">
@@ -701,7 +889,13 @@ export default function App() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-brand-blue shadow-lg">
+      <motion.header 
+        style={{ 
+          backgroundColor: headerBgColor,
+          boxShadow: useTransform(headerShadowOpacity, (v) => `0 10px 30px -10px rgba(0,0,0,${v})`)
+        }}
+        className="sticky top-0 z-40"
+      >
         {/* Animated Top Section (Logo, Desktop Search, Actions) */}
         <motion.div 
           style={{ height: headerTopHeight, opacity: headerTopOpacity, scale: headerTopScale }}
@@ -813,7 +1007,7 @@ export default function App() {
             </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Hero Banner (Amazon Style) */}
       {selectedCategory === "Tutti" ? (
@@ -933,10 +1127,32 @@ export default function App() {
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="flex items-center justify-between mb-4"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
         >
-          <h2 className="text-lg font-bold text-brand-dark">Prodotti in vetrina</h2>
-          <button className="text-xs font-bold text-blue-600">Vedi tutti</button>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-brand-dark">Prodotti in vetrina</h2>
+            <span className="text-xs text-gray-400 font-medium">({filteredProducts.length} risultati)</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <label htmlFor="sort" className="text-xs font-bold text-gray-500 uppercase tracking-widest">Ordina per:</label>
+            <div className="relative">
+              <select 
+                id="sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer"
+              >
+                <option value="newest">Novità</option>
+                <option value="price-asc">Prezzo: dal più basso</option>
+                <option value="price-desc">Prezzo: dal più alto</option>
+                <option value="rating">Valutazione</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <ChevronRight className="w-4 h-4 rotate-90" />
+              </div>
+            </div>
+          </div>
         </motion.div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {filteredProducts.length === 0 ? (
