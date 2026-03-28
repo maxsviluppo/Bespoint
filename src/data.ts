@@ -94,10 +94,59 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/mower1-2/800/800",
       "https://picsum.photos/seed/mower1-3/800/800"
     ],
-    has3D: true
+    has3D: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   },
   {
     id: "5",
+    name: "Smartphone X100 Pro",
+    price: 699.00,
+    category: "Elettronica",
+    subcategory: "Smartphone",
+    image: "https://picsum.photos/seed/phone1/800/800",
+    description: "Smartphone di ultima generazione con display OLED 120Hz, tripla fotocamera da 50MP e ricarica ultra-rapida.",
+    rating: 4.9,
+    reviews: 312,
+    specs: {
+      "Display": "6.7\" OLED",
+      "Processore": "Octa-core 3.2GHz",
+      "RAM": "12GB",
+      "Memoria": "256GB"
+    },
+    gallery: [
+      "https://picsum.photos/seed/phone1-1/800/800",
+      "https://picsum.photos/seed/phone1-2/800/800",
+      "https://picsum.photos/seed/phone1-3/800/800"
+    ],
+    has3D: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  {
+    id: "6",
+    name: "Smart TV 4K 55\"",
+    price: 449.00,
+    category: "Elettronica",
+    subcategory: "TV",
+    image: "https://picsum.photos/seed/tv1/800/800",
+    description: "Smart TV 4K HDR con sistema operativo integrato, supporto per tutte le principali app di streaming e audio Dolby Atmos.",
+    rating: 4.6,
+    reviews: 156,
+    specs: {
+      "Risoluzione": "4K UHD",
+      "Pannello": "LED HDR10+",
+      "Audio": "20W Dolby",
+      "Smart TV": "Android TV"
+    },
+    gallery: [
+      "https://picsum.photos/seed/tv1-1/800/800",
+      "https://picsum.photos/seed/tv1-2/800/800",
+      "https://picsum.photos/seed/tv1-3/800/800"
+    ],
+    has3D: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  {
+    id: "7",
     name: "Striscia LED RGB 5mt",
     price: 19.90,
     category: "Illuminazione",
@@ -117,10 +166,11 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/ledstrip1-2/800/800",
       "https://picsum.photos/seed/ledstrip1-3/800/800"
     ],
-    has3D: true
+    has3D: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   },
   {
-    id: "6",
+    id: "8",
     name: "Telecamera Wi-Fi Esterna",
     price: 59.00,
     category: "Sicurezza",
@@ -140,7 +190,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/cam1-2/800/800",
       "https://picsum.photos/seed/cam1-3/800/800"
     ],
-    has3D: true
+    has3D: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   }
 ];
 
@@ -148,8 +199,8 @@ export const CATEGORIES = ["Tutti", "Illuminazione", "Sicurezza", "Bricolage", "
 
 export const SUBCATEGORIES: Record<string, string[]> = {
   "Illuminazione": ["Interni", "Esterni", "Strisce LED", "Lampadine", "Smart Light"],
-  "Sicurezza": ["Allarmi", "Telecamere", "Serrature", "Sensori", "Accessori"],
-  "Bricolage": ["Elettroutensili", "Ferramenta", "Vernici", "Utensili a mano"],
-  "Giardinaggio": ["Tagliaerba", "Irrigazione", "Arredo", "Attrezzi"],
-  "Elettronica": ["Smart Home", "Audio", "Cavi", "Batterie"]
+  "Sicurezza": ["Allarmi", "Telecamere", "Serrature Smart", "Sensori"],
+  "Elettronica": ["Smartphone", "TV", "Audio", "Informatica"],
+  "Bricolage": ["Elettroutensili", "Utensili a mano", "Vernici", "Ferramenta"],
+  "Giardinaggio": ["Tagliaerba", "Irrigazione", "Arredo", "Attrezzi"]
 };

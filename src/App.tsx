@@ -251,7 +251,7 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                 className="group relative block aspect-video w-full rounded-3xl overflow-hidden shadow-xl border border-gray-100"
               >
                 <img 
-                  src={`https://img.youtube.com/vi/${product.videoUrl.split('v=')[1]}/maxresdefault.jpg`} 
+                  src={`https://img.youtube.com/vi/${product.videoUrl.includes('v=') ? product.videoUrl.split('v=')[1].split('&')[0] : product.videoUrl.split('/').pop()}/maxresdefault.jpg`} 
                   alt="Video Tutorial Thumbnail" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
@@ -901,14 +901,14 @@ export default function App() {
             paddingRight: isMenuExpanded ? "24px" : "0px",
           }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="bg-white/90 backdrop-blur-lg border border-gray-200 h-16 rounded-full flex items-center justify-center gap-8 shadow-2xl overflow-hidden"
+          className="bg-brand-blue backdrop-blur-lg border border-white/10 h-16 rounded-full flex items-center justify-center gap-8 shadow-2xl overflow-hidden"
         >
           <button 
             onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-            className={`flex flex-col items-center gap-1 transition-colors min-w-[64px] ${isMenuExpanded ? "text-brand-blue" : "text-brand-blue"}`}
+            className={`flex flex-col items-center gap-1 transition-colors min-w-[64px] ${isMenuExpanded ? "text-brand-yellow" : "text-brand-yellow"}`}
           >
             <Home className="w-6 h-6" />
-            {isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-widest">Home</span>}
+            {isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-widest text-white">Home</span>}
           </button>
 
           <AnimatePresence>
@@ -918,28 +918,28 @@ export default function App() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-gray-400 hover:text-brand-blue transition-colors"
+                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
                 >
                   <Compass className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Esplora</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Esplora</span>
                 </motion.button>
                 <motion.button 
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-gray-400 hover:text-brand-blue transition-colors"
+                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
                 >
                   <Heart className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Preferiti</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Preferiti</span>
                 </motion.button>
                 <motion.button 
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center gap-1 text-gray-400 hover:text-brand-blue transition-colors"
+                  className="flex flex-col items-center gap-1 text-brand-yellow/70 hover:text-brand-yellow transition-colors"
                 >
                   <MessageCircle className="w-6 h-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Chat</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white">Chat</span>
                 </motion.button>
               </>
             )}
