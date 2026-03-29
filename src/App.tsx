@@ -8,8 +8,10 @@ import {
   Plus, 
   Minus, 
   Maximize,
+  Shield,
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
   ArrowLeft,
   Home,
   Grid,
@@ -27,9 +29,14 @@ import {
   Box,
   Share2,
   Play,
-  Youtube
+  Youtube,
+  Upload,
+  Camera,
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
+import { GoogleGenAI, Type } from "@google/genai";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
 
@@ -143,7 +150,9 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
         onClick={onClick}
         className="aspect-square mb-3 cursor-pointer overflow-hidden rounded-lg bg-gray-50"
       >
-        <img src={product.image} alt={product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+        {product.image && (
+          <img src={product.image} alt={product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+        )}
       </motion.div>
       <motion.h3 
         initial={{ opacity: 0, x: -10 }}
@@ -244,7 +253,7 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.3 }}
-                src={activeImage} 
+                src={activeImage || undefined} 
                 alt={product.name} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -277,7 +286,9 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
               onClick={() => setActiveImage(product.image)}
               className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent"}`}
             >
-              <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {product.image && (
+                <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              )}
             </button>
             {product.gallery.map((img, idx) => (
               <button 
@@ -285,7 +296,9 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                 onClick={() => setActiveImage(img)}
                 className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent"}`}
               >
-                <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                {img && (
+                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                )}
               </button>
             ))}
             {product.has3D && (
@@ -483,7 +496,9 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                   className="flex-shrink-0 w-[calc(50%-6px)] snap-start bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col"
                 >
                   <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-gray-50">
-                    <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    {p.image && (
+                      <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    )}
                   </div>
                   <h5 className="text-[10px] font-bold text-brand-dark line-clamp-2 mb-1 h-8">{p.name}</h5>
                   <div className="mt-auto pt-2 border-t border-gray-50 flex items-center justify-between">
@@ -552,12 +567,14 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full max-w-4xl aspect-square sm:aspect-video rounded-2xl overflow-hidden shadow-2xl"
             >
-              <img 
-                src={activeImage} 
-                alt={product.name} 
-                className="w-full h-full object-contain bg-black"
-                referrerPolicy="no-referrer"
-              />
+              {activeImage && (
+                <img 
+                  src={activeImage} 
+                  alt={product.name} 
+                  className="w-full h-full object-contain bg-black"
+                  referrerPolicy="no-referrer"
+                />
+              )}
             </motion.div>
             
             <div className="mt-8 flex gap-3 overflow-x-auto no-scrollbar max-w-full px-4">
@@ -567,7 +584,9 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
                   onClick={() => setActiveImage(img)}
                   className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-white/20"}`}
                 >
-                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  {img && (
+                    <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  )}
                 </button>
               ))}
             </div>
@@ -629,7 +648,9 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
                 className="flex gap-4"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  {item.image && (
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
@@ -671,7 +692,7 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
   );
 };
 
-const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void; key?: string }) => {
+const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSettings }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void; companySettings: any; pageSettings: any; key?: string }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -684,18 +705,22 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onCl
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
           />
           <motion.div
-            initial={{ x: "100%" }}
+            initial={{ x: "-100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-80 bg-brand-blue text-white z-[70] shadow-2xl flex flex-col p-6"
+            className="fixed top-0 left-0 bottom-0 w-80 bg-brand-blue text-white z-[70] shadow-2xl flex flex-col p-6"
           >
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center">
-                  <span className="text-brand-dark font-black text-lg italic">B</span>
+                <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden">
+                  {companySettings.logo.startsWith('http') ? (
+                    <img src={companySettings.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-brand-dark font-black text-lg">{companySettings.logo}</span>
+                  )}
                 </div>
-                <h2 className="text-xl font-bold italic tracking-tighter">BESPOINT</h2>
+                <h2 className="text-xl font-bold tracking-tighter">{companySettings.name}</h2>
               </div>
               <button onClick={onClose} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
                 <X className="w-5 h-5" />
@@ -717,7 +742,7 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory }: { isOpen: boolean; onCl
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Categorie</h3>
-                {CATEGORIES.map(cat => (
+                {pageSettings.categories.map(cat => (
                   <button 
                     key={cat} 
                     onClick={() => {
@@ -778,6 +803,95 @@ const PROMO_ITEMS = [
   { id: 8, title: "Accessori", subtitle: "Tutto il resto", color: "bg-gray-800", seed: "acc" },
 ];
 
+const SlideSection = ({ slides }: { slides: any[] }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  if (slides.length === 0) return null;
+
+  const currentSlide = slides[index];
+
+  return (
+    <section className="px-4 mb-12">
+      <div className="relative aspect-[21/9] rounded-[32px] overflow-hidden shadow-xl group">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="w-full h-full"
+          >
+            {currentSlide.link ? (
+              <a href={currentSlide.link} className="block w-full h-full">
+                {currentSlide.url && (
+                  <img 
+                    src={currentSlide.url} 
+                    alt={currentSlide.alt} 
+                    title={currentSlide.title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </a>
+            ) : (
+              currentSlide.url && (
+                <img 
+                  src={currentSlide.url} 
+                  alt={currentSlide.alt} 
+                  title={currentSlide.title}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              )
+            )}
+            
+            {(currentSlide.title || currentSlide.alt) && (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-8">
+                <motion.h3 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-2xl font-black text-white uppercase tracking-tighter mb-1"
+                >
+                  {currentSlide.title}
+                </motion.h3>
+                <motion.p 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-white/80 text-sm font-bold"
+                >
+                  {currentSlide.alt}
+                </motion.p>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {slides.length > 1 && (
+          <div className="absolute bottom-4 right-8 flex gap-2 z-20">
+            {slides.map((_, i) => (
+              <button 
+                key={i}
+                onClick={() => setIndex(i)}
+                className={`w-2 h-2 rounded-full transition-all ${i === index ? "bg-brand-yellow w-6" : "bg-white/40"}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
 export default function App() {
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
   const [selectedSubcategory, setSelectedSubcategory] = useState("Tutti");
@@ -785,6 +899,203 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isMobileAdminMenuOpen, setIsMobileAdminMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo'>('company');
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [addingSubcategoryTo, setAddingSubcategoryTo] = useState<string | null>(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [isAiSuggesting, setIsAiSuggesting] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{ categories: string[], subcategories: Record<string, string[]> } | null>(null);
+  const [companySettings, setCompanySettings] = useState(() => {
+    const saved = localStorage.getItem('companySettings');
+    return saved ? JSON.parse(saved) : {
+      logo: "B",
+      name: "BesPoint",
+      legalName: "Bespoint S.r.l.",
+      legalAddress: "Via della Tecnologia 123, Roma",
+      phone: "+39 06 1234567",
+      email: "info@bespoint.it",
+      bioLink: "linktr.ee/bespoint",
+      mission: "La tecnologia che si adatta al tuo stile di vita. Scopri l'innovazione senza compromessi.",
+      socials: {
+        facebook: "https://facebook.com/bespoint",
+        instagram: "https://instagram.com/bespoint",
+        twitter: "https://twitter.com/bespoint"
+      }
+    };
+  });
+
+  // Force BesPoint branding if it's still the old one
+  useEffect(() => {
+    if (companySettings.name === "BESPOINT") {
+      setCompanySettings(prev => ({ ...prev, name: "BesPoint" }));
+    }
+  }, [companySettings.name]);
+
+  const [pageSettings, setPageSettings] = useState(() => {
+    const saved = localStorage.getItem('pageSettings');
+    const defaultBanners: Record<string, any> = {};
+    const defaultHomeSlides: any[] = [];
+
+    // Use CATEGORIES and SUBCATEGORIES from data.ts as initial defaults if not saved
+    const initialCategories = CATEGORIES;
+    const initialSubcategories = SUBCATEGORIES;
+
+    initialCategories.filter(c => c !== "Tutti").forEach((cat, index) => {
+      defaultBanners[cat] = { 
+        url: `https://picsum.photos/seed/${cat.toLowerCase()}/1920/600`, 
+        alt: cat, 
+        title: cat,
+        link: "" 
+      };
+
+      // Top Slide - Only for the first category
+      if (index === 0) {
+        defaultHomeSlides.push({
+          id: `top-${cat}`,
+          url: `https://picsum.photos/seed/${cat.toLowerCase()}-top/1920/1080`,
+          alt: `Scopri la nostra selezione di ${cat}`,
+          title: cat,
+          link: "",
+          position: "home_top"
+        });
+      }
+
+      // Middle Slide
+      defaultHomeSlides.push({
+        id: `mid-${cat}`,
+        url: `https://picsum.photos/seed/${cat.toLowerCase()}-mid/1920/600`,
+        alt: `Le migliori offerte per ${cat}`,
+        title: `Specialisti in ${cat}`,
+        link: "",
+        position: "home_middle"
+      });
+
+      // Bottom Slide
+      defaultHomeSlides.push({
+        id: `bot-${cat}`,
+        url: `https://picsum.photos/seed/${cat.toLowerCase()}-bot/1920/600`,
+        alt: `Qualità garantita per ${cat}`,
+        title: `Il meglio di ${cat}`,
+        link: "",
+        position: "home_bottom"
+      });
+    });
+
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      
+      // Ensure categories and subcategories exist in saved settings
+      if (!parsed.categories) parsed.categories = initialCategories;
+      if (!parsed.subcategories) parsed.subcategories = initialSubcategories;
+
+      // Ensure all current categories exist in saved settings banners
+      parsed.categories.filter((c: string) => c !== "Tutti").forEach((cat: string) => {
+        if (!parsed.categoryBanners[cat]) {
+          parsed.categoryBanners[cat] = { 
+            url: `https://picsum.photos/seed/${cat.toLowerCase()}/1920/600`, 
+            alt: cat, 
+            title: cat,
+            link: "" 
+          };
+        }
+      });
+
+      // Prune top slides if more than 1 (as per user request: "Elimina slide top 2 fino a 6")
+      const topSlides = parsed.homeSlides.filter((s: any) => s.position === 'home_top' || !s.position);
+      if (topSlides.length > 1) {
+        const otherSlides = parsed.homeSlides.filter((s: any) => s.position !== 'home_top' && s.position);
+        parsed.homeSlides = [topSlides[0], ...otherSlides];
+      }
+
+      return parsed;
+    }
+
+    return {
+      homeSlides: defaultHomeSlides,
+      categoryBanners: defaultBanners,
+      categories: initialCategories,
+      subcategories: initialSubcategories
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('companySettings', JSON.stringify(companySettings));
+  }, [companySettings]);
+
+  useEffect(() => {
+    localStorage.setItem('pageSettings', JSON.stringify(pageSettings));
+  }, [pageSettings]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        callback(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  const handleAiSuggest = async () => {
+    setIsAiSuggesting(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Analizza questi prodotti e suggerisci una struttura gerarchica di categorie e sottocategorie. 
+        Restituisci un oggetto JSON con un array 'categories' (stringhe) e un oggetto 'subcategories' (che mappa i nomi delle categorie ad array di stringhe).
+        Includi solo categorie e sottocategorie rilevanti per i prodotti forniti.
+        Prodotti: ${JSON.stringify(PRODUCTS.map(p => ({ name: p.name, category: p.category, subcategory: p.subcategory })))}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              categories: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              subcategories: {
+                type: Type.OBJECT,
+                properties: {
+                  // Dynamic keys are tricky in responseSchema, but we can describe it generally
+                }
+              }
+            },
+            required: ["categories", "subcategories"]
+          }
+        }
+      });
+      
+      const jsonStr = response.text.trim();
+      const suggestions = JSON.parse(jsonStr);
+      
+      // Ensure "Tutti" is in categories
+      if (!suggestions.categories.includes("Tutti")) {
+        suggestions.categories.unshift("Tutti");
+      }
+      
+      setAiSuggestions(suggestions);
+    } catch (error) {
+      console.error("AI Suggestion error:", error);
+      alert("Errore durante il suggerimento AI. Riprova.");
+    } finally {
+      setIsAiSuggesting(false);
+    }
+  };
+
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
   const [heroIndex, setHeroIndex] = useState(0);
@@ -796,15 +1107,23 @@ export default function App() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsHeaderHidden(latest > 100);
-
     lastScrollY.current = latest;
   });
+
+  const topSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position) && s.url), [pageSettings.homeSlides]);
+  const middleSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle' && s.url), [pageSettings.homeSlides]);
+  const bottomSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom' && s.url), [pageSettings.homeSlides]);
+
   useEffect(() => {
+    if (topSlides.length <= 1) {
+      setHeroIndex(0);
+      return;
+    }
     const timer = setInterval(() => {
-      setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+      setHeroIndex((prev) => (prev + 1) % topSlides.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [topSlides.length]);
 
   useEffect(() => {
     setSelectedSubcategory("Tutti");
@@ -862,13 +1181,13 @@ export default function App() {
 
   // Header animations with springs for "weight"
   const headerTopHeightRaw = useTransform(smoothScrollY, [0, 100], [64, 0]);
-  const headerTopHeight = useSpring(headerTopHeightRaw, { stiffness: 400, damping: 40 });
+  const headerTopHeight = useSpring(isDesktop ? useTransform(smoothScrollY, [0, 1], [64, 64]) : headerTopHeightRaw, { stiffness: 400, damping: 40 });
   
   const headerTopOpacityRaw = useTransform(smoothScrollY, [0, 80], [1, 0]);
-  const headerTopOpacity = useSpring(headerTopOpacityRaw, { stiffness: 400, damping: 40 });
+  const headerTopOpacity = useSpring(isDesktop ? useTransform(smoothScrollY, [0, 1], [1, 1]) : headerTopOpacityRaw, { stiffness: 400, damping: 40 });
   
   const headerTopScaleRaw = useTransform(smoothScrollY, [0, 100], [1, 0.98]);
-  const headerTopScale = useSpring(headerTopScaleRaw, { stiffness: 400, damping: 40 });
+  const headerTopScale = useSpring(isDesktop ? useTransform(smoothScrollY, [0, 1], [1, 1]) : headerTopScaleRaw, { stiffness: 400, damping: 40 });
 
   const headerShadowOpacity = useTransform(smoothScrollY, [0, 100], [0, 0.2]);
   const headerBgColor = useTransform(smoothScrollY, [0, 100], ["rgba(1, 31, 75, 1)", "rgba(1, 31, 75, 0.95)"]);
@@ -880,7 +1199,7 @@ export default function App() {
       {/* Top Bar (Amazon Style) */}
       <div className="bg-brand-dark text-white px-4 py-2 flex items-center justify-between text-xs font-medium">
         <div className="flex items-center gap-2">
-          <span>Consegna a Massimo - Roma 00100</span>
+          <span>Consegna a Massimo - {companySettings.legalAddress.split(',').pop()?.trim()}</span>
         </div>
         <div className="flex items-center gap-4">
           <span>Aiuto</span>
@@ -901,17 +1220,29 @@ export default function App() {
           style={{ height: headerTopHeight, opacity: headerTopOpacity, scale: headerTopScale }}
           className="px-4 flex items-center justify-between gap-4 overflow-hidden origin-top"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center">
-              <span className="text-brand-dark font-black text-lg">B</span>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSideMenuOpen(true)}
+              className="text-white hover:text-brand-yellow transition-colors"
+            >
+              <Menu className="w-7 h-7" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden">
+                {companySettings.logo.startsWith('http') ? (
+                  <img src={companySettings.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-brand-dark font-black text-lg">{companySettings.logo}</span>
+                )}
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-white">{companySettings.name}</h1>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Bespoint</h1>
           </div>
           
           <div className="flex-1 relative hidden md:block">
             <input 
               type="text" 
-              placeholder="Cerca su Bespoint..."
+              placeholder={`Cerca su ${companySettings.name}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-10 bg-white rounded-md pl-4 pr-10 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow"
@@ -949,12 +1280,6 @@ export default function App() {
               </motion.div>
               <span className="text-sm font-bold hidden sm:inline">Carrello</span>
             </button>
-            <button 
-              onClick={() => setIsSideMenuOpen(true)}
-              className="text-white hover:text-brand-yellow transition-colors"
-            >
-              <Menu className="w-8 h-8" />
-            </button>
           </div>
         </motion.div>
 
@@ -973,7 +1298,7 @@ export default function App() {
           )}
           
           <div className="flex overflow-x-auto no-scrollbar gap-4 items-center flex-1 scroll-smooth">
-            {(selectedCategory === "Tutti" ? CATEGORIES : ["Tutti", ...(SUBCATEGORIES[selectedCategory] || [])]).map((cat, idx) => (
+            {(selectedCategory === "Tutti" ? pageSettings.categories : ["Tutti", ...(pageSettings.subcategories[selectedCategory] || [])]).map((cat, idx) => (
               <motion.button
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1021,21 +1346,42 @@ export default function App() {
           <div className="h-64 sm:h-80 w-full relative">
             <div className="absolute inset-0 bg-gradient-to-b from-brand-blue/40 to-transparent z-10" />
             <AnimatePresence mode="wait">
-              <motion.img 
+              <motion.div
                 key={heroIndex}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 1 }}
-                src={HERO_IMAGES[heroIndex]} 
-                alt="Hero Context" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+                className="w-full h-full"
+              >
+                {topSlides[heroIndex]?.link ? (
+                  <a href={topSlides[heroIndex].link} className="block w-full h-full">
+                    <img 
+                      src={topSlides[heroIndex]?.url || "https://picsum.photos/seed/hero/1920/1080"} 
+                      alt={topSlides[heroIndex]?.alt || "Hero Context"} 
+                      title={topSlides[heroIndex]?.title || ""}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </a>
+                ) : (
+                  <img 
+                    src={topSlides[heroIndex]?.url || "https://picsum.photos/seed/hero/1920/1080"} 
+                    alt={topSlides[heroIndex]?.alt || "Hero Context"} 
+                    title={topSlides[heroIndex]?.title || ""}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </motion.div>
             </AnimatePresence>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-12 px-6 z-20">
-              <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter drop-shadow-lg">Offerte del Giorno</h2>
-              <p className="text-sm text-white/90 mb-4 font-bold drop-shadow-md">Risparmia fino al 40% su tutta la tecnologia Bespoint.</p>
+              <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter drop-shadow-lg">
+                {topSlides[heroIndex]?.title || "Offerte del Giorno"}
+              </h2>
+              <p className="text-sm text-white/90 mb-4 font-bold drop-shadow-md">
+                {topSlides[heroIndex]?.alt || "Risparmia fino al 40% su tutta la tecnologia Bespoint."}
+              </p>
             </div>
           </div>
         </motion.section>
@@ -1045,23 +1391,37 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           className="relative w-full h-48 sm:h-64 overflow-hidden mb-8"
         >
-          <img 
-            src={`https://picsum.photos/seed/${selectedCategory.toLowerCase()}/1200/600`} 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-dark/90 via-brand-dark/40 to-transparent flex flex-col justify-center px-6 sm:px-12">
+          {pageSettings.categoryBanners[selectedCategory]?.link ? (
+            <a href={pageSettings.categoryBanners[selectedCategory].link} className="block w-full h-full">
+              <img 
+                src={pageSettings.categoryBanners[selectedCategory]?.url || `https://picsum.photos/seed/${selectedCategory.toLowerCase()}/1200/600`} 
+                alt={pageSettings.categoryBanners[selectedCategory]?.alt || selectedCategory}
+                title={pageSettings.categoryBanners[selectedCategory]?.title || selectedCategory}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </a>
+          ) : (
+            <img 
+              src={pageSettings.categoryBanners[selectedCategory]?.url || `https://picsum.photos/seed/${selectedCategory.toLowerCase()}/1200/600`} 
+              alt={pageSettings.categoryBanners[selectedCategory]?.alt || selectedCategory}
+              title={pageSettings.categoryBanners[selectedCategory]?.title || selectedCategory}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-dark/90 via-brand-dark/40 to-transparent flex flex-col justify-center px-6 sm:px-12 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
               <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tighter mb-2">
-                {selectedCategory}
+                {pageSettings.categoryBanners[selectedCategory]?.title || selectedCategory}
               </h2>
               <div className="w-16 h-1 bg-brand-yellow mb-4" />
               <p className="text-white/80 font-bold text-sm max-w-md">
-                Esplora la nostra selezione premium di prodotti per {selectedCategory.toLowerCase()}. Qualità garantita Bespoint.
+                {pageSettings.categoryBanners[selectedCategory]?.alt || `Esplora la nostra selezione premium di prodotti per ${selectedCategory.toLowerCase()}. Qualità garantita Bespoint.`}
               </p>
             </motion.div>
           </div>
@@ -1070,55 +1430,67 @@ export default function App() {
 
       {/* Promo Horizontal Scroll */}
       {selectedCategory === "Tutti" && (
-        <section className="px-4 mb-12">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="flex items-center justify-between mb-4"
-          >
-            <h2 className="text-lg font-bold text-brand-dark">Offerte del giorno</h2>
-            <button className="text-xs font-bold text-blue-600">Vedi tutte</button>
-          </motion.div>
-          <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4">
-            {PROMO_ITEMS.map((item, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.8, x: 20 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 100, 
-                  damping: 15, 
-                  delay: idx * 0.1 
-                }}
-                key={item.id}
-                className={`${item.color} rounded-2xl p-4 h-40 min-w-[160px] sm:min-w-[200px] flex flex-col justify-between overflow-hidden relative group cursor-pointer flex-shrink-0 shadow-lg`}
-              >
+        <>
+          <section className="px-4 mb-12">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-between mb-4"
+            >
+              <h2 className="text-lg font-bold text-brand-dark">Offerte del giorno</h2>
+              <button className="text-xs font-bold text-blue-600">Vedi tutte</button>
+            </motion.div>
+            <div className="flex overflow-x-auto lg:grid lg:grid-cols-12 lg:grid-rows-2 lg:h-[450px] no-scrollbar gap-4 pb-4">
+              {PROMO_ITEMS.map((item, idx) => (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 + 0.2 }}
-                  className="z-10"
+                  initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 100, 
+                    damping: 15, 
+                    delay: idx * 0.1 
+                  }}
+                  key={item.id}
+                  className={`${item.color} rounded-2xl p-4 h-40 lg:h-full min-w-[160px] sm:min-w-[200px] flex flex-col justify-between overflow-hidden relative group cursor-pointer flex-shrink-0 shadow-lg ${
+                    idx === 0 ? "lg:col-span-4 lg:row-span-2" : 
+                    idx === 1 ? "lg:col-span-4 lg:row-span-1" :
+                    idx === 2 ? "lg:col-span-4 lg:row-span-1" :
+                    idx === 3 ? "lg:col-span-2 lg:row-span-1" :
+                    idx === 4 ? "lg:col-span-3 lg:row-span-1" :
+                    idx === 5 ? "lg:col-span-3 lg:row-span-1" :
+                    "lg:hidden"
+                  }`}
                 >
-                  <h3 className={`${item.color === "bg-brand-yellow" ? "text-brand-dark" : "text-white"} font-bold text-sm mb-1`}>
-                    {item.title}
-                  </h3>
-                  <p className={`${item.color === "bg-brand-yellow" ? "text-brand-blue" : "text-brand-yellow"} text-[10px] font-bold`}>
-                    {item.subtitle}
-                  </p>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 + 0.2 }}
+                    className="z-10"
+                  >
+                    <h3 className={`${item.color === "bg-brand-yellow" ? "text-brand-dark" : "text-white"} font-bold text-sm mb-1`}>
+                      {item.title}
+                    </h3>
+                    <p className={`${item.color === "bg-brand-yellow" ? "text-brand-blue" : "text-brand-yellow"} text-[10px] font-bold`}>
+                      {item.subtitle}
+                    </p>
+                  </motion.div>
+                  <motion.img 
+                    initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
+                    animate={{ opacity: 0.5, scale: 1, rotate: 0 }}
+                    transition={{ delay: idx * 0.1 + 0.3, type: "spring" }}
+                    src={`https://picsum.photos/seed/${item.seed}/300/300`} 
+                    className="absolute right-[-20px] bottom-[-20px] w-24 h-24 object-cover rounded-full group-hover:scale-110 transition-transform" 
+                    referrerPolicy="no-referrer"
+                  />
                 </motion.div>
-                <motion.img 
-                  initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
-                  animate={{ opacity: 0.5, scale: 1, rotate: 0 }}
-                  transition={{ delay: idx * 0.1 + 0.3, type: "spring" }}
-                  src={`https://picsum.photos/seed/${item.seed}/300/300`} 
-                  className="absolute right-[-20px] bottom-[-20px] w-24 h-24 object-cover rounded-full group-hover:scale-110 transition-transform" 
-                  referrerPolicy="no-referrer"
-                />
-              </motion.div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+
+          <SlideSection slides={middleSlides} />
+        </>
       )}
 
       {/* Product Grid Section */}
@@ -1154,7 +1526,7 @@ export default function App() {
             </div>
           </div>
         </motion.div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {filteredProducts.length === 0 ? (
             <div className="col-span-full py-12 text-center bg-white rounded-xl shadow-sm">
               <p className="text-gray-400 font-medium">Nessun prodotto trovato</p>
@@ -1173,6 +1545,8 @@ export default function App() {
           )}
         </div>
       </section>
+
+      {selectedCategory === "Tutti" && <SlideSection slides={bottomSlides} />}
 
       {/* Parallax Floating Banner */}
       {selectedCategory === "Tutti" && (
@@ -1211,7 +1585,7 @@ export default function App() {
                 transition={{ delay: 0.3 }}
                 className="text-white/90 font-bold max-w-md drop-shadow-md mb-6"
               >
-                La tecnologia che si adatta al tuo stile di vita. Scopri l'innovazione senza compromessi.
+                {companySettings.mission}
               </motion.p>
               <motion.button 
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -1234,23 +1608,23 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-brand-yellow rounded-xl flex items-center justify-center">
-                <span className="text-brand-dark font-black text-xl italic">B</span>
+                <span className="text-brand-dark font-black text-xl italic">{companySettings.logo}</span>
               </div>
-              <h1 className="text-2xl font-black italic tracking-tighter">BESPOINT</h1>
+              <h1 className="text-2xl font-black italic tracking-tighter">{companySettings.name}</h1>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Il tuo punto di riferimento per la tecnologia e l'illuminazione di design. Qualità, innovazione e assistenza dedicata.
+              {companySettings.mission}
             </p>
             <div className="flex gap-4">
-              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
+              <a href={companySettings.socials.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
                 <Facebook className="w-5 h-5" />
-              </button>
-              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
+              </a>
+              <a href={companySettings.socials.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
                 <Instagram className="w-5 h-5" />
-              </button>
-              <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
+              </a>
+              <a href={companySettings.socials.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-blue transition-colors">
                 <Twitter className="w-5 h-5" />
-              </button>
+              </a>
             </div>
           </div>
 
@@ -1284,22 +1658,28 @@ export default function App() {
             <ul className="space-y-4 text-gray-400 text-sm">
               <li className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-brand-blue" />
-                <span>Via della Tecnologia 123, Roma</span>
+                <span>{companySettings.legalAddress}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-brand-blue" />
-                <span>+39 06 1234567</span>
+                <span>{companySettings.phone}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-brand-blue" />
-                <span>info@bespoint.it</span>
+                <span>{companySettings.email}</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-16 pt-8 border-t border-white/10 text-center text-gray-500 text-xs">
-          <p>&copy; 2026 BESPOINT S.r.l. - Tutti i diritti riservati - P.IVA 12345678901</p>
+        <div className="mt-16 pt-8 border-t border-white/10 text-center text-gray-500 text-xs flex flex-col items-center gap-4">
+          <p>© 2026 {companySettings.name}. Tutti i diritti riservati - {companySettings.legalName}</p>
+          <button 
+            onClick={() => setIsAdminOpen(true)}
+            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-yellow hover:text-brand-dark transition-all opacity-20 hover:opacity-100"
+          >
+            <Shield className="w-5 h-5" />
+          </button>
         </div>
       </footer>
 
@@ -1327,6 +1707,8 @@ export default function App() {
           isOpen={isSideMenuOpen} 
           onClose={() => setIsSideMenuOpen(false)} 
           onSelectCategory={setSelectedCategory}
+          companySettings={companySettings}
+          pageSettings={pageSettings}
         />
         <CartSplash 
           key="cart-splash"
@@ -1334,6 +1716,1161 @@ export default function App() {
           isMenuHidden={isHeaderHidden} 
           count={cartCount} 
         />
+        {isAdminOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white z-[200] flex flex-col md:flex-row overflow-hidden"
+          >
+            {/* Mobile Admin Header */}
+            <div className="md:hidden flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-brand-blue rounded-lg flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-brand-yellow" />
+                </div>
+                <h3 className="font-black text-brand-dark uppercase tracking-tighter text-sm">Admin Panel</h3>
+              </div>
+              <button 
+                onClick={() => setIsMobileAdminMenuOpen(!isMobileAdminMenuOpen)}
+                className="p-2 text-brand-dark hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                {isMobileAdminMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+
+            {/* Sidebar Menu */}
+            <motion.div 
+              initial={false}
+              animate={{ 
+                width: window.innerWidth < 768 ? (isMobileAdminMenuOpen ? '100%' : 0) : (isSidebarCollapsed ? 80 : 256),
+                x: window.innerWidth < 768 && !isMobileAdminMenuOpen ? -300 : 0,
+                opacity: window.innerWidth < 768 && !isMobileAdminMenuOpen ? 0 : 1
+              }}
+              className={`bg-gray-50 border-r border-gray-100 flex flex-col p-6 relative transition-all duration-300 z-40 ${window.innerWidth < 768 ? (isMobileAdminMenuOpen ? 'fixed inset-0 pt-20' : 'hidden') : ''}`}
+            >
+                <button 
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-100 rounded-full items-center justify-center shadow-sm z-10 hover:bg-brand-yellow transition-colors"
+                >
+                  {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                </button>
+
+                <div className="hidden md:flex items-center gap-3 mb-10 overflow-hidden">
+                  <div className="w-10 h-10 bg-brand-blue rounded-xl flex-shrink-0 flex items-center justify-center">
+                    <Shield className="w-6 h-6 text-brand-yellow" />
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <h3 className="font-black text-brand-dark uppercase tracking-tighter whitespace-nowrap">Admin Panel</h3>
+                  )}
+                </div>
+                
+                <nav className="space-y-2 flex-1">
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('company');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'company' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Grid className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Azienda</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('slides');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'slides' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Play className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Slide</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('seo');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'seo' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Search className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>SEO</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('categories');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'categories' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Compass className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Categorie</span>}
+                  </button>
+                </nav>
+
+                <button 
+                  onClick={() => setIsAdminOpen(false)}
+                  className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <X className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                  {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Esci</span>}
+                </button>
+              </motion.div>
+
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto p-8 md:p-12">
+                {adminActiveTab === 'company' && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Configurazione Azienda</h2>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Basic Info */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Informazioni Base</h4>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Logo (Testo)</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.logo}
+                            onChange={(e) => setCompanySettings({...companySettings, logo: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Nome Brand</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.name}
+                            onChange={(e) => setCompanySettings({...companySettings, name: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Ragione Sociale</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.legalName}
+                            onChange={(e) => setCompanySettings({...companySettings, legalName: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Contatti</h4>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Sede Legale</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.legalAddress}
+                            onChange={(e) => setCompanySettings({...companySettings, legalAddress: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Telefono</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.phone}
+                            onChange={(e) => setCompanySettings({...companySettings, phone: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Email</span>
+                          <input 
+                            type="email" 
+                            value={companySettings.email}
+                            onChange={(e) => setCompanySettings({...companySettings, email: e.target.value})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Mission & Bio */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Identità</h4>
+                      <label className="block">
+                        <span className="text-xs font-black uppercase tracking-widest text-gray-400">Mission Aziendale</span>
+                        <textarea 
+                          rows={3}
+                          value={companySettings.mission}
+                          onChange={(e) => setCompanySettings({...companySettings, mission: e.target.value})}
+                          className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-black uppercase tracking-widest text-gray-400">Link Bio / Social Linktree</span>
+                        <input 
+                          type="text" 
+                          value={companySettings.bioLink}
+                          onChange={(e) => setCompanySettings({...companySettings, bioLink: e.target.value})}
+                          className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Socials */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Social Media</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <label className="block">
+                          <span className="text-[10px] font-black uppercase text-gray-400">Facebook URL</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.socials.facebook}
+                            onChange={(e) => setCompanySettings({...companySettings, socials: {...companySettings.socials, facebook: e.target.value}})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[10px] font-black uppercase text-gray-400">Instagram URL</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.socials.instagram}
+                            onChange={(e) => setCompanySettings({...companySettings, socials: {...companySettings.socials, instagram: e.target.value}})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[10px] font-black uppercase text-gray-400">Twitter URL</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.socials.twitter}
+                            onChange={(e) => setCompanySettings({...companySettings, socials: {...companySettings.socials, twitter: e.target.value}})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {adminActiveTab === 'slides' && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">GESTIONE SLIDE</h2>
+                      <button 
+                        onClick={() => {
+                          const newSlides: any[] = [];
+                          const categories = pageSettings.categories.filter(c => c !== "Tutti");
+                          
+                          // Only one Top Slide (first category)
+                          if (categories.length > 0) {
+                            const cat = categories[0];
+                            newSlides.push({ 
+                              id: `top-${cat}-${Date.now()}`, 
+                              url: `https://picsum.photos/seed/${cat.toLowerCase()}-top/1920/1080`, 
+                              alt: `Scopri ${cat}`, 
+                              title: cat, 
+                              link: "", 
+                              position: "home_top" 
+                            });
+                          }
+
+                          categories.forEach(cat => {
+                            newSlides.push({ 
+                              id: `mid-${cat}-${Date.now()}`, 
+                              url: `https://picsum.photos/seed/${cat.toLowerCase()}-mid/1920/600`, 
+                              alt: `Offerte ${cat}`, 
+                              title: `Specialisti in ${cat}`, 
+                              link: "", 
+                              position: "home_middle" 
+                            });
+                            newSlides.push({ 
+                              id: `bot-${cat}-${Date.now()}`, 
+                              url: `https://picsum.photos/seed/${cat.toLowerCase()}-bot/1920/600`, 
+                              alt: `Qualità ${cat}`, 
+                              title: `Il meglio di ${cat}`, 
+                              link: "", 
+                              position: "home_bottom" 
+                            });
+                          });
+                          setPageSettings({ ...pageSettings, homeSlides: newSlides });
+                        }}
+                        className="bg-brand-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-lg active:scale-95"
+                      >
+                        Genera Slide per Categoria
+                      </button>
+                    </div>
+
+                    {/* Home Slides Management */}
+                    <div className="space-y-6">
+                      {/* TOP SLIDES */}
+                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                          <div>
+                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                              <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
+                              Slide Top (Hero)
+                            </h3>
+                          </div>
+                          <button 
+                            onClick={() => setPageSettings({
+                              ...pageSettings,
+                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_top" }]
+                            })}
+                            className="flex items-center gap-1.5 bg-brand-blue text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-dark transition-all shadow-md hover:scale-105 active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Aggiungi Slide Top
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                          {pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position)).length === 0 ? (
+                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
+                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide top configurata</p>
+                            </div>
+                          ) : (
+                            pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position)).map((slide: any, idx: number) => (
+                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-brand-yellow transition-all">
+                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                                  <span className="text-[8px] font-black uppercase bg-brand-yellow px-2 py-1 rounded-md text-brand-dark shadow-sm">
+                                    Slide Top #{idx + 1}
+                                  </span>
+                                  <button 
+                                    onClick={() => setPageSettings({
+                                      ...pageSettings,
+                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
+                                    })}
+                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                                  <div className="space-y-3">
+                                    <div className="space-y-1">
+                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                      <div className="flex gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={slide.url}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
+                                          })}
+                                          className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                          placeholder="https://..."
+                                        />
+                                        <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                                          <Upload className="w-4 h-4 text-brand-blue" />
+                                          <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) {
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => {
+                                                  setPageSettings({
+                                                    ...pageSettings,
+                                                    homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
+                                                  });
+                                                };
+                                                reader.readAsDataURL(file);
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                      <input 
+                                        type="text" 
+                                        value={slide.link}
+                                        onChange={(e) => setPageSettings({
+                                          ...pageSettings,
+                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
+                                        })}
+                                        className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                        placeholder="/categoria/..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                        <input 
+                                          type="text" 
+                                          value={slide.title}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
+                                          })}
+                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                        <input 
+                                          type="text" 
+                                          value={slide.alt}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
+                                          })}
+                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    {slide.url && (
+                                      <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
+                                        <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* MIDDLE SLIDES */}
+                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                          <div>
+                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                              <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
+                              Slide Middle
+                            </h3>
+                          </div>
+                          <button 
+                            onClick={() => setPageSettings({
+                              ...pageSettings,
+                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_middle" }]
+                            })}
+                            className="flex items-center gap-1.5 bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-dark hover:text-white transition-all shadow-md hover:scale-105 active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Aggiungi Slide Middle
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                          {pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle').length === 0 ? (
+                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
+                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide middle configurata</p>
+                            </div>
+                          ) : (
+                            pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle').map((slide: any, idx: number) => (
+                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-brand-blue transition-all">
+                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                                  <span className="text-[8px] font-black uppercase bg-brand-blue text-white px-2 py-1 rounded-md shadow-sm">
+                                    Slide Middle #{idx + 1}
+                                  </span>
+                                  <button 
+                                    onClick={() => setPageSettings({
+                                      ...pageSettings,
+                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
+                                    })}
+                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                                    <div className="space-y-3">
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                        <div className="flex gap-2">
+                                          <input 
+                                            type="text" 
+                                            value={slide.url}
+                                            onChange={(e) => setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
+                                            })}
+                                            className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                            placeholder="https://..."
+                                          />
+                                          <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                                            <Upload className="w-4 h-4 text-brand-blue" />
+                                            <input 
+                                              type="file" 
+                                              className="hidden" 
+                                              accept="image/*"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const reader = new FileReader();
+                                                  reader.onloadend = () => {
+                                                    setPageSettings({
+                                                      ...pageSettings,
+                                                      homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
+                                                    });
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                        <input 
+                                          type="text" 
+                                          value={slide.link}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
+                                          })}
+                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                          placeholder="/categoria/..."
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                          <input 
+                                            type="text" 
+                                            value={slide.title}
+                                            onChange={(e) => setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
+                                            })}
+                                            className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                          <input 
+                                            type="text" 
+                                            value={slide.alt}
+                                            onChange={(e) => setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
+                                            })}
+                                            className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                      {slide.url && (
+                                        <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
+                                          <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* BOTTOM SLIDES */}
+                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                          <div>
+                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                              <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
+                              Slide Bottom
+                            </h3>
+                          </div>
+                          <button 
+                            onClick={() => setPageSettings({
+                              ...pageSettings,
+                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_bottom" }]
+                            })}
+                            className="flex items-center gap-1.5 bg-brand-dark text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-blue transition-all shadow-md hover:scale-105 active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Aggiungi Slide Bottom
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                          {pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom').length === 0 ? (
+                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
+                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide bottom configurata</p>
+                            </div>
+                          ) : (
+                            pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom').map((slide: any, idx: number) => (
+                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-red-500 transition-all">
+                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                                  <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md shadow-sm">
+                                    Slide Bottom #{idx + 1}
+                                  </span>
+                                  <button 
+                                    onClick={() => setPageSettings({
+                                      ...pageSettings,
+                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
+                                    })}
+                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                                  <div className="space-y-3">
+                                    <div className="space-y-1">
+                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                      <div className="flex gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={slide.url}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
+                                          })}
+                                          className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
+                                          placeholder="https://..."
+                                        />
+                                        <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                                          <Upload className="w-4 h-4 text-brand-blue" />
+                                          <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) {
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => {
+                                                  setPageSettings({
+                                                    ...pageSettings,
+                                                    homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
+                                                  });
+                                                };
+                                                reader.readAsDataURL(file);
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                      <input 
+                                        type="text" 
+                                        value={slide.link}
+                                        onChange={(e) => setPageSettings({
+                                          ...pageSettings,
+                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
+                                        })}
+                                        className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
+                                        placeholder="/categoria/..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                        <input 
+                                          type="text" 
+                                          value={slide.title}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
+                                          })}
+                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                        <input 
+                                          type="text" 
+                                          value={slide.alt}
+                                          onChange={(e) => setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
+                                          })}
+                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    {slide.url && (
+                                      <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
+                                        <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category Banners */}
+                    <div className="space-y-3">
+                      <h4 className="text-[8px] font-black uppercase tracking-widest text-brand-blue border-l-2 border-brand-yellow pl-2">Banner Categorie</h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        {Object.keys(pageSettings.categoryBanners).map((catName) => (
+                          <div key={catName} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <h5 className="text-[10px] font-black text-brand-dark mb-2">{catName}</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="space-y-3">
+                                <label className="block">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[8px] font-black uppercase text-gray-400">Immagine URL o File</span>
+                                    <div className="flex gap-2">
+                                      <label className="cursor-pointer flex items-center gap-1 text-[8px] font-black uppercase text-brand-blue hover:text-brand-dark transition-colors">
+                                        <Upload className="w-2.5 h-2.5" />
+                                        <span>Carica</span>
+                                        <input 
+                                          type="file" 
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={(e) => handleFileChange(e, (url) => {
+                                            setPageSettings({
+                                              ...pageSettings,
+                                              categoryBanners: {
+                                                ...pageSettings.categoryBanners,
+                                                [catName]: { ...pageSettings.categoryBanners[catName], url: url }
+                                              }
+                                            });
+                                          })}
+                                        />
+                                      </label>
+                                      <label className="cursor-pointer flex items-center gap-1 text-[8px] font-black uppercase text-brand-blue hover:text-brand-dark transition-colors">
+                                        <Camera className="w-2.5 h-2.5" />
+                                        <span>Foto</span>
+                                        <input 
+                                          type="file" 
+                                          accept="image/*"
+                                          capture="environment"
+                                          className="hidden"
+                                          onChange={(e) => handleFileChange(e, (url) => {
+                                            setPageSettings({
+                                              ...pageSettings,
+                                              categoryBanners: {
+                                                ...pageSettings.categoryBanners,
+                                                [catName]: { ...pageSettings.categoryBanners[catName], url: url }
+                                              }
+                                            });
+                                          })}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={pageSettings.categoryBanners[catName].url}
+                                    onChange={(e) => setPageSettings({
+                                      ...pageSettings,
+                                      categoryBanners: {
+                                        ...pageSettings.categoryBanners,
+                                        [catName]: { ...pageSettings.categoryBanners[catName], url: e.target.value }
+                                      }
+                                    })}
+                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                  />
+                                </label>
+                                <label className="block">
+                                  <span className="text-[7px] font-black uppercase text-gray-400">Titolo SEO</span>
+                                  <input 
+                                    type="text" 
+                                    value={pageSettings.categoryBanners[catName].title}
+                                    onChange={(e) => setPageSettings({
+                                      ...pageSettings,
+                                      categoryBanners: {
+                                        ...pageSettings.categoryBanners,
+                                        [catName]: { ...pageSettings.categoryBanners[catName], title: e.target.value }
+                                      }
+                                    })}
+                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                  />
+                                </label>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="block">
+                                  <span className="text-[7px] font-black uppercase text-gray-400">Alt Text SEO</span>
+                                  <input 
+                                    type="text" 
+                                    value={pageSettings.categoryBanners[catName].alt}
+                                    onChange={(e) => setPageSettings({
+                                      ...pageSettings,
+                                      categoryBanners: {
+                                        ...pageSettings.categoryBanners,
+                                        [catName]: { ...pageSettings.categoryBanners[catName], alt: e.target.value }
+                                      }
+                                    })}
+                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                  />
+                                </label>
+                                <label className="block">
+                                  <span className="text-[7px] font-black uppercase text-gray-400">Link URL (Opzionale)</span>
+                                  <input 
+                                    type="text" 
+                                    value={pageSettings.categoryBanners[catName].link || ""}
+                                    onChange={(e) => setPageSettings({
+                                      ...pageSettings,
+                                      categoryBanners: {
+                                        ...pageSettings.categoryBanners,
+                                        [catName]: { ...pageSettings.categoryBanners[catName], link: e.target.value }
+                                      }
+                                    })}
+                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                    placeholder="/categoria/..."
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                            {pageSettings.categoryBanners[catName].url && (
+                              <div className="mt-2 aspect-[21/9] rounded-lg overflow-hidden border border-gray-100">
+                                <img src={pageSettings.categoryBanners[catName].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {adminActiveTab === 'categories' && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Gestione Categorie</h2>
+                      <div className="flex gap-2 items-center">
+                        <button 
+                          onClick={handleAiSuggest}
+                          disabled={isAiSuggesting}
+                          className="bg-brand-blue text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-dark transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {isAiSuggesting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 
+                          Suggerimento AI
+                        </button>
+                        {!isAddingCategory ? (
+                          <button 
+                            onClick={() => setIsAddingCategory(true)}
+                            className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-md flex items-center gap-2"
+                          >
+                            <Plus className="w-3 h-3" /> Aggiungi Categoria
+                          </button>
+                        ) : (
+                          <div className="flex gap-2 items-center">
+                            <input 
+                              type="text"
+                              placeholder="Nome categoria..."
+                              value={newCategoryName}
+                              onChange={(e) => setNewCategoryName(e.target.value)}
+                              className="bg-white border-gray-200 rounded-lg px-3 py-1.5 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                              autoFocus
+                            />
+                            <button 
+                              onClick={() => {
+                                if (newCategoryName && !pageSettings.categories.includes(newCategoryName)) {
+                                  setPageSettings({
+                                    ...pageSettings,
+                                    categories: [...pageSettings.categories, newCategoryName],
+                                    subcategories: { ...pageSettings.subcategories, [newCategoryName]: [] },
+                                    categoryBanners: { ...pageSettings.categoryBanners, [newCategoryName]: { url: '', alt: '', title: '', link: '' } }
+                                  });
+                                  setNewCategoryName("");
+                                  setIsAddingCategory(false);
+                                }
+                              }}
+                              className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setIsAddingCategory(false);
+                                setNewCategoryName("");
+                              }}
+                              className="p-2 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-all"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {aiSuggestions && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-brand-yellow/10 p-6 rounded-2xl border-2 border-brand-yellow/30 space-y-4"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-brand-yellow" />
+                            <h3 className="font-black text-brand-dark uppercase tracking-tight">Suggerimenti AI</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => {
+                                setPageSettings({
+                                  ...pageSettings,
+                                  categories: aiSuggestions.categories,
+                                  subcategories: aiSuggestions.subcategories,
+                                  categoryBanners: aiSuggestions.categories.filter(c => c !== "Tutti").reduce((acc, cat) => ({
+                                    ...acc,
+                                    [cat]: pageSettings.categoryBanners[cat] || { url: '', alt: '', title: '', link: '' }
+                                  }), {})
+                                });
+                                setAiSuggestions(null);
+                              }}
+                              className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-md"
+                            >
+                              Applica Tutto
+                            </button>
+                            <button 
+                              onClick={() => setAiSuggestions(null)}
+                              className="bg-white text-gray-400 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all border border-gray-100"
+                            >
+                              Ignora
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {aiSuggestions.categories.filter(c => c !== "Tutti").map(cat => (
+                            <div key={cat} className="bg-white/50 p-3 rounded-xl border border-brand-yellow/20">
+                              <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-brand-yellow" />
+                                <p className="font-black text-xs text-brand-dark uppercase">{cat}</p>
+                              </div>
+                              <div className="mt-2 pl-4 flex flex-wrap gap-1 border-l border-brand-yellow/10 ml-0.5">
+                                {aiSuggestions.subcategories[cat]?.map(sub => (
+                                  <span key={sub} className="text-[9px] font-bold bg-brand-yellow/20 text-brand-dark px-2 py-0.5 rounded-full">{sub}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="divide-y divide-gray-50">
+                        {pageSettings.categories.filter(c => c !== "Tutti").map((cat) => (
+                          <div key={cat} className="group">
+                            {/* Category Row */}
+                            <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <ChevronDown className="w-4 h-4 text-gray-300" />
+                                <div className="w-8 h-8 bg-brand-yellow/10 rounded-lg flex items-center justify-center text-brand-dark">
+                                  <Grid className="w-4 h-4" />
+                                </div>
+                                <h3 className="text-sm font-black text-brand-dark uppercase tracking-tight">{cat}</h3>
+                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {(pageSettings.subcategories[cat] || []).length} Sottocategorie
+                                </span>
+                              </div>
+                              
+                              <div className="flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                {addingSubcategoryTo === cat ? (
+                                  <div className="flex gap-1 items-center mr-2">
+                                    <input 
+                                      type="text"
+                                      placeholder="Nuova sottocategoria..."
+                                      value={newSubcategoryName}
+                                      onChange={(e) => setNewSubcategoryName(e.target.value)}
+                                      className="bg-white border-gray-200 rounded-lg px-2 py-1 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow w-48"
+                                      autoFocus
+                                    />
+                                    <button 
+                                      onClick={() => {
+                                        if (newSubcategoryName && !pageSettings.subcategories[cat]?.includes(newSubcategoryName)) {
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            subcategories: {
+                                              ...pageSettings.subcategories,
+                                              [cat]: [...(pageSettings.subcategories[cat] || []), newSubcategoryName]
+                                            }
+                                          });
+                                          setNewSubcategoryName("");
+                                          setAddingSubcategoryTo(null);
+                                        }
+                                      }}
+                                      className="p-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-all"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setAddingSubcategoryTo(null);
+                                        setNewSubcategoryName("");
+                                      }}
+                                      className="p-1.5 bg-gray-100 text-gray-500 rounded-md hover:bg-gray-200 transition-all"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => setAddingSubcategoryTo(cat)}
+                                    className="p-2 text-gray-400 hover:text-brand-dark hover:bg-brand-yellow/20 rounded-lg transition-all"
+                                    title="Aggiungi Sottocategoria"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </button>
+                                )}
+                                
+                                {categoryToDelete === cat ? (
+                                  <div className="flex gap-1 items-center">
+                                    <span className="text-[10px] font-bold text-red-500 mr-1">Confermi?</span>
+                                    <button 
+                                      onClick={() => {
+                                        const { [cat]: removedSub, ...remainingSubs } = pageSettings.subcategories;
+                                        const { [cat]: removedBanner, ...remainingBanners } = pageSettings.categoryBanners;
+                                        setPageSettings({
+                                          ...pageSettings,
+                                          categories: pageSettings.categories.filter(c => c !== cat),
+                                          subcategories: remainingSubs,
+                                          categoryBanners: remainingBanners
+                                        });
+                                        setCategoryToDelete(null);
+                                      }}
+                                      className="p-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-all"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                      onClick={() => setCategoryToDelete(null)}
+                                      className="p-1.5 bg-gray-100 text-gray-500 rounded-md hover:bg-gray-200 transition-all"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => setCategoryToDelete(cat)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    title="Elimina Categoria"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Subcategories List (Vertical Tree) */}
+                            <div className="bg-gray-50/50 pl-14 pr-4 py-2 space-y-1">
+                              {(pageSettings.subcategories[cat] || []).map((sub) => (
+                                <div key={sub} className="flex items-center justify-between py-1.5 group/sub">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                    <span className="text-xs font-bold text-gray-600">{sub}</span>
+                                  </div>
+                                  <button 
+                                    onClick={() => {
+                                      setPageSettings({
+                                        ...pageSettings,
+                                        subcategories: {
+                                          ...pageSettings.subcategories,
+                                          [cat]: pageSettings.subcategories[cat].filter(s => s !== sub)
+                                        }
+                                      });
+                                    }}
+                                    className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 transition-all"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              {(!pageSettings.subcategories[cat] || pageSettings.subcategories[cat].length === 0) && (
+                                <p className="text-[10px] font-bold text-gray-400 italic py-2">Nessuna sottocategoria configurata</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {adminActiveTab === 'seo' && (
+                  <div className="space-y-8">
+                    <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Configurazione SEO</h2>
+                    
+                    <div className="grid grid-cols-1 gap-6">
+                      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
+                            Meta Tag Globali
+                          </h3>
+                          <div className="grid grid-cols-1 gap-4">
+                            <label className="block">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Meta Title Principale</span>
+                              <input 
+                                type="text" 
+                                value={companySettings.name}
+                                onChange={(e) => setCompanySettings({...companySettings, name: e.target.value})}
+                                className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                placeholder="Titolo del sito per Google"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Meta Description</span>
+                              <textarea 
+                                rows={4}
+                                value={companySettings.mission}
+                                onChange={(e) => setCompanySettings({...companySettings, mission: e.target.value})}
+                                className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                placeholder="Descrizione del sito per i motori di ricerca"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-gray-50 space-y-4">
+                          <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
+                            Parole Chiave (Keywords)
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {["E-commerce", "Moda", "Tecnologia", "Casa", "Sport"].map(tag => (
+                              <span key={tag} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs font-bold border border-gray-200">
+                                {tag}
+                              </span>
+                            ))}
+                            <button className="px-3 py-1.5 bg-brand-yellow/10 text-brand-dark rounded-full text-xs font-bold border border-brand-yellow/20 hover:bg-brand-yellow transition-all">
+                              + Aggiungi Keyword
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-brand-dark p-8 rounded-3xl text-white space-y-4">
+                        <div className="flex items-center gap-3">
+                          <Sparkles className="w-6 h-6 text-brand-yellow" />
+                          <h3 className="text-xl font-black uppercase tracking-tighter">Ottimizzazione AI</h3>
+                        </div>
+                        <p className="text-gray-400 text-sm font-bold">
+                          Utilizza l'intelligenza artificiale per generare meta descrizioni e titoli accattivanti basati sul tuo catalogo prodotti.
+                        </p>
+                        <button className="bg-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-brand-orange transition-all shadow-lg">
+                          Analizza e Suggerisci SEO
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                  <button 
+                    onClick={() => setIsAdminOpen(false)}
+                    className="bg-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-brand-orange transition-all shadow-lg hover:-translate-y-1 active:translate-y-0"
+                  >
+                    Salva Modifiche
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

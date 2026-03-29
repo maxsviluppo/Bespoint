@@ -1,5 +1,5 @@
 {
   "name": "Bespoint Restyling",
   "description": "Un restyling moderno e compatto per l'e-commerce Bespoint, ispirato alle app native con navigazione modale.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["camera"]
 }
