@@ -3,8 +3,8 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-dark: #001529; /* Deep Navy Blue */
-  --color-brand-blue: #002140; /* Navy Blue */
+  --color-brand-dark: #0a0a0a; /* Black variant */
+  --color-brand-blue: #000000; /* Pure Black */
   --color-brand-yellow: #ffd814; /* Bright Yellow */
   --color-brand-orange: #f7ca00; /* Yellowish Orange */
   --color-accent: var(--color-brand-yellow);

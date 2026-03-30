@@ -35,12 +35,19 @@ import {
   Sparkles,
   RefreshCw,
   Trash,
-  Trash2
+  Trash2,
+  Package,
+  FileSpreadsheet,
+  Edit2,
+  ExternalLink,
+  Layers,
+  Globe
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
+import { AdminSingleProduct } from "./AdminSingleProduct";
 
 // --- Components ---
 
@@ -236,12 +243,13 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: P
           y: isDesktop ? "-50%" : 0, 
           x: isDesktop ? "-50%" : 0,
           opacity: 1,
-          top: isDesktop ? "50%" : "auto",
-          left: isDesktop ? "50%" : "auto"
+          top: isDesktop ? "50%" : "5.5rem",
+          bottom: isDesktop ? "auto" : 0,
+          left: isDesktop ? "50%" : 0
         }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 30, stiffness: 250 }}
-        className="fixed inset-x-0 bottom-0 lg:inset-auto bg-white rounded-t-[32px] lg:rounded-[40px] z-50 shadow-2xl flex flex-col max-h-[95vh] lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl overflow-hidden"
+        className="fixed inset-x-0 lg:inset-auto bg-white rounded-t-[32px] lg:rounded-[40px] z-50 shadow-2xl flex flex-col lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl overflow-hidden"
       >
         <div 
           onClick={onClose}
@@ -951,7 +959,8 @@ export default function App() {
   }, [currentUser, authStep]);
   const [isMobileAdminMenuOpen, setIsMobileAdminMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo'>('company');
+  const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo' | 'products'>('company');
+  const [adminProductView, setAdminProductView] = useState<'list' | 'single' | 'mass'>('list');
   const [adminTopIdx, setAdminTopIdx] = useState(0);
   const [adminMidIdx, setAdminMidIdx] = useState(0);
   const [adminBotIdx, setAdminBotIdx] = useState(0);
@@ -979,6 +988,8 @@ export default function App() {
       favicon: "",
       name: "BesPoint",
       legalName: "Bespoint S.r.l.",
+      vatNumber: "01234567890",
+      sdiCode: "A1B2C3D",
       legalAddress: "Via della Tecnologia 123, Roma",
       phone: "+39 06 1234567",
       email: "info@bespoint.it",
@@ -1454,14 +1465,14 @@ export default function App() {
   const headerTopScale = useSpring(isDesktop ? useTransform(smoothScrollY, [0, 1], [1, 1]) : headerTopScaleRaw, { stiffness: 400, damping: 40 });
 
   const headerShadowOpacity = useTransform(smoothScrollY, [0, 100], [0, 0.2]);
-  const headerBgColor = useTransform(smoothScrollY, [0, 100], ["rgba(1, 31, 75, 1)", "rgba(1, 31, 75, 0.95)"]);
+  const headerBgColor = useTransform(smoothScrollY, [0, 100], ["rgba(10, 10, 10, 1)", "rgba(10, 10, 10, 0.95)"]);
   
   const parallaxY = useTransform(smoothScrollY, [500, 1500], [0, -100]);
 
   return (
     <div className="min-h-screen pb-24 bg-gray-100">
       {/* Top Bar (Amazon Style) */}
-      <div className="bg-brand-dark text-white px-4 py-2 flex items-center justify-between text-xs font-medium">
+      <div className="bg-gradient-to-r from-neutral-900 via-black to-neutral-900 border-b border-gray-800 text-white px-4 py-2 flex items-center justify-between text-xs font-medium">
         <div className="flex items-center gap-2">
           <span>Consegna a Massimo - {companySettings.legalAddress.split(',').pop()?.trim()}</span>
         </div>
@@ -1474,10 +1485,9 @@ export default function App() {
       {/* Header */}
       <motion.header 
         style={{ 
-          backgroundColor: headerBgColor,
           boxShadow: useTransform(headerShadowOpacity, (v) => `0 10px 30px -10px rgba(0,0,0,${v})`)
         }}
-        className="sticky top-0 z-40"
+        className="sticky top-0 z-40 bg-gradient-to-b from-[#111111] to-black"
       >
         {/* Animated Top Section (Logo, Desktop Search, Actions) */}
         <motion.div 
@@ -2108,6 +2118,16 @@ export default function App() {
                   </button>
                   <button 
                     onClick={() => {
+                      setAdminActiveTab('products');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'products' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Package className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Prodotti</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
                       setAdminActiveTab('link_rapidi' as any);
                       setIsMobileAdminMenuOpen(false);
                     }}
@@ -2234,6 +2254,26 @@ export default function App() {
                             className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
                           />
                         </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Partita IVA</span>
+                            <input 
+                              type="text" 
+                              value={companySettings.vatNumber || ''}
+                              onChange={(e) => setCompanySettings({...companySettings, vatNumber: e.target.value})}
+                              className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Codice Univoco (SDI)</span>
+                            <input 
+                              type="text" 
+                              value={companySettings.sdiCode || ''}
+                              onChange={(e) => setCompanySettings({...companySettings, sdiCode: e.target.value})}
+                              className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow uppercase"
+                            />
+                          </label>
+                        </div>
                       </div>
 
                       {/* Contact Info */}
@@ -3481,6 +3521,103 @@ export default function App() {
                   </div>
                 )}
 
+                {adminActiveTab === 'products' && (
+                  <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
+                        {adminProductView === 'list' && "Gestione Prodotti"}
+                        {adminProductView === 'single' && "Nuovo Prodotto Multi-Canale"}
+                        {adminProductView === 'mass' && "Importazione Massiva"}
+                      </h2>
+                      {adminProductView === 'list' && (
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={() => setAdminProductView('mass')}
+                            className="bg-gray-100 text-gray-600 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-green-500 hover:text-white transition-all flex items-center gap-2"
+                          >
+                            <FileSpreadsheet className="w-4 h-4" /> Importa
+                          </button>
+                          <button 
+                            onClick={() => setAdminProductView('single')}
+                            className="bg-brand-dark text-white px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" /> Crea Nuovo
+                          </button>
+                        </div>
+                      )}
+                      {adminProductView !== 'list' && (
+                        <button 
+                          onClick={() => setAdminProductView('list')}
+                          className="bg-gray-100 text-brand-dark px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2"
+                        >
+                          <ArrowLeft className="w-4 h-4" /> Torna alla Lista
+                        </button>
+                      )}
+                    </div>
+                    
+                    {adminProductView === 'list' && (
+                      <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse min-w-[800px]">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-widest text-gray-400">
+                                <th className="p-4">Prodotto</th>
+                                <th className="p-4">Categoria / Variante</th>
+                                <th className="p-4">Prezzo Base</th>
+                                <th className="p-4 text-center">Canali Attivi</th>
+                                <th className="p-4 text-right">Azioni</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {PRODUCTS.map(p => (
+                                <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                                  <td className="p-4">
+                                    <div className="flex items-center gap-4">
+                                      <img src={p.image} alt={p.name} className="w-12 h-12 rounded-xl object-cover bg-gray-100" />
+                                      <div>
+                                        <p className="font-bold text-sm text-brand-dark">{p.name}</p>
+                                        <p className="text-xs text-gray-500 font-medium">SKU: BP-{p.id.padStart(4, '0')}</p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md w-fit">{p.category}</span>
+                                      <span className="text-xs text-gray-500">{p.subcategory}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-4 font-black text-brand-dark">€{p.price.toFixed(2)}</td>
+                                  <td className="p-4">
+                                    <div className="flex justify-center gap-2">
+                                      {/* Mock market channels */}
+                                      <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center cursor-help" title="Amazon.it Attivo"><Globe className="w-3 h-3" /></span>
+                                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center cursor-help" title="eBay Attivo"><ExternalLink className="w-3 h-3" /></span>
+                                      <span className="w-6 h-6 rounded-full bg-brand-dark text-brand-yellow flex items-center justify-center cursor-help" title="Sito Web Attivo"><Layers className="w-3 h-3" /></span>
+                                    </div>
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    <button 
+                                      onClick={() => setAdminProductView('single')}
+                                      className="p-2 text-gray-400 hover:text-brand-yellow hover:bg-brand-dark rounded-lg transition-colors inline-block"
+                                      title="Modifica Singolo"
+                                    >
+                                      <Edit2 className="w-5 h-5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {adminProductView === 'single' && (
+                      <AdminSingleProduct onBack={() => setAdminProductView('list')} />
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                   <button 
                     onClick={() => setIsAdminOpen(false)}
@@ -3570,7 +3707,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md"
+            className="fixed inset-0 z-[110] flex items-start justify-center pt-[5.5rem] pb-4 px-4 bg-brand-dark/80 backdrop-blur-md overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
