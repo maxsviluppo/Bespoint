@@ -33,7 +33,9 @@ import {
   Upload,
   Camera,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Trash,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -201,7 +203,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
   );
 }
 
-const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; key?: string }) => {
+const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; key?: string }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -229,283 +231,260 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
       />
       <motion.div 
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="fixed inset-x-0 bottom-0 bg-white rounded-t-[32px] z-50 shadow-2xl flex flex-col max-h-[95vh]"
+        initial={{ y: "100%", x: isDesktop ? "-50%" : 0, opacity: 0 }}
+        animate={{ 
+          y: isDesktop ? "-50%" : 0, 
+          x: isDesktop ? "-50%" : 0,
+          opacity: 1,
+          top: isDesktop ? "50%" : "auto",
+          left: isDesktop ? "50%" : "auto"
+        }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 250 }}
+        className="fixed inset-x-0 bottom-0 lg:inset-auto bg-white rounded-t-[32px] lg:rounded-[40px] z-50 shadow-2xl flex flex-col max-h-[95vh] lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl overflow-hidden"
       >
         <div 
           onClick={onClose}
-          className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto my-3 flex-shrink-0 cursor-pointer hover:bg-gray-300 transition-colors" 
+          className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto my-3 flex-shrink-0 cursor-pointer hover:bg-gray-300 transition-colors lg:hidden" 
         />
         
-        <div className="overflow-y-auto pb-32 px-6">
-          {/* Main Image & Gallery */}
-          <div 
-            className="relative aspect-square rounded-3xl overflow-hidden mb-4 bg-gray-50 border border-gray-100 cursor-pointer group"
-            onClick={() => setIsLightboxOpen(true)}
-          >
-            <AnimatePresence mode="wait">
-              <motion.img 
-                key={activeImage}
-                initial={{ opacity: 0, scale: 1.1 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-                src={activeImage || undefined} 
-                alt={product.name} 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </AnimatePresence>
+        <div className="overflow-y-auto pb-32 px-6 lg:p-10 flex-1">
+          <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-start">
             
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-              <div className="bg-white/80 backdrop-blur-md p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                <Maximize className="w-6 h-6 text-brand-dark" />
+            {/* COLUMN 1: PHOTOS (5/12) */}
+            <div className="lg:col-span-5 lg:sticky lg:top-0">
+              {/* Main Image & Gallery */}
+              <div 
+                className="relative aspect-square rounded-3xl overflow-hidden mb-4 bg-gray-50 border border-gray-100 cursor-pointer group"
+                onClick={() => setIsLightboxOpen(true)}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.img 
+                    key={activeImage}
+                    initial={{ opacity: 0, scale: 1.1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                    src={activeImage || undefined} 
+                    alt={product.name} 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </AnimatePresence>
+                
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                  <div className="bg-white/80 backdrop-blur-md p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                    <Maximize className="w-6 h-6 text-brand-dark" />
+                  </div>
+                </div>
+                
+                <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsFavorite(!isFavorite); }}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all ${isFavorite ? "bg-red-500 text-white" : "bg-white/80 text-gray-400"}`}
+                  >
+                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-white" : ""}`} />
+                  </button>
+                  <button onClick={(e) => e.stopPropagation()} className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md text-gray-400 flex items-center justify-center shadow-lg">
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Thumbnails */}
+              <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar pb-2">
+                <button 
+                  key="main-thumb"
+                  onClick={() => setActiveImage(product.image)}
+                  className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent"}`}
+                >
+                  {product.image && (
+                    <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  )}
+                </button>
+                {product.gallery.map((img, idx) => (
+                  <button 
+                    key={`gallery-${idx}`}
+                    onClick={() => setActiveImage(img)}
+                    className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent"}`}
+                  >
+                    {img && (
+                      <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    )}
+                  </button>
+                ))}
+                {product.has3D && (
+                  <button className="w-16 h-16 rounded-xl bg-brand-blue flex flex-col items-center justify-center text-white flex-shrink-0 group hover:bg-brand-yellow hover:text-brand-dark transition-colors">
+                    <Box className="w-6 h-6 mb-1" />
+                    <span className="text-[8px] font-bold uppercase">3D View</span>
+                  </button>
+                )}
               </div>
             </div>
-            
-            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-              <button 
-                onClick={() => setIsFavorite(!isFavorite)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all ${isFavorite ? "bg-red-500 text-white" : "bg-white/80 text-gray-400"}`}
-              >
-                <Heart className={`w-5 h-5 ${isFavorite ? "fill-white" : ""}`} />
-              </button>
-              <button className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md text-gray-400 flex items-center justify-center shadow-lg">
-                <Share2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
 
-          {/* Thumbnails */}
-          <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar pb-2">
-            <button 
-              key="main-thumb"
-              onClick={() => setActiveImage(product.image)}
-              className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent"}`}
-            >
-              {product.image && (
-                <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              )}
-            </button>
-            {product.gallery.map((img, idx) => (
-              <button 
-                key={`gallery-${idx}`}
-                onClick={() => setActiveImage(img)}
-                className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent"}`}
-              >
-                {img && (
-                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                )}
-              </button>
-            ))}
-            {product.has3D && (
-              <button className="w-16 h-16 rounded-xl bg-brand-blue flex flex-col items-center justify-center text-white flex-shrink-0 group hover:bg-brand-yellow hover:text-brand-dark transition-colors">
-                <Box className="w-6 h-6 mb-1" />
-                <span className="text-[8px] font-bold uppercase">3D View</span>
-              </button>
-            )}
-          </div>
+            {/* COLUMN 2: DESCRIPTION & TECH SPECS (4/12) */}
+            <div className="lg:col-span-4 space-y-10">
+              {/* Info */}
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-brand-yellow uppercase tracking-widest mb-1">{product.category}</p>
+                <h2 className="text-2xl lg:text-3xl font-black text-brand-dark leading-tight">{product.name}</h2>
+              </div>
 
-          {/* Info */}
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-xs font-semibold text-brand-yellow uppercase tracking-widest mb-1">{product.category}</p>
-              <h2 className="text-2xl font-black text-brand-dark leading-tight">{product.name}</h2>
-            </div>
-            <div className="flex items-center bg-brand-yellow/10 px-3 py-1.5 rounded-full">
-              <Star className="w-4 h-4 text-brand-yellow fill-brand-yellow mr-1" />
-              <span className="text-sm font-black text-brand-dark">{product.rating}</span>
-            </div>
-          </div>
+              {/* Description */}
+              <div className="space-y-4">
+                <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Descrizione</h4>
+                <div className="text-gray-600 text-sm leading-relaxed space-y-4">
+                  <p>{product.description}</p>
+                  <p>Progettato per durare nel tempo, questo prodotto unisce materiali di alta qualità a un design funzionale che si adatta a ogni ambiente.</p>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2 mb-8">
-            <span className="text-3xl font-black text-brand-blue">€{product.price.toFixed(2)}</span>
-            <span className="text-sm text-gray-400 line-through">€{(product.price * 1.2).toFixed(2)}</span>
-            <span className="bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-md uppercase">-20%</span>
-          </div>
+              {/* Technical Specs */}
+              <div className="space-y-6">
+                <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Caratteristiche</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(product.specs).map(([key, value]) => (
+                    <div key={key} className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                      <p className="text-[9px] text-gray-400 uppercase font-black mb-0.5">{key}</p>
+                      <p className="text-xs font-bold text-brand-dark">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Description with interspersed images */}
-          <div className="space-y-6 mb-12">
-            <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Descrizione Prodotto</h4>
-            <div className="text-gray-600 text-sm leading-relaxed space-y-4">
-              <p>{product.description}</p>
-              {product.gallery[0] && (
-                <div className="rounded-2xl overflow-hidden h-48 w-full shadow-lg">
-                  <img src={product.gallery[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {/* Video Tutorial */}
+              {product.videoUrl && (
+                <div className="space-y-4">
+                  <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Video Tutorial</h4>
+                  <a 
+                    href={product.videoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="group relative block aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-gray-100"
+                  >
+                    <img 
+                      src={`https://img.youtube.com/vi/${product.videoUrl.includes('v=') ? product.videoUrl.split('v=')[1].split('&')[0] : product.videoUrl.split('/').pop()}/maxresdefault.jpg`} 
+                      alt="Thumbnail" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-12 h-12 bg-brand-yellow rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform">
+                        <Play className="w-6 h-6 text-brand-dark fill-brand-dark ml-0.5" />
+                      </div>
+                    </div>
+                  </a>
                 </div>
               )}
-              <p>Progettato per durare nel tempo, questo prodotto unisce materiali di alta qualità a un design funzionale che si adatta a ogni ambiente domestico o professionale.</p>
-              {product.gallery[1] && (
-                <div className="rounded-2xl overflow-hidden h-48 w-full shadow-lg">
-                  <img src={product.gallery[1]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                </div>
-              )}
-              <p>La facilità di installazione e la manutenzione ridotta lo rendono la scelta ideale per chi cerca praticità senza rinunciare all'estetica.</p>
             </div>
-          </div>
 
-          {/* Technical Specs */}
-          <div className="space-y-6 mb-12">
-            <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Caratteristiche Tecniche</h4>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(product.specs).map(([key, value]) => (
-                <div key={key} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[10px] text-gray-400 uppercase font-black mb-1">{key}</p>
-                  <p className="text-sm font-bold text-brand-dark">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Video Tutorial Section */}
-          {product.videoUrl && (
-            <div className="space-y-6 mb-12">
-              <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Video Tutorial</h4>
-              <a 
-                href={product.videoUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="group relative block aspect-video w-full rounded-3xl overflow-hidden shadow-xl border border-gray-100"
-              >
-                <img 
-                  src={`https://img.youtube.com/vi/${product.videoUrl.includes('v=') ? product.videoUrl.split('v=')[1].split('&')[0] : product.videoUrl.split('/').pop()}/maxresdefault.jpg`} 
-                  alt="Video Tutorial Thumbnail" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                  <div className="w-16 h-16 bg-brand-yellow rounded-full flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-transform">
-                    <Play className="w-8 h-8 text-brand-dark fill-brand-dark ml-1" />
+            {/* COLUMN 3: PRICE & REVIEWS (3/12) */}
+            <div className="lg:col-span-3 lg:bg-gray-50/50 lg:p-8 lg:rounded-[32px] lg:border lg:border-gray-100 space-y-8">
+              {/* Pricing Card */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-4xl font-black text-brand-blue">€{product.price.toFixed(2)}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-gray-400 line-through">€{(product.price * 1.2).toFixed(2)}</span>
+                    <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase w-fit">-20% OGGI</span>
                   </div>
                 </div>
-                <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md p-3 rounded-2xl">
-                  <Youtube className="w-5 h-5 text-red-500" />
-                  <span className="text-xs font-bold text-white">Guarda il tutorial su YouTube</span>
-                </div>
-              </a>
-            </div>
-          )}
-
-          {/* Reviews Section (Amazon Style) */}
-          <div className="space-y-8 mb-12">
-            <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Recensioni Clienti</h4>
-            
-            <div className="flex flex-col md:flex-row gap-8">
-              {/* Rating Summary */}
-              <div className="w-full md:w-1/3 space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className={`w-5 h-5 ${s <= Math.round(product.rating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
-                    ))}
-                  </div>
-                  <span className="text-xl font-black text-brand-dark">{product.rating} su 5</span>
-                </div>
-                <p className="text-xs text-gray-500 font-bold">{product.reviews} valutazioni globali</p>
                 
+                <div className="flex items-center gap-2 text-xs text-green-600 font-bold bg-green-50 p-3 rounded-xl border border-green-100">
+                  <Shield className="w-4 h-4" />
+                  <span>Disponibilità immediata</span>
+                </div>
+              </div>
+
+              {/* Reviews Summary */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark">Recensioni</h4>
+                  <div className="flex items-center bg-brand-yellow px-2 py-1 rounded-lg">
+                    <Star className="w-3 h-3 text-brand-dark fill-brand-dark mr-1" />
+                    <span className="text-xs font-black text-brand-dark">{product.rating}</span>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   {[
                     { stars: 5, percentage: 75 },
                     { stars: 4, percentage: 15 },
                     { stars: 3, percentage: 5 },
-                    { stars: 2, percentage: 3 },
-                    { stars: 1, percentage: 2 },
                   ].map((row) => (
-                    <div key={row.stars} className="flex items-center gap-3 text-xs">
-                      <span className="w-12 font-bold text-blue-600 hover:underline cursor-pointer">{row.stars} stelle</span>
-                      <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden border border-gray-200">
+                    <div key={row.stars} className="flex items-center gap-2 text-[10px]">
+                      <span className="w-10 font-bold text-gray-500">{row.stars} stelle</span>
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           whileInView={{ width: `${row.percentage}%` }}
                           className="h-full bg-brand-yellow"
                         />
                       </div>
-                      <span className="w-8 text-right text-gray-500 font-bold">{row.percentage}%</span>
+                      <span className="w-6 text-right text-gray-400 font-bold uppercase">{row.percentage}%</span>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Individual Reviews */}
-              <div className="flex-1 space-y-6">
-                {[
-                  { user: "Marco R.", date: "15 Marzo 2026", title: "Qualità eccellente", text: "Prodotto arrivato in anticipo. La qualità dei materiali è superiore alle aspettative. Bespoint non delude mai.", rating: 5 },
-                  { user: "Elena V.", date: "2 Febbraio 2026", title: "Ottimo rapporto qualità/prezzo", text: "Facile da installare e molto funzionale. Lo consiglio vivamente per chi cerca affidabilità.", rating: 4 },
-                ].map((rev, i) => (
-                  <div key={i} className="space-y-2 pb-6 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-gray-400" />
-                      </div>
-                      <span className="text-sm font-bold text-brand-dark">{rev.user}</span>
+                {/* Individual Review Sample */}
+                <div className="pt-6 border-t border-gray-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                      <User className="w-3 h-3 text-gray-400" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className={`w-3 h-3 ${s <= rev.rating ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
-                        ))}
-                      </div>
-                      <span className="text-xs font-black text-brand-dark">{rev.title}</span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 font-bold">Recensito il {rev.date}</p>
-                    <p className="text-xs text-gray-600 leading-relaxed">{rev.text}</p>
-                    <div className="flex items-center gap-4 pt-2">
-                      <button className="px-4 py-1 border border-gray-300 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-colors">Utile</button>
-                      <button className="text-[10px] text-gray-400 font-bold hover:underline">Segnala</button>
-                    </div>
+                    <span className="text-[10px] font-bold text-brand-dark">Marco R. <span className="text-gray-400 font-normal ml-1">Acquisto Verificato</span></span>
                   </div>
-                ))}
-                <button className="text-sm font-bold text-blue-600 hover:underline">Leggi tutte le {product.reviews} recensioni</button>
+                  <p className="text-[11px] text-gray-600 italic leading-relaxed">"Qualità eccezionale, arrivato in 24 ore. BesPoint una garanzia!"</p>
+                </div>
+
+                <button className="w-full text-center text-xs font-bold text-blue-600 hover:underline pt-2">Vedi tutte le {product.reviews} recensioni</button>
               </div>
             </div>
           </div>
 
-          {/* Related Products Carousel */}
-          <div className="space-y-4 mb-12">
-            <div className="flex items-center justify-between pr-6">
-              <h4 className="font-black text-[10px] uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Prodotti Correlati</h4>
+          {/* Related Products Carousel (Full Width) */}
+          <div className="mt-20 pt-10 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Potrebbe interessarti anche</h4>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => scroll('left')}
-                  className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark active:scale-90 transition-transform"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark hover:bg-brand-yellow transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => scroll('right')}
-                  className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark active:scale-90 transition-transform"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-brand-dark hover:bg-brand-yellow transition-colors"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
             <div 
               ref={carouselRef}
-              className="flex overflow-x-auto no-scrollbar gap-3 pb-4 snap-x snap-mandatory px-0.5 scroll-smooth"
+              className="flex overflow-x-auto no-scrollbar gap-4 pb-4 snap-x snap-mandatory scroll-smooth"
             >
               {relatedProducts.map((p, idx) => (
                 <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   viewport={{ once: true }}
                   key={p.id} 
-                  className="flex-shrink-0 w-[calc(50%-6px)] snap-start bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col"
+                  className="flex-shrink-0 w-44 lg:w-56 snap-start bg-white border border-gray-100 rounded-2xl p-4 shadow-sm group cursor-pointer"
                 >
-                  <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-gray-50">
+                  <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-gray-50">
                     {p.image && (
-                      <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
                     )}
                   </div>
-                  <h5 className="text-[10px] font-bold text-brand-dark line-clamp-2 mb-1 h-8">{p.name}</h5>
-                  <div className="mt-auto pt-2 border-t border-gray-50 flex items-center justify-between">
-                    <p className="text-xs font-black text-brand-blue">€{p.price.toFixed(2)}</p>
+                  <h5 className="text-xs font-bold text-brand-dark line-clamp-2 h-10">{p.name}</h5>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm font-black text-brand-blue">€{p.price.toFixed(2)}</p>
                     <div className="flex items-center gap-0.5">
-                      <Star className="w-2 h-2 text-brand-yellow fill-brand-yellow" />
-                      <span className="text-[8px] font-bold">{p.rating}</span>
+                      <Star className="w-3 h-3 text-brand-yellow fill-brand-yellow" />
+                      <span className="text-[10px] font-bold">{p.rating}</span>
                     </div>
                   </div>
                 </motion.div>
@@ -514,32 +493,48 @@ const ProductSheet = ({ product, onClose, onAddToCart }: { product: Product; onC
           </div>
         </div>
 
-        {/* Bottom Action Bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/90 backdrop-blur-xl border-t border-gray-100 flex items-center justify-between gap-4 z-20">
-          <div className="flex items-center bg-gray-100 rounded-2xl p-1">
+        {/* Action Bar (Optimized for both) */}
+        <div className="bg-white/90 backdrop-blur-xl border-t border-gray-100 p-6 lg:px-12 flex items-center justify-between gap-6 z-20">
+          <div className="flex items-center bg-gray-100 rounded-2xl p-1 gap-1">
             <button 
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white shadow-sm active:scale-90 transition-transform"
+              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl bg-white shadow-sm hover:bg-gray-50 active:scale-90 transition-all"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-10 text-center font-black">{quantity}</span>
+            <span className="w-10 lg:w-14 text-center font-black text-lg">{quantity}</span>
             <button 
               onClick={() => setQuantity(quantity + 1)}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white shadow-sm active:scale-90 transition-transform"
+              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl bg-white shadow-sm hover:bg-gray-50 active:scale-90 transition-all"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <button 
-            onClick={() => {
-              for(let i=0; i<quantity; i++) onAddToCart(product);
-              onClose();
-            }}
-            className="flex-1 bg-brand-yellow hover:bg-brand-orange text-brand-dark h-12 rounded-2xl font-black flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase text-xs tracking-widest"
-          >
-            Aggiungi €{(product.price * quantity).toFixed(2)}
-          </button>
+          
+          <div className="flex-1 flex items-center gap-4">
+            <div className="hidden lg:flex flex-col items-end flex-1 pr-6 border-r border-gray-100">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Totale</span>
+              <span className="text-2xl font-black text-brand-blue">€{(product.price * quantity).toFixed(2)}</span>
+            </div>
+            
+            <button 
+              onClick={() => {
+                for(let i=0; i<quantity; i++) onAddToCart(product);
+                onClose();
+              }}
+              className="flex-[2] bg-brand-yellow hover:bg-brand-orange text-brand-dark h-14 lg:h-16 rounded-2xl font-black flex items-center justify-center gap-3 active:scale-95 transition-all uppercase text-sm tracking-widest shadow-xl shadow-brand-yellow/20"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span>Aggiungi al carrello</span>
+            </button>
+            
+            <button 
+              onClick={onClose}
+              className="hidden lg:flex w-14 h-14 lg:w-16 lg:h-16 bg-gray-100 hover:bg-gray-200 text-brand-dark rounded-2xl items-center justify-center transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </motion.div>
 
@@ -713,14 +708,18 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSett
           >
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden">
-                  {companySettings.logo.startsWith('http') ? (
+                <div className={companySettings.imageLogo ? "h-10 flex items-center" : "w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden"}>
+                  {companySettings.imageLogo ? (
+                    <img src={companySettings.imageLogo} alt="Logo" className="h-full object-contain" referrerPolicy="no-referrer" />
+                  ) : companySettings.logo.startsWith('http') ? (
                     <img src={companySettings.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <span className="text-brand-dark font-black text-lg">{companySettings.logo}</span>
                   )}
                 </div>
-                <h2 className="text-xl font-bold tracking-tighter">{companySettings.name}</h2>
+                {!companySettings.imageLogo && (
+                  <h2 className="text-xl font-bold tracking-tighter">{companySettings.name}</h2>
+                )}
               </div>
               <button onClick={onClose} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
                 <X className="w-5 h-5" />
@@ -903,6 +902,10 @@ export default function App() {
   const [isMobileAdminMenuOpen, setIsMobileAdminMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo'>('company');
+  const [adminTopIdx, setAdminTopIdx] = useState(0);
+  const [adminMidIdx, setAdminMidIdx] = useState(0);
+  const [adminBotIdx, setAdminBotIdx] = useState(0);
+  const [slideToDelete, setSlideToDelete] = useState<{ id: string; type: string; position: string } | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [addingSubcategoryTo, setAddingSubcategoryTo] = useState<string | null>(null);
@@ -917,10 +920,13 @@ export default function App() {
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<{ categories: string[], subcategories: Record<string, string[]> } | null>(null);
+  
   const [companySettings, setCompanySettings] = useState(() => {
     const saved = localStorage.getItem('companySettings');
     return saved ? JSON.parse(saved) : {
       logo: "B",
+      imageLogo: "",
+      favicon: "",
       name: "BesPoint",
       legalName: "Bespoint S.r.l.",
       legalAddress: "Via della Tecnologia 123, Roma",
@@ -935,6 +941,19 @@ export default function App() {
       }
     };
   });
+
+  // Dynamic Favicon Update
+  useEffect(() => {
+    if (companySettings.favicon) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = companySettings.favicon;
+    }
+  }, [companySettings.favicon]);
 
   // Force BesPoint branding if it's still the old one
   useEffect(() => {
@@ -972,25 +991,29 @@ export default function App() {
         });
       }
 
-      // Middle Slide
-      defaultHomeSlides.push({
-        id: `mid-${cat}`,
-        url: `https://picsum.photos/seed/${cat.toLowerCase()}-mid/1920/600`,
-        alt: `Le migliori offerte per ${cat}`,
-        title: `Specialisti in ${cat}`,
-        link: "",
-        position: "home_middle"
-      });
+      // Middle Slide - Only for the first category (as per request to delete 2-6)
+      if (index === 0) {
+        defaultHomeSlides.push({
+          id: `mid-${cat}`,
+          url: `https://picsum.photos/seed/${cat.toLowerCase()}-mid/1920/600`,
+          alt: `Le migliori offerte per ${cat}`,
+          title: `Specialisti in ${cat}`,
+          link: "",
+          position: "home_middle"
+        });
+      }
 
-      // Bottom Slide
-      defaultHomeSlides.push({
-        id: `bot-${cat}`,
-        url: `https://picsum.photos/seed/${cat.toLowerCase()}-bot/1920/600`,
-        alt: `Qualità garantita per ${cat}`,
-        title: `Il meglio di ${cat}`,
-        link: "",
-        position: "home_bottom"
-      });
+      // Bottom Slide - Only for the first category (as per request to delete 2-5)
+      if (index === 0) {
+        defaultHomeSlides.push({
+          id: `bot-${cat}`,
+          url: `https://picsum.photos/seed/${cat.toLowerCase()}-bot/1920/600`,
+          alt: `Qualità garantita per ${cat}`,
+          title: `Il meglio di ${cat}`,
+          link: "",
+          position: "home_bottom"
+        });
+      }
     });
 
     if (saved) {
@@ -1012,11 +1035,27 @@ export default function App() {
         }
       });
 
-      // Prune top slides if more than 1 (as per user request: "Elimina slide top 2 fino a 6")
+      // Prune ALL slide positions to keep only the first one (as per multiple requests to delete 2-6, 2-5)
+      
+      // Prune top slides
       const topSlides = parsed.homeSlides.filter((s: any) => s.position === 'home_top' || !s.position);
       if (topSlides.length > 1) {
         const otherSlides = parsed.homeSlides.filter((s: any) => s.position !== 'home_top' && s.position);
         parsed.homeSlides = [topSlides[0], ...otherSlides];
+      }
+
+      // Prune middle slides
+      const midSlides = parsed.homeSlides.filter((s: any) => s.position === 'home_middle');
+      if (midSlides.length > 1) {
+        const otherSlides = parsed.homeSlides.filter((s: any) => s.position !== 'home_middle');
+        parsed.homeSlides = [midSlides[0], ...parsed.homeSlides.filter((s: any) => s.position !== 'home_middle')];
+      }
+
+      // Prune bottom slides
+      const botSlides = parsed.homeSlides.filter((s: any) => s.position === 'home_bottom');
+      if (botSlides.length > 1) {
+        const otherSlides = parsed.homeSlides.filter((s: any) => s.position !== 'home_bottom');
+        parsed.homeSlides = [botSlides[0], ...parsed.homeSlides.filter((s: any) => s.position !== 'home_bottom')];
       }
 
       return parsed;
@@ -1031,19 +1070,61 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('companySettings', JSON.stringify(companySettings));
+    try {
+      localStorage.setItem('companySettings', JSON.stringify(companySettings));
+    } catch (e) {
+      console.error("Storage Error (Company):", e);
+    }
   }, [companySettings]);
 
   useEffect(() => {
-    localStorage.setItem('pageSettings', JSON.stringify(pageSettings));
+    try {
+      localStorage.setItem('pageSettings', JSON.stringify(pageSettings));
+    } catch (e) {
+      console.error("Storage Error (Page):", e);
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        alert("Errore di memoria: La foto caricata è troppo grande o lo spazio del browser è esaurito. Riduci la dimensione delle immagini.");
+      }
+    }
   }, [pageSettings]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        callback(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Max dimensions for compression
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 800;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with 0.7 quality
+          const compressedUrl = canvas.toDataURL('image/jpeg', 0.7);
+          callback(compressedUrl);
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -1110,9 +1191,13 @@ export default function App() {
     lastScrollY.current = latest;
   });
 
-  const topSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position) && s.url), [pageSettings.homeSlides]);
-  const middleSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle' && s.url), [pageSettings.homeSlides]);
-  const bottomSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom' && s.url), [pageSettings.homeSlides]);
+  const adminTopSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_top' || !s.position), [pageSettings.homeSlides]);
+  const adminMidSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle'), [pageSettings.homeSlides]);
+  const adminBotSlides = useMemo(() => pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom'), [pageSettings.homeSlides]);
+
+  const topSlides = useMemo(() => adminTopSlides.filter((s: any) => s.url), [adminTopSlides]);
+  const middleSlides = useMemo(() => adminMidSlides.filter((s: any) => s.url), [adminMidSlides]);
+  const bottomSlides = useMemo(() => adminBotSlides.filter((s: any) => s.url), [adminBotSlides]);
 
   useEffect(() => {
     if (topSlides.length <= 1) {
@@ -1227,15 +1312,19 @@ export default function App() {
             >
               <Menu className="w-7 h-7" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden">
-                {companySettings.logo.startsWith('http') ? (
+            <div className="flex items-center gap-3">
+              <div className={companySettings.imageLogo ? "h-10 flex items-center" : "w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center overflow-hidden"}>
+                {companySettings.imageLogo ? (
+                  <img src={companySettings.imageLogo} alt="Logo" className="h-full object-contain" referrerPolicy="no-referrer" />
+                ) : companySettings.logo.startsWith('http') ? (
                   <img src={companySettings.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <span className="text-brand-dark font-black text-lg">{companySettings.logo}</span>
                 )}
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-white">{companySettings.name}</h1>
+              {!companySettings.imageLogo && (
+                <h1 className="text-xl font-bold tracking-tight text-white">{companySettings.name}</h1>
+              )}
             </div>
           </div>
           
@@ -1691,6 +1780,7 @@ export default function App() {
             product={selectedProduct} 
             onClose={() => setSelectedProduct(null)} 
             onAddToCart={addToCart}
+            isDesktop={isDesktop}
           />
         )}
         {isCartOpen && (
@@ -1828,27 +1918,95 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Basic Info */}
                       <div className="space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Informazioni Base</h4>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Brand & Identity</h4>
+                        
+                        {/* Image Logo Upload */}
+                        <div className="space-y-2">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Logo Aziendale (Rettangolo Orizzontale)</span>
+                          <div className="flex gap-4 items-start">
+                            <label className="flex-1 cursor-pointer group">
+                              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-2xl p-6 bg-gray-50 group-hover:bg-gray-100 group-hover:border-brand-yellow transition-all">
+                                <Upload className="w-8 h-8 text-brand-blue mb-2" />
+                                <span className="text-[10px] font-black uppercase text-gray-500">Seleziona Immagine Logo</span>
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={(e) => handleFileChange(e, (url) => setCompanySettings({...companySettings, imageLogo: url}))}
+                                />
+                              </div>
+                            </label>
+                            {companySettings.imageLogo && (
+                              <div className="w-32 h-32 bg-white border border-gray-100 rounded-2xl p-2 flex items-center justify-center relative shadow-sm">
+                                <img src={companySettings.imageLogo} className="max-w-full max-h-full object-contain" />
+                                <button 
+                                  onClick={() => setCompanySettings({...companySettings, imageLogo: ""})}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg hover:scale-110 transition-transform"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-bold italic leading-tight">
+                            * Caricando un logo immagine, il Nome Brand e il Logo Testo verranno disabilitati nella barra superiore per far spazio alla grafica del logo.
+                          </p>
+                        </div>
+
+                        {/* Favicon Upload */}
+                        <div className="space-y-2">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Favicon (100x100px)</span>
+                          <div className="flex gap-4 items-center">
+                            <label className="flex-1 cursor-pointer group">
+                              <div className="flex items-center gap-4 border-2 border-dashed border-gray-100 rounded-2xl px-6 py-4 bg-gray-50 group-hover:bg-gray-100 group-hover:border-brand-yellow transition-all">
+                                <Camera className="w-6 h-6 text-brand-blue" />
+                                <span className="text-[10px] font-black uppercase text-gray-500">Carica Favicon</span>
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={(e) => handleFileChange(e, (url) => setCompanySettings({...companySettings, favicon: url}))}
+                                />
+                              </div>
+                            </label>
+                            {companySettings.favicon && (
+                              <div className="w-14 h-14 bg-white border border-gray-100 rounded-xl p-1 flex items-center justify-center relative shadow-sm">
+                                <img src={companySettings.favicon} className="w-full h-full object-contain rounded-lg" />
+                                <button 
+                                  onClick={() => setCompanySettings({...companySettings, favicon: ""})}
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full shadow-lg"
+                                >
+                                  <X className="w-2 h-2" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          <label className={`block transition-opacity ${companySettings.imageLogo ? 'opacity-40' : 'opacity-100'}`}>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Logo (Solo Testo)</span>
+                            <input 
+                              type="text" 
+                              disabled={!!companySettings.imageLogo}
+                              value={companySettings.logo}
+                              onChange={(e) => setCompanySettings({...companySettings, logo: e.target.value})}
+                              className={`mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow ${companySettings.imageLogo ? 'cursor-not-allowed' : ''}`}
+                            />
+                          </label>
+                          <label className={`block transition-opacity ${companySettings.imageLogo ? 'opacity-40' : 'opacity-100'}`}>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Nome Brand (Testo)</span>
+                            <input 
+                              type="text" 
+                              disabled={!!companySettings.imageLogo}
+                              value={companySettings.name}
+                              onChange={(e) => setCompanySettings({...companySettings, name: e.target.value})}
+                              className={`mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow ${companySettings.imageLogo ? 'cursor-not-allowed' : ''}`}
+                            />
+                          </label>
+                        </div>
                         <label className="block">
-                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Logo (Testo)</span>
-                          <input 
-                            type="text" 
-                            value={companySettings.logo}
-                            onChange={(e) => setCompanySettings({...companySettings, logo: e.target.value})}
-                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Nome Brand</span>
-                          <input 
-                            type="text" 
-                            value={companySettings.name}
-                            onChange={(e) => setCompanySettings({...companySettings, name: e.target.value})}
-                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Ragione Sociale</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Ragione Sociale</span>
                           <input 
                             type="text" 
                             value={companySettings.legalName}
@@ -2000,427 +2158,535 @@ export default function App() {
 
                     {/* Home Slides Management */}
                     <div className="space-y-6">
-                      {/* TOP SLIDES */}
-                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                          <div>
-                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
-                              <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
-                              Slide Top (Hero)
-                            </h3>
+                                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                          <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
+                            Slide Top (Hero)
+                          </h3>
+                          
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
+                            <div className="flex items-center">
+                              <button 
+                                onClick={() => setAdminTopIdx(prev => Math.max(0, prev - 1))}
+                                disabled={adminTopIdx === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <div className="px-3 min-w-[60px] text-center">
+                                <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest leading-none">
+                                  {adminTopSlides.length > 0 ? `${adminTopIdx + 1} / ${adminTopSlides.length}` : '0 / 0'}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => setAdminTopIdx(prev => Math.min(adminTopSlides.length - 1, prev + 1))}
+                                disabled={adminTopIdx >= adminTopSlides.length - 1 || adminTopSlides.length === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                            
+                            <button 
+                              onClick={() => {
+                                const newId = Date.now().toString();
+                                setPageSettings({
+                                  ...pageSettings,
+                                  homeSlides: [...pageSettings.homeSlides, { id: newId, url: "", alt: "", title: "", link: "", position: "home_top" }]
+                                });
+                                setAdminTopIdx(adminTopSlides.length);
+                              }}
+                              className="p-2 bg-brand-yellow text-brand-dark rounded-xl hover:shadow-md transition-all active:scale-90"
+                              title="Aggiungi Slide"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            
+                            {adminTopSlides.length > 0 && (
+                              <button 
+                                onClick={() => setSlideToDelete({ id: adminTopSlides[adminTopIdx].id, type: 'Slide Top', position: 'home_top' })}
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"
+                                title="Elimina Slide Corrente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <button 
-                            onClick={() => setPageSettings({
-                              ...pageSettings,
-                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_top" }]
-                            })}
-                            className="flex items-center gap-1.5 bg-brand-blue text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-dark transition-all shadow-md hover:scale-105 active:scale-95"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Aggiungi Slide Top
-                          </button>
                         </div>
                         
                         <div className="grid grid-cols-1 gap-4">
-                          {pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position)).length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
-                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide top configurata</p>
+                          {adminTopSlides.length === 0 ? (
+                            <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/30">
+                              <Compass className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                              <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Nessuna slide top configurata</p>
+                              <button 
+                                onClick={() => {
+                                  const newId = Date.now().toString();
+                                  setPageSettings({
+                                    ...pageSettings,
+                                    homeSlides: [...pageSettings.homeSlides, { id: newId, url: "", alt: "", title: "", link: "", position: "home_top" }]
+                                  });
+                                  setAdminTopIdx(0);
+                                }}
+                                className="mt-4 text-[10px] font-black uppercase tracking-widest text-brand-blue border-b border-brand-blue"
+                              >
+                                Crea la prima slide
+                              </button>
                             </div>
                           ) : (
-                            pageSettings.homeSlides.filter((s: any) => (s.position === 'home_top' || !s.position)).map((slide: any, idx: number) => (
-                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-brand-yellow transition-all">
-                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                                  <span className="text-[8px] font-black uppercase bg-brand-yellow px-2 py-1 rounded-md text-brand-dark shadow-sm">
-                                    Slide Top #{idx + 1}
-                                  </span>
-                                  <button 
-                                    onClick={() => setPageSettings({
-                                      ...pageSettings,
-                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
-                                    })}
-                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                                  <div className="space-y-3">
-                                    <div className="space-y-1">
-                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
-                                      <div className="flex gap-2">
-                                        <input 
-                                          type="text" 
-                                          value={slide.url}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
-                                          })}
-                                          className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
-                                          placeholder="https://..."
-                                        />
-                                        <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                                          <Upload className="w-4 h-4 text-brand-blue" />
-                                          <input 
-                                            type="file" 
-                                            className="hidden" 
-                                            accept="image/*"
-                                            onChange={(e) => {
-                                              const file = e.target.files?.[0];
-                                              if (file) {
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => {
-                                                  setPageSettings({
-                                                    ...pageSettings,
-                                                    homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
-                                                  });
-                                                };
-                                                reader.readAsDataURL(file);
-                                              }
-                                            }}
-                                          />
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                            <div key={adminTopSlides[adminTopIdx]?.id} className="bg-gray-50 p-6 rounded-3xl border border-gray-100 animate-in fade-in slide-in-from-right-2 duration-300">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                    <div className="flex gap-2">
                                       <input 
                                         type="text" 
-                                        value={slide.link}
-                                        onChange={(e) => setPageSettings({
+                                        value={adminTopSlides[adminTopIdx]?.url || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminTopSlides[adminTopIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="flex-1 bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                        placeholder="https://..."
+                                      />
+                                      <label className="cursor-pointer bg-white border border-gray-200 p-3 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                                        <Upload className="w-5 h-5 text-brand-blue" />
+                                        <input 
+                                          type="file" 
+                                          className="hidden" 
+                                          accept="image/*"
+                                          onChange={(e) => handleFileChange(e, (url) => {
+                                            const slideId = adminTopSlides[adminTopIdx].id;
+                                            setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: url } : s)
+                                            });
+                                          })}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                    <input 
+                                      type="text" 
+                                      value={adminTopSlides[adminTopIdx]?.link || ""}
+                                      onChange={(e) => {
+                                        const slideId = adminTopSlides[adminTopIdx].id;
+                                        setPageSettings({
                                           ...pageSettings,
-                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
-                                        })}
-                                        className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
-                                        placeholder="/categoria/..."
+                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, link: e.target.value } : s)
+                                        });
+                                      }}
+                                      className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      placeholder="/categoria/..."
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminTopSlides[adminTopIdx]?.title || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminTopSlides[adminTopIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, title: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminTopSlides[adminTopIdx]?.alt || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminTopSlides[adminTopIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, alt: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
                                       />
                                     </div>
                                   </div>
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
-                                        <input 
-                                          type="text" 
-                                          value={slide.title}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
-                                          })}
-                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
-                                        <input 
-                                          type="text" 
-                                          value={slide.alt}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
-                                          })}
-                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
-                                        />
-                                      </div>
+                                  {adminTopSlides[adminTopIdx]?.url && (
+                                    <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-white shadow-lg bg-white group-hover:scale-[1.01] transition-transform">
+                                      <img src={adminTopSlides[adminTopIdx].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     </div>
-                                    {slide.url && (
-                                      <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
-                                        <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                      </div>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
                               </div>
-                            ))
+                            </div>
                           )}
-                        </div>
                       </div>
+                      </div>
+                    </div>
 
-                      {/* MIDDLE SLIDES */}
+                    {/* MIDDLE SLIDES */}
                       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                          <div>
-                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
-                              <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
-                              Slide Middle
-                            </h3>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                          <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
+                            Slide Middle
+                          </h3>
+                          
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
+                            <div className="flex items-center">
+                              <button 
+                                onClick={() => setAdminMidIdx(prev => Math.max(0, prev - 1))}
+                                disabled={adminMidIdx === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <div className="px-3 min-w-[60px] text-center">
+                                <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest leading-none">
+                                  {adminMidSlides.length > 0 ? `${adminMidIdx + 1} / ${adminMidSlides.length}` : '0 / 0'}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => setAdminMidIdx(prev => Math.min(adminMidSlides.length - 1, prev + 1))}
+                                disabled={adminMidIdx >= adminMidSlides.length - 1 || adminMidSlides.length === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                            
+                            <button 
+                              onClick={() => {
+                                const newId = Date.now().toString();
+                                setPageSettings({
+                                  ...pageSettings,
+                                  homeSlides: [...pageSettings.homeSlides, { id: newId, url: "", alt: "", title: "", link: "", position: "home_middle" }]
+                                });
+                                setAdminMidIdx(adminMidSlides.length);
+                              }}
+                              className="p-2 bg-brand-yellow text-brand-dark rounded-xl hover:shadow-md transition-all active:scale-90"
+                              title="Aggiungi Slide"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            
+                            {adminMidSlides.length > 0 && (
+                              <button 
+                                onClick={() => setSlideToDelete({ id: adminMidSlides[adminMidIdx].id, type: 'Slide Middle', position: 'home_middle' })}
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"
+                                title="Elimina Slide Corrente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <button 
-                            onClick={() => setPageSettings({
-                              ...pageSettings,
-                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_middle" }]
-                            })}
-                            className="flex items-center gap-1.5 bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-dark hover:text-white transition-all shadow-md hover:scale-105 active:scale-95"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Aggiungi Slide Middle
-                          </button>
                         </div>
                         
                         <div className="grid grid-cols-1 gap-4">
-                          {pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle').length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
-                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide middle configurata</p>
+                          {adminMidSlides.length === 0 ? (
+                            <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/30">
+                              <Compass className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                              <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Nessuna slide middle configurata</p>
                             </div>
                           ) : (
-                            pageSettings.homeSlides.filter((s: any) => s.position === 'home_middle').map((slide: any, idx: number) => (
-                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-brand-blue transition-all">
-                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                                  <span className="text-[8px] font-black uppercase bg-brand-blue text-white px-2 py-1 rounded-md shadow-sm">
-                                    Slide Middle #{idx + 1}
-                                  </span>
-                                  <button 
-                                    onClick={() => setPageSettings({
-                                      ...pageSettings,
-                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
-                                    })}
-                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                                    <div className="space-y-3">
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
-                                        <div className="flex gap-2">
-                                          <input 
-                                            type="text" 
-                                            value={slide.url}
-                                            onChange={(e) => setPageSettings({
-                                              ...pageSettings,
-                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
-                                            })}
-                                            className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
-                                            placeholder="https://..."
-                                          />
-                                          <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                                            <Upload className="w-4 h-4 text-brand-blue" />
-                                            <input 
-                                              type="file" 
-                                              className="hidden" 
-                                              accept="image/*"
-                                              onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                  const reader = new FileReader();
-                                                  reader.onloadend = () => {
-                                                    setPageSettings({
-                                                      ...pageSettings,
-                                                      homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
-                                                    });
-                                                  };
-                                                  reader.readAsDataURL(file);
-                                                }
-                                              }}
-                                            />
-                                          </label>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
-                                        <input 
-                                          type="text" 
-                                          value={slide.link}
-                                          onChange={(e) => setPageSettings({
+                            <div key={adminMidSlides[adminMidIdx]?.id} className="bg-gray-50 p-6 rounded-3xl border border-gray-100 animate-in fade-in slide-in-from-right-2 duration-300">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                    <div className="flex gap-2">
+                                      <input 
+                                        type="text" 
+                                        value={adminMidSlides[adminMidIdx]?.url || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminMidSlides[adminMidIdx].id;
+                                          setPageSettings({
                                             ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: e.target.value } : s)
+                                          });
+                                          }}
+                                        className="flex-1 bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                        placeholder="https://..."
+                                      />
+                                      <label className="cursor-pointer bg-white border border-gray-200 p-3 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                                        <Upload className="w-5 h-5 text-brand-blue" />
+                                        <input 
+                                          type="file" 
+                                          className="hidden" 
+                                          accept="image/*"
+                                          onChange={(e) => handleFileChange(e, (url) => {
+                                            const slideId = adminMidSlides[adminMidIdx].id;
+                                            setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: url } : s)
+                                            });
                                           })}
-                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
-                                          placeholder="/categoria/..."
                                         />
-                                      </div>
-                                    </div>
-                                    <div className="space-y-3">
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
-                                          <input 
-                                            type="text" 
-                                            value={slide.title}
-                                            onChange={(e) => setPageSettings({
-                                              ...pageSettings,
-                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
-                                            })}
-                                            className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
-                                          />
-                                        </div>
-                                        <div className="space-y-1">
-                                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
-                                          <input 
-                                            type="text" 
-                                            value={slide.alt}
-                                            onChange={(e) => setPageSettings({
-                                              ...pageSettings,
-                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
-                                            })}
-                                            className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
-                                          />
-                                        </div>
-                                      </div>
-                                      {slide.url && (
-                                        <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
-                                          <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </div>
-                                      )}
+                                      </label>
                                     </div>
                                   </div>
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                    <input 
+                                      type="text" 
+                                      value={adminMidSlides[adminMidIdx]?.link || ""}
+                                      onChange={(e) => {
+                                        const slideId = adminMidSlides[adminMidIdx].id;
+                                        setPageSettings({
+                                          ...pageSettings,
+                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, link: e.target.value } : s)
+                                        });
+                                      }}
+                                      className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      placeholder="/categoria/..."
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminMidSlides[adminMidIdx]?.title || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminMidSlides[adminMidIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, title: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminMidSlides[adminMidIdx]?.alt || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminMidSlides[adminMidIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, alt: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                  {adminMidSlides[adminMidIdx]?.url && (
+                                    <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-white shadow-lg bg-white group-hover:scale-[1.01] transition-transform">
+                                      <img src={adminMidSlides[adminMidIdx].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            ))
+                            </div>
                           )}
                         </div>
                       </div>
 
                       {/* BOTTOM SLIDES */}
                       <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                          <div>
-                            <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
-                              <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
-                              Slide Bottom
-                            </h3>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                          <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
+                            Slide Bottom
+                          </h3>
+                          
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
+                            <div className="flex items-center">
+                              <button 
+                                onClick={() => setAdminBotIdx(prev => Math.max(0, prev - 1))}
+                                disabled={adminBotIdx === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <div className="px-3 min-w-[60px] text-center">
+                                <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest leading-none">
+                                  {adminBotSlides.length > 0 ? `${adminBotIdx + 1} / ${adminBotSlides.length}` : '0 / 0'}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => setAdminBotIdx(prev => Math.min(adminBotSlides.length - 1, prev + 1))}
+                                disabled={adminBotIdx >= adminBotSlides.length - 1 || adminBotSlides.length === 0}
+                                className="p-2 text-brand-dark hover:bg-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                            
+                            <button 
+                              onClick={() => {
+                                const newId = Date.now().toString();
+                                setPageSettings({
+                                  ...pageSettings,
+                                  homeSlides: [...pageSettings.homeSlides, { id: newId, url: "", alt: "", title: "", link: "", position: "home_bottom" }]
+                                });
+                                setAdminBotIdx(adminBotSlides.length);
+                              }}
+                              className="p-2 bg-brand-yellow text-brand-dark rounded-xl hover:shadow-md transition-all active:scale-90"
+                              title="Aggiungi Slide"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            
+                            {adminBotSlides.length > 0 && (
+                              <button 
+                                onClick={() => setSlideToDelete({ id: adminBotSlides[adminBotIdx].id, type: 'Slide Bottom', position: 'home_bottom' })}
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"
+                                title="Elimina Slide Corrente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <button 
-                            onClick={() => setPageSettings({
-                              ...pageSettings,
-                              homeSlides: [...pageSettings.homeSlides, { id: Date.now().toString(), url: "", alt: "", title: "", link: "", position: "home_bottom" }]
-                            })}
-                            className="flex items-center gap-1.5 bg-brand-dark text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-brand-blue transition-all shadow-md hover:scale-105 active:scale-95"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Aggiungi Slide Bottom
-                          </button>
                         </div>
                         
                         <div className="grid grid-cols-1 gap-4">
-                          {pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom').length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
-                              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Nessuna slide bottom configurata</p>
+                          {adminBotSlides.length === 0 ? (
+                            <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/30">
+                              <Compass className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                              <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Nessuna slide bottom configurata</p>
                             </div>
                           ) : (
-                            pageSettings.homeSlides.filter((s: any) => s.position === 'home_bottom').map((slide: any, idx: number) => (
-                              <div key={slide.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group hover:border-red-500 transition-all">
-                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                                  <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md shadow-sm">
-                                    Slide Bottom #{idx + 1}
-                                  </span>
-                                  <button 
-                                    onClick={() => setPageSettings({
-                                      ...pageSettings,
-                                      homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slide.id)
-                                    })}
-                                    className="bg-white text-red-500 p-1.5 hover:bg-red-500 hover:text-white rounded-md transition-all shadow-sm"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                                  <div className="space-y-3">
-                                    <div className="space-y-1">
-                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
-                                      <div className="flex gap-2">
-                                        <input 
-                                          type="text" 
-                                          value={slide.url}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: e.target.value } : s)
-                                          })}
-                                          className="flex-1 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
-                                          placeholder="https://..."
-                                        />
-                                        <label className="cursor-pointer bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                                          <Upload className="w-4 h-4 text-brand-blue" />
-                                          <input 
-                                            type="file" 
-                                            className="hidden" 
-                                            accept="image/*"
-                                            onChange={(e) => {
-                                              const file = e.target.files?.[0];
-                                              if (file) {
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => {
-                                                  setPageSettings({
-                                                    ...pageSettings,
-                                                    homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, url: reader.result } : s)
-                                                  });
-                                                };
-                                                reader.readAsDataURL(file);
-                                              }
-                                            }}
-                                          />
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                            <div key={adminBotSlides[adminBotIdx]?.id} className="bg-gray-50 p-6 rounded-3xl border border-gray-100 animate-in fade-in slide-in-from-right-2 duration-300">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Sorgente Immagine</label>
+                                    <div className="flex gap-2">
                                       <input 
                                         type="text" 
-                                        value={slide.link}
-                                        onChange={(e) => setPageSettings({
+                                        value={adminBotSlides[adminBotIdx]?.url || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminBotSlides[adminBotIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: e.target.value } : s)
+                                          });
+                                          }}
+                                        className="flex-1 bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                        placeholder="https://..."
+                                      />
+                                      <label className="cursor-pointer bg-white border border-gray-200 p-3 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                                        <Upload className="w-5 h-5 text-brand-blue" />
+                                        <input 
+                                          type="file" 
+                                          className="hidden" 
+                                          accept="image/*"
+                                          onChange={(e) => handleFileChange(e, (url) => {
+                                            const slideId = adminBotSlides[adminBotIdx].id;
+                                            setPageSettings({
+                                              ...pageSettings,
+                                              homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, url: url } : s)
+                                            });
+                                          })}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione</label>
+                                    <input 
+                                      type="text" 
+                                      value={adminBotSlides[adminBotIdx]?.link || ""}
+                                      onChange={(e) => {
+                                        const slideId = adminBotSlides[adminBotIdx].id;
+                                        setPageSettings({
                                           ...pageSettings,
-                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, link: e.target.value } : s)
-                                        })}
-                                        className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
-                                        placeholder="/categoria/..."
+                                          homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, link: e.target.value } : s)
+                                        });
+                                      }}
+                                      className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      placeholder="/categoria/..."
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminBotSlides[adminBotIdx]?.title || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminBotSlides[adminBotIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, title: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                      <input 
+                                        type="text" 
+                                        value={adminBotSlides[adminBotIdx]?.alt || ""}
+                                        onChange={(e) => {
+                                          const slideId = adminBotSlides[adminBotIdx].id;
+                                          setPageSettings({
+                                            ...pageSettings,
+                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slideId ? { ...s, alt: e.target.value } : s)
+                                          });
+                                        }}
+                                        className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue shadow-sm"
                                       />
                                     </div>
                                   </div>
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
-                                        <input 
-                                          type="text" 
-                                          value={slide.title}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, title: e.target.value } : s)
-                                          })}
-                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
-                                        <input 
-                                          type="text" 
-                                          value={slide.alt}
-                                          onChange={(e) => setPageSettings({
-                                            ...pageSettings,
-                                            homeSlides: pageSettings.homeSlides.map((s: any) => s.id === slide.id ? { ...s, alt: e.target.value } : s)
-                                          })}
-                                          className="w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-red-500 focus:border-red-500 shadow-sm"
-                                        />
-                                      </div>
+                                  {adminBotSlides[adminBotIdx]?.url && (
+                                    <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-white shadow-lg bg-white group-hover:scale-[1.01] transition-transform">
+                                      <img src={adminBotSlides[adminBotIdx].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     </div>
-                                    {slide.url && (
-                                      <div className="relative aspect-video rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
-                                        <img src={slide.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                      </div>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
                               </div>
-                            ))
+                            </div>
                           )}
-                        </div>
                       </div>
                     </div>
 
                     {/* Category Banners */}
-                    <div className="space-y-3">
-                      <h4 className="text-[8px] font-black uppercase tracking-widest text-brand-blue border-l-2 border-brand-yellow pl-2">Banner Categorie</h4>
-                      <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-5">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-blue border-l-4 border-brand-yellow pl-3">Banner Categorie</h4>
+                      <div className="grid grid-cols-1 gap-4">
                         {Object.keys(pageSettings.categoryBanners).map((catName) => (
-                          <div key={catName} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <h5 className="text-[10px] font-black text-brand-dark mb-2">{catName}</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div key={catName} className="bg-gray-50 p-5 rounded-2xl border border-gray-100 group hover:border-brand-yellow transition-all">
+                            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                              <h5 className="text-[10px] font-black text-brand-dark uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-1 h-4 bg-brand-yellow rounded-full"></span>
+                                {catName}
+                              </h5>
+                              <span className="text-[8px] font-black uppercase bg-brand-yellow/20 text-brand-dark px-2 py-1 rounded-md">
+                                Banner Home Categoria
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                               <div className="space-y-3">
-                                <label className="block">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[8px] font-black uppercase text-gray-400">Immagine URL o File</span>
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between ml-1">
+                                    <span className="text-[8px] font-black uppercase text-gray-400">Sorgente Immagine</span>
                                     <div className="flex gap-2">
                                       <label className="cursor-pointer flex items-center gap-1 text-[8px] font-black uppercase text-brand-blue hover:text-brand-dark transition-colors">
                                         <Upload className="w-2.5 h-2.5" />
@@ -2471,43 +2737,12 @@ export default function App() {
                                         [catName]: { ...pageSettings.categoryBanners[catName], url: e.target.value }
                                       }
                                     })}
-                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                    placeholder="https://..."
+                                    className="block w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
                                   />
-                                </label>
-                                <label className="block">
-                                  <span className="text-[7px] font-black uppercase text-gray-400">Titolo SEO</span>
-                                  <input 
-                                    type="text" 
-                                    value={pageSettings.categoryBanners[catName].title}
-                                    onChange={(e) => setPageSettings({
-                                      ...pageSettings,
-                                      categoryBanners: {
-                                        ...pageSettings.categoryBanners,
-                                        [catName]: { ...pageSettings.categoryBanners[catName], title: e.target.value }
-                                      }
-                                    })}
-                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
-                                  />
-                                </label>
-                              </div>
-                              <div className="space-y-3">
-                                <label className="block">
-                                  <span className="text-[7px] font-black uppercase text-gray-400">Alt Text SEO</span>
-                                  <input 
-                                    type="text" 
-                                    value={pageSettings.categoryBanners[catName].alt}
-                                    onChange={(e) => setPageSettings({
-                                      ...pageSettings,
-                                      categoryBanners: {
-                                        ...pageSettings.categoryBanners,
-                                        [catName]: { ...pageSettings.categoryBanners[catName], alt: e.target.value }
-                                      }
-                                    })}
-                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
-                                  />
-                                </label>
-                                <label className="block">
-                                  <span className="text-[7px] font-black uppercase text-gray-400">Link URL (Opzionale)</span>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Link Destinazione (Opzionale)</label>
                                   <input 
                                     type="text" 
                                     value={pageSettings.categoryBanners[catName].link || ""}
@@ -2518,17 +2753,52 @@ export default function App() {
                                         [catName]: { ...pageSettings.categoryBanners[catName], link: e.target.value }
                                       }
                                     })}
-                                    className="mt-0.5 block w-full bg-white border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                                    className="block w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
                                     placeholder="/categoria/..."
                                   />
-                                </label>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo SEO</label>
+                                    <input 
+                                      type="text" 
+                                      value={pageSettings.categoryBanners[catName].title}
+                                      onChange={(e) => setPageSettings({
+                                        ...pageSettings,
+                                        categoryBanners: {
+                                          ...pageSettings.categoryBanners,
+                                          [catName]: { ...pageSettings.categoryBanners[catName], title: e.target.value }
+                                        }
+                                      })}
+                                      className="block w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Alt Text SEO</label>
+                                    <input 
+                                      type="text" 
+                                      value={pageSettings.categoryBanners[catName].alt}
+                                      onChange={(e) => setPageSettings({
+                                        ...pageSettings,
+                                        categoryBanners: {
+                                          ...pageSettings.categoryBanners,
+                                          [catName]: { ...pageSettings.categoryBanners[catName], alt: e.target.value }
+                                        }
+                                      })}
+                                      className="block w-full bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-brand-yellow focus:border-brand-yellow shadow-sm"
+                                    />
+                                  </div>
+                                </div>
+                                {pageSettings.categoryBanners[catName].url && (
+                                  <div className="relative aspect-[21/9] rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
+                                    <img src={pageSettings.categoryBanners[catName].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            {pageSettings.categoryBanners[catName].url && (
-                              <div className="mt-2 aspect-[21/9] rounded-lg overflow-hidden border border-gray-100">
-                                <img src={pageSettings.categoryBanners[catName].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -2868,6 +3138,75 @@ export default function App() {
                     Salva Modifiche
                   </button>
                 </div>
+
+                {/* Delete Confirmation Modal */}
+                <AnimatePresence>
+                  {slideToDelete && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-dark/60 backdrop-blur-sm"
+                    >
+                      <motion.div 
+                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden"
+                      >
+                        <div className="bg-red-500 p-8 text-center relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-full h-full opacity-10">
+                            <Trash2 className="w-40 h-40 -ml-10 -mt-10 rotate-12" />
+                          </div>
+                          <div className="relative z-10 flex flex-col items-center">
+                            <div className="bg-white/20 p-4 rounded-3xl mb-4 backdrop-blur-md border border-white/30">
+                              <Trash2 className="w-10 h-10 text-white" />
+                            </div>
+                            <h4 className="text-xl font-black text-white uppercase tracking-tighter">Conferma Eliminazione</h4>
+                          </div>
+                        </div>
+                        
+                        <div className="p-8 text-center space-y-6">
+                          <div className="space-y-2">
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Stai per eliminare</p>
+                            <p className="text-brand-dark font-black text-lg leading-tight uppercase tracking-tighter">
+                              {slideToDelete.type}
+                            </p>
+                          </div>
+                          
+                          <p className="text-gray-500 text-sm font-bold leading-relaxed px-4">
+                            Questa azione è irreversibile. La slide verrà rimossa definitivamente dal database.
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-3 pt-4">
+                            <button 
+                              onClick={() => setSlideToDelete(null)}
+                              className="px-6 py-4 rounded-2xl bg-gray-100 text-gray-500 font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                            >
+                              Annulla
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setPageSettings({
+                                  ...pageSettings,
+                                  homeSlides: pageSettings.homeSlides.filter((s: any) => s.id !== slideToDelete.id)
+                                });
+                                // Reset indices based on position
+                                if (slideToDelete.position === 'home_top') setAdminTopIdx(0);
+                                if (slideToDelete.position === 'home_middle') setAdminMidIdx(0);
+                                if (slideToDelete.position === 'home_bottom') setAdminBotIdx(0);
+                                setSlideToDelete(null);
+                              }}
+                              className="px-6 py-4 rounded-2xl bg-red-500 text-white font-black uppercase text-[10px] tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/30 active:scale-95"
+                            >
+                              Sì, Elimina
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
         )}
