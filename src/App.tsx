@@ -687,7 +687,7 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
   );
 };
 
-const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSettings }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void; companySettings: any; pageSettings: any; key?: string }) => {
+const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSettings, onOpenProfile, onOpenOrders, onLogout }: { isOpen: boolean; onClose: () => void; onSelectCategory: (c: string) => void; companySettings: any; pageSettings: any; onOpenProfile?: () => void; onOpenOrders?: () => void; onLogout?: () => void; key?: string }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -729,11 +729,17 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSett
             <div className="space-y-6 overflow-y-auto no-scrollbar flex-1">
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Account</h3>
-                <button className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                <button 
+                  onClick={() => { if (onOpenProfile) onOpenProfile(); onClose(); }}
+                  className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+                >
                   <User className="w-5 h-5 text-brand-yellow" />
                   <span className="font-bold">Il mio profilo</span>
                 </button>
-                <button className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                <button 
+                  onClick={() => { if (onOpenOrders) onOpenOrders(); onClose(); }}
+                  className="flex items-center gap-3 w-full p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+                >
                   <ShoppingCart className="w-5 h-5 text-brand-yellow" />
                   <span className="font-bold">I miei ordini</span>
                 </button>
@@ -770,8 +776,11 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSett
             </div>
 
             <div className="pt-6 border-t border-white/10">
-              <button className="w-full bg-brand-yellow text-brand-dark py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
-                Esci
+              <button 
+                onClick={() => { if (onLogout) onLogout(); onClose(); }}
+                className="w-full bg-brand-yellow text-brand-dark py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all"
+              >
+                Esci dal Profilo
               </button>
             </div>
           </motion.div>
@@ -899,6 +908,47 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  
+  // Auth State
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authStep, setAuthStep] = useState<'email' | 'login' | 'register' | 'profile' | 'edit_profile' | 'orders' | 'support'>('email');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bespoint_current_user');
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
+  
+  const [profileEditForm, setProfileEditForm] = useState({
+    nameFirst: '',
+    nameLast: '',
+    phone: '',
+    addressStreet: '',
+    addressCity: '',
+    addressZip: '',
+    addressProvince: '',
+    taxCode: ''
+  });
+  
+  useEffect(() => {
+    if (currentUser) {
+      setProfileEditForm({
+        nameFirst: currentUser.name?.split(' ')[0] || '',
+        nameLast: currentUser.name?.split(' ').slice(1).join(' ') || '',
+        phone: currentUser.phone || '',
+        addressStreet: currentUser.addressStreet || '',
+        addressCity: currentUser.addressCity || '',
+        addressZip: currentUser.addressZip || '',
+        addressProvince: currentUser.addressProvince || '',
+        taxCode: currentUser.taxCode || ''
+      });
+    }
+  }, [currentUser, authStep]);
   const [isMobileAdminMenuOpen, setIsMobileAdminMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo'>('company');
@@ -1058,6 +1108,17 @@ export default function App() {
         parsed.homeSlides = [botSlides[0], ...parsed.homeSlides.filter((s: any) => s.position !== 'home_bottom')];
       }
 
+      if (!parsed.linkRapidi) {
+        parsed.linkRapidi = [
+          { id: '1', title: "Nuovi Arrivi", subtitle: "Scopri la collezione", color: "bg-brand-blue", seed: "gadgets", category: "Tutti", subcategory: "Tutti" },
+          { id: '2', title: "Best Seller", subtitle: "I più amati", color: "bg-brand-yellow", seed: "tech-best", category: "Tutti", subcategory: "Tutti" },
+          { id: '3', title: "Sconti Flash", subtitle: "Solo per oggi", color: "bg-red-500", seed: "flash", category: "Tutti", subcategory: "Tutti" },
+          { id: '4', title: "Illuminazione", subtitle: "Luce perfetta", color: "bg-green-600", seed: "light", category: "Illuminazione", subcategory: "Tutti" },
+          { id: '5', title: "Audio Pro", subtitle: "Suono puro", color: "bg-purple-600", seed: "audio", category: "Elettronica", subcategory: "Audio" },
+          { id: '6', title: "Smart Home", subtitle: "Casa connessa", color: "bg-orange-500", seed: "smart", category: "Sicurezza", subcategory: "Tutti" },
+        ];
+      }
+
       return parsed;
     }
 
@@ -1065,7 +1126,15 @@ export default function App() {
       homeSlides: defaultHomeSlides,
       categoryBanners: defaultBanners,
       categories: initialCategories,
-      subcategories: initialSubcategories
+      subcategories: initialSubcategories,
+      linkRapidi: [
+        { id: '1', title: "Nuovi Arrivi", subtitle: "Scopri la collezione", color: "bg-brand-blue", seed: "gadgets", category: "Tutti", subcategory: "Tutti" },
+        { id: '2', title: "Best Seller", subtitle: "I più amati", color: "bg-brand-yellow", seed: "tech-best", category: "Tutti", subcategory: "Tutti" },
+        { id: '3', title: "Sconti Flash", subtitle: "Solo per oggi", color: "bg-red-500", seed: "flash", category: "Tutti", subcategory: "Tutti" },
+        { id: '4', title: "Illuminazione", subtitle: "Luce perfetta", color: "bg-green-600", seed: "light", category: "Illuminazione", subcategory: "Tutti" },
+        { id: '5', title: "Audio Pro", subtitle: "Suono puro", color: "bg-purple-600", seed: "audio", category: "Elettronica", subcategory: "Audio" },
+        { id: '6', title: "Smart Home", subtitle: "Casa connessa", color: "bg-orange-500", seed: "smart", category: "Sicurezza", subcategory: "Tutti" },
+      ]
     };
   });
 
@@ -1231,6 +1300,116 @@ export default function App() {
     });
   }, [selectedCategory, selectedSubcategory, searchQuery, sortBy]);
 
+  // --- Simulated Backend Auth Methods ---
+  const getUsers = () => JSON.parse(localStorage.getItem('bespoint_users') || '[]');
+  
+  const handleAuthEmailContinue = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (!authEmail.includes('@')) {
+      setAuthError('Email non valida');
+      return;
+    }
+    const users = getUsers();
+    const existing = users.find((u: any) => u.email === authEmail.toLowerCase());
+    if (existing) {
+      setAuthStep('login');
+    } else {
+      setAuthStep('register');
+    }
+  };
+
+  const handleAuthLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    const users = getUsers();
+    const existing = users.find((u: any) => u.email === authEmail.toLowerCase() && u.password === authPassword);
+    if (existing) {
+      setCurrentUser(existing);
+      localStorage.setItem('bespoint_current_user', JSON.stringify(existing));
+      setIsAuthOpen(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthStep('email');
+    } else {
+      setAuthError('Password non corretta');
+    }
+  };
+
+  const handleSaveProfile = () => {
+    if (!currentUser) return;
+    
+    const updatedName = `${profileEditForm.nameFirst} ${profileEditForm.nameLast}`.trim();
+    
+    // Create updated user object
+    const updatedUser = { 
+      ...currentUser, 
+      name: updatedName || currentUser.name,
+      phone: profileEditForm.phone,
+      addressStreet: profileEditForm.addressStreet,
+      addressCity: profileEditForm.addressCity,
+      addressZip: profileEditForm.addressZip,
+      addressProvince: profileEditForm.addressProvince,
+      taxCode: profileEditForm.taxCode
+    };
+    
+    // Update local state (persisting layout)
+    setCurrentUser(updatedUser);
+    localStorage.setItem('bespoint_current_user', JSON.stringify(updatedUser)); // Keep session updated
+    
+    // Update user in DB simulation
+    const users = getUsers();
+    const updatedUsers = users.map((u: any) => u.email === updatedUser.email ? updatedUser : u);
+    localStorage.setItem('bespoint_users', JSON.stringify(updatedUsers));
+    
+    // Switch view back to profile dashboard
+    setAuthStep('profile');
+  };
+
+  const handleAuthRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (authName.length < 2 || authPassword.length < 6) {
+      setAuthError('Nome o password troppo corti (min 6 car.)');
+      return;
+    }
+    const users = getUsers();
+    const newUser = { name: authName, email: authEmail.toLowerCase(), password: authPassword };
+    users.push(newUser);
+    localStorage.setItem('bespoint_users', JSON.stringify(users));
+    setCurrentUser(newUser);
+    localStorage.setItem('bespoint_current_user', JSON.stringify(newUser));
+    setIsAuthOpen(false);
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthName('');
+    setAuthStep('email');
+  };
+
+  const handleGoogleLogin = () => {
+    setAuthError('');
+    // Simulazione Google OAuth Login
+    const mockGoogleEmail = "utente.google@gmail.com";
+    const mockGoogleName = "Utente Google";
+    const users = getUsers();
+    const existing = users.find((u: any) => u.email === mockGoogleEmail);
+    if (existing) {
+      setCurrentUser(existing);
+      localStorage.setItem('bespoint_current_user', JSON.stringify(existing));
+      setIsAuthOpen(false);
+    } else {
+      setAuthEmail(mockGoogleEmail);
+      setAuthName(mockGoogleName);
+      setAuthStep('register');
+    }
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('bespoint_current_user');
+    setAuthStep('email');
+  };
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -1342,9 +1521,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-            <button className="flex flex-col items-center text-white">
+            <button 
+              onClick={() => {
+                if (currentUser) {
+                  setAuthStep('profile');
+                } else {
+                  setAuthStep('email');
+                }
+                setIsAuthOpen(true);
+              }}
+              className="flex flex-col items-center text-white hover:text-brand-yellow transition-colors"
+            >
               <User className="w-5 h-5" />
-              <span className="text-[10px] font-bold uppercase">Accedi</span>
+              <span className="text-[10px] font-bold uppercase">{currentUser ? currentUser.name.split(' ')[0] : 'Accedi'}</span>
             </button>
             <button 
               onClick={() => setIsCartOpen(true)}
@@ -1466,7 +1655,7 @@ export default function App() {
             </AnimatePresence>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-12 px-6 z-20">
               <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter drop-shadow-lg">
-                {topSlides[heroIndex]?.title || "Offerte del Giorno"}
+                {topSlides[heroIndex]?.title || "Le scelte migliori per te"}
               </h2>
               <p className="text-sm text-white/90 mb-4 font-bold drop-shadow-md">
                 {topSlides[heroIndex]?.alt || "Risparmia fino al 40% su tutta la tecnologia Bespoint."}
@@ -1527,11 +1716,11 @@ export default function App() {
               viewport={{ once: true }}
               className="flex items-center justify-between mb-4"
             >
-              <h2 className="text-lg font-bold text-brand-dark">Offerte del giorno</h2>
+              <h2 className="text-lg font-bold text-brand-dark">Le scelte migliori per te</h2>
               <button className="text-xs font-bold text-blue-600">Vedi tutte</button>
             </motion.div>
             <div className="flex overflow-x-auto lg:grid lg:grid-cols-12 lg:grid-rows-2 lg:h-[450px] no-scrollbar gap-4 pb-4">
-              {PROMO_ITEMS.map((item, idx) => (
+              {(pageSettings.linkRapidi || []).map((item: any, idx: number) => (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.8, x: 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -1542,6 +1731,10 @@ export default function App() {
                     delay: idx * 0.1 
                   }}
                   key={item.id}
+                  onClick={() => {
+                    setSelectedCategory(item.category || "Tutti");
+                    setSelectedSubcategory(item.subcategory || "Tutti");
+                  }}
                   className={`${item.color} rounded-2xl p-4 h-40 lg:h-full min-w-[160px] sm:min-w-[200px] flex flex-col justify-between overflow-hidden relative group cursor-pointer flex-shrink-0 shadow-lg ${
                     idx === 0 ? "lg:col-span-4 lg:row-span-2" : 
                     idx === 1 ? "lg:col-span-4 lg:row-span-1" :
@@ -1799,6 +1992,23 @@ export default function App() {
           onSelectCategory={setSelectedCategory}
           companySettings={companySettings}
           pageSettings={pageSettings}
+          onOpenProfile={() => {
+            if (currentUser) {
+              setAuthStep('profile');
+            } else {
+              setAuthStep('email');
+            }
+            setIsAuthOpen(true);
+          }}
+          onOpenOrders={() => {
+            if (currentUser) {
+              setAuthStep('orders');
+            } else {
+              setAuthStep('email');
+            }
+            setIsAuthOpen(true);
+          }}
+          onLogout={logout}
         />
         <CartSplash 
           key="cart-splash"
@@ -1895,6 +2105,16 @@ export default function App() {
                   >
                     <Compass className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
                     {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Categorie</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('link_rapidi' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === ('link_rapidi' as any) ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Box className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Link Rapidi</span>}
                   </button>
                 </nav>
 
@@ -3061,6 +3281,137 @@ export default function App() {
                   </div>
                 )}
 
+                {adminActiveTab === ('link_rapidi' as any) && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Link Rapidi (Promo Box)</h2>
+                      <button 
+                        onClick={() => {
+                          const newId = Date.now().toString();
+                          setPageSettings({
+                            ...pageSettings,
+                            linkRapidi: [...(pageSettings.linkRapidi || []), { 
+                              id: newId, 
+                              title: "Nuovo Link", 
+                              subtitle: "Sottotitolo", 
+                              color: "bg-brand-blue", 
+                              seed: "new-" + newId,
+                              category: "Tutti",
+                              subcategory: "Tutti"
+                            }]
+                          });
+                        }}
+                        className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-md flex items-center gap-2"
+                      >
+                        <Plus className="w-3 h-3" /> Aggiungi Box
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {(pageSettings.linkRapidi || []).map((item: any, idx: number) => (
+                        <div key={item.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4 hover:shadow-xl transition-all group overflow-hidden">
+                          <div className="flex justify-between items-start">
+                            <div className={`${item.color} w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg`}>
+                              <Box className="w-6 h-6 text-white" />
+                            </div>
+                            <button 
+                              onClick={() => {
+                                setPageSettings({
+                                  ...pageSettings,
+                                  linkRapidi: pageSettings.linkRapidi.filter((l: any) => l.id !== item.id)
+                                });
+                              }}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            <label className="block">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Titolo</span>
+                              <input 
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => {
+                                  const newLinks = [...pageSettings.linkRapidi];
+                                  newLinks[idx] = { ...item, title: e.target.value };
+                                  setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                }}
+                                className="mt-1 block w-full bg-gray-50 border-transparent rounded-xl px-4 py-2 text-sm font-bold focus:ring-brand-yellow focus:bg-white"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Sottotitolo</span>
+                              <input 
+                                type="text"
+                                value={item.subtitle}
+                                onChange={(e) => {
+                                  const newLinks = [...(pageSettings.linkRapidi || [])];
+                                  newLinks[idx] = { ...item, subtitle: e.target.value };
+                                  setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                }}
+                                className="mt-1 block w-full bg-gray-50 border-transparent rounded-xl px-4 py-2 text-sm font-bold focus:ring-brand-yellow focus:bg-white"
+                              />
+                            </label>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="block">
+                                <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Categoria Filtro</span>
+                                <select 
+                                  value={item.category}
+                                  onChange={(e) => {
+                                    const newLinks = [...(pageSettings.linkRapidi || [])];
+                                    newLinks[idx] = { ...item, category: e.target.value, subcategory: "Tutti" };
+                                    setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                  }}
+                                  className="mt-1 block w-full bg-gray-50 border-transparent rounded-xl px-4 py-2 text-xs font-bold focus:ring-brand-yellow"
+                                >
+                                  {pageSettings.categories.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                              </label>
+
+                              <label className="block">
+                                <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Sottocategoria</span>
+                                <select 
+                                  value={item.subcategory}
+                                  onChange={(e) => {
+                                    const newLinks = [...(pageSettings.linkRapidi || [])];
+                                    newLinks[idx] = { ...item, subcategory: e.target.value };
+                                    setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                  }}
+                                  className="mt-1 block w-full bg-gray-50 border-transparent rounded-xl px-4 py-2 text-xs font-bold focus:ring-brand-yellow"
+                                >
+                                  <option value="Tutti">Tutti</option>
+                                  {(pageSettings.subcategories[item.category] || []).map((s: string) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              </label>
+                            </div>
+
+                            <div className="pt-2">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1">Colore Background</span>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {["bg-brand-blue", "bg-brand-yellow", "bg-red-500", "bg-green-600", "bg-purple-600", "bg-orange-500", "bg-indigo-600", "bg-gray-800"].map(color => (
+                                  <button 
+                                    key={color}
+                                    onClick={() => {
+                                      const newLinks = [...pageSettings.linkRapidi];
+                                      newLinks[idx] = { ...item, color: color };
+                                      setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                    }}
+                                    className={`w-6 h-6 rounded-full ${color} border-2 ${item.color === color ? 'border-brand-dark' : 'border-white'} shadow-sm`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {adminActiveTab === 'seo' && (
                   <div className="space-y-8">
                     <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Configurazione SEO</h2>
@@ -3209,6 +3560,349 @@ export default function App() {
                 </AnimatePresence>
               </div>
             </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {isAuthOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className={`bg-white rounded-[2rem] shadow-2xl w-full ${['profile', 'edit_profile', 'orders', 'support'].includes(authStep) ? 'max-w-4xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto overflow-x-hidden relative transition-all duration-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+            >
+              <button 
+                onClick={() => setIsAuthOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-brand-dark transition-colors z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="p-6 md:p-10">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-brand-yellow rounded-2xl mx-auto flex items-center justify-center mb-4 rotate-3 shadow-inner">
+                    <User className="w-8 h-8 text-brand-dark -rotate-3" />
+                  </div>
+                  <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">
+                    {authStep === 'profile' ? `Ciao, ${currentUser?.name.split(' ')[0] || 'Utente'}!` : 
+                     authStep === 'orders' ? 'I Miei Ordini' : 
+                     authStep === 'edit_profile' ? 'Il Mio Profilo' : 
+                     authStep === 'support' ? 'Assistenza Clienti' : 
+                     authStep === 'email' ? 'Bentornato' : 
+                     authStep === 'login' ? 'Inserisci Password' : 
+                     'Crea Account'}
+                  </h2>
+                  <p className="text-gray-500 font-bold text-sm mt-1">
+                    {authStep === 'profile' ? 'Gestisci la tua Area Personale' : 
+                     authStep === 'orders' ? 'Lo storico dei tuoi acquisti' : 
+                     authStep === 'edit_profile' ? 'Aggiorna i dettagli demografici e di fatturazione' : 
+                     authStep === 'support' ? 'Siamo qui per aiutarti. Scegli come preferisci contattarci.' : 
+                     authStep === 'email' ? 'Accedi o registrati per continuare' : 
+                     authStep === 'login' ? `Bentornato, ${authEmail}` : 
+                     'Inserisci i tuoi dati per registrarti'}
+                  </p>
+                </div>
+
+                {authError && (
+                  <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center border border-red-100">
+                    {authError}
+                  </div>
+                )}
+
+                {['profile', 'edit_profile', 'orders', 'support'].includes(authStep) && (
+                  <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+                    {/* Main Content Area */}
+                    <div className="flex-1 order-2 md:order-1">
+                      {authStep === 'profile' && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-4 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                            <div className="w-16 h-16 bg-brand-blue rounded-full flex items-center justify-center text-white font-black text-2xl shadow-inner uppercase">
+                              {currentUser?.name?.charAt(0) || 'U'}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xl font-black text-brand-dark leading-tight">{currentUser?.name}</p>
+                              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">{currentUser?.email}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-brand-yellow/10 p-6 rounded-3xl border border-brand-yellow/20 text-center md:text-left">
+                            <h3 className="text-brand-dark font-black text-lg mb-2 uppercase tracking-tighter">Benvenuto nella tua Area</h3>
+                            <p className="text-sm font-bold text-gray-600 leading-relaxed">Da qui puoi gestire le tue informazioni personali, visualizzare i tuoi ordini e contattare l'assistenza. Usa i collegamenti rapidi per navigare ed impostare i tuoi indirizzi di spedizione principali.</p>
+                          </div>
+                          
+                          <button onClick={() => { setIsAuthOpen(false); }} className="w-full bg-brand-dark hover:bg-brand-yellow hover:text-brand-dark text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
+                            Torna allo Shopping
+                          </button>
+                        </div>
+                      )}
+
+                      {authStep === 'edit_profile' && (
+                        <div className="space-y-4">
+                          <form className="space-y-3 text-left" onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }}>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nome</label>
+                                <input type="text" value={profileEditForm.nameFirst} onChange={e => setProfileEditForm({...profileEditForm, nameFirst: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue outline-none" placeholder="Es. Mario" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Cognome</label>
+                                <input type="text" value={profileEditForm.nameLast} onChange={e => setProfileEditForm({...profileEditForm, nameLast: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue outline-none" placeholder="Es. Rossi" />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Recapito Telefonico</label>
+                              <input type="tel" value={profileEditForm.phone} onChange={e => setProfileEditForm({...profileEditForm, phone: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none" placeholder="+39 333 1234567" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Email di Accesso (Non modificabile)</label>
+                              <div className="w-full bg-gray-100 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold text-gray-500 cursor-not-allowed">
+                                {currentUser?.email}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Indirizzo / Via e Civico</label>
+                              <input type="text" value={profileEditForm.addressStreet} onChange={e => setProfileEditForm({...profileEditForm, addressStreet: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold text-brand-dark focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none" placeholder="Es. Via Roma, 1"/>
+                            </div>
+                            <div className="grid grid-cols-6 gap-3">
+                              <div className="space-y-1 col-span-3">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Città</label>
+                                <input type="text" value={profileEditForm.addressCity} onChange={e => setProfileEditForm({...profileEditForm, addressCity: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold text-brand-dark focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none" placeholder="Es. Milano"/>
+                              </div>
+                              <div className="space-y-1 col-span-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">CAP</label>
+                                <input type="text" value={profileEditForm.addressZip} onChange={e => setProfileEditForm({...profileEditForm, addressZip: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold text-brand-dark focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none" placeholder="20100"/>
+                              </div>
+                              <div className="space-y-1 col-span-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Prov</label>
+                                <input type="text" value={profileEditForm.addressProvince} onChange={e => setProfileEditForm({...profileEditForm, addressProvince: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold uppercase text-brand-dark focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none" placeholder="MI" maxLength={2} />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Codice Fiscale / P.IVA</label>
+                              <input type="text" value={profileEditForm.taxCode} onChange={e => setProfileEditForm({...profileEditForm, taxCode: e.target.value})} className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none uppercase" placeholder="Es. RSSMRA80A01H501U" />
+                            </div>
+                            <div className="pt-2">
+                              <button type="submit" className="w-full bg-brand-blue hover:bg-brand-dark text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
+                                Salva Dati Profilo
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {authStep === 'orders' && (
+                        <div className="space-y-4 text-center">
+                          <div className="py-10 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+                            <Box className="w-12 h-12 text-gray-300 mb-3" />
+                            <p className="text-brand-dark font-black text-xl uppercase tracking-tighter">Nessun ordine</p>
+                            <p className="text-gray-400 text-sm font-bold px-6 mt-1">Non hai ancora effettuato ordini.<br/>Scopri le novità in vetrina!</p>
+                          </div>
+                          <button type="button" onClick={() => { setIsAuthOpen(false); }} className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
+                            Inizia lo Shopping
+                          </button>
+                        </div>
+                      )}
+
+                      {authStep === 'support' && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <a href="mailto:assistenza@bespoint.it" className="bg-white border border-gray-100 rounded-3xl p-6 text-center hover:border-brand-blue hover:shadow-lg transition-all group flex flex-col items-center gap-3">
+                              <div className="w-12 h-12 bg-blue-50 text-brand-blue rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <Mail className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h4 className="font-black text-brand-dark uppercase tracking-tighter text-sm">Invia Email</h4>
+                                <p className="text-xs text-gray-400 font-bold mt-1">Scrivici dalla tua casella</p>
+                              </div>
+                            </a>
+                            <a href="tel:+390000000000" className="bg-white border border-gray-100 rounded-3xl p-6 text-center hover:border-green-500 hover:shadow-lg transition-all group flex flex-col items-center gap-3">
+                              <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <MessageCircle className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h4 className="font-black text-brand-dark uppercase tracking-tighter text-sm">Contatto Telefonico</h4>
+                                <p className="text-xs text-gray-400 font-bold mt-1">Parla con il supporto</p>
+                              </div>
+                            </a>
+                          </div>
+                          <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 mt-2">
+                            <h4 className="font-black text-brand-dark flex items-center gap-2 uppercase tracking-tighter text-sm mb-4">
+                              <MessageCircle className="w-4 h-4 text-brand-blue" />
+                              Messaggio Diretto Dalla Piattaforma
+                            </h4>
+                            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); alert('Messaggio inviato con successo! Ti risponderemo a breve.'); setAuthStep('profile'); }}>
+                              <textarea required className="w-full bg-white border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue outline-none resize-none h-32" placeholder="Scrivi qui la tua richiesta o problema e il nostro team ti risponderà nel più breve tempo possibile..."></textarea>
+                              <button type="submit" className="w-full bg-brand-dark hover:bg-brand-blue text-white p-3.5 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
+                                Invia Messaggio
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Sidebar Links (Right Side Desktop / Bottom Mobile) */}
+                    <div className="w-full md:w-80 space-y-4 order-1 md:order-2 md:border-l md:border-gray-100 md:pl-8">
+                       <h3 className="hidden md:block text-xs font-black text-gray-300 uppercase tracking-widest ml-1 mb-2">Collegamenti Rapidi</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+                        <button onClick={() => setAuthStep('edit_profile')} className={`p-4 bg-white border ${authStep === 'edit_profile' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
+                          <User className={`w-6 h-6 ${authStep === 'edit_profile' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Il mio<br/>profilo</span>
+                        </button>
+                        <button onClick={() => setAuthStep('orders')} className={`p-4 bg-white border ${authStep === 'orders' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
+                          <Box className={`w-6 h-6 ${authStep === 'orders' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I miei<br/>ordini</span>
+                        </button>
+                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
+                          <MapPin className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Indirizzi</span>
+                        </button>
+                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
+                          <Heart className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Preferiti</span>
+                        </button>
+                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
+                          <RefreshCw className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Resi e<br/>Rimborsi</span>
+                        </button>
+                        <button onClick={() => setAuthStep('support')} className={`p-4 bg-white border ${authStep === 'support' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
+                          <MessageCircle className={`w-6 h-6 ${authStep === 'support' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Assistenza<br/> Clienti</span>
+                        </button>
+                      </div>
+
+                      <button 
+                        onClick={() => { logout(); setIsAuthOpen(false); }}
+                        className="w-full mt-4 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white p-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+                      >
+                        Disconnetti Dalla Sessione
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {authStep === 'email' && (
+                  <div className="space-y-4">
+                    <form onSubmit={handleAuthEmailContinue} className="space-y-4">
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Email</label>
+                        <input 
+                          type="email" 
+                          required
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner placeholder:text-gray-300 outline-none"
+                          placeholder="tu@email.com"
+                        />
+                      </div>
+                      <button 
+                        type="submit"
+                        className="w-full bg-brand-dark hover:bg-brand-blue text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all hover:shadow-lg shadow-brand-dark/30 active:scale-95"
+                      >
+                        Continua
+                      </button>
+                    </form>
+
+                    <div className="relative py-4">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-100"></div>
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-white px-4 text-[10px] font-black uppercase tracking-widest text-gray-300">oppure usa</span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleGoogleLogin}
+                      className="w-full bg-white border-2 border-gray-100 hover:border-gray-200 text-brand-dark p-4 rounded-xl font-black text-sm transition-all hover:shadow-md active:scale-95 flex justify-center items-center gap-3"
+                    >
+                      <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5 block" />
+                      Continua con Google
+                    </button>
+                  </div>
+                )}
+
+                {authStep === 'login' && (
+                  <form onSubmit={handleAuthLogin} className="space-y-4 text-left">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Password</label>
+                      <input 
+                        type="password" 
+                        required
+                        autoFocus
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-brand-yellow focus:bg-white transition-all shadow-inner outline-none"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all hover:shadow-lg shadow-brand-yellow/30 active:scale-95"
+                    >
+                      Accedi
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setAuthStep('email')}
+                      className="w-full text-center text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-brand-blue pt-4 transition-colors"
+                    >
+                      Torna indietro o cambia email
+                    </button>
+                  </form>
+                )}
+
+                {authStep === 'register' && (
+                  <form onSubmit={handleAuthRegister} className="space-y-4 text-left">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nome Completo</label>
+                      <input 
+                        type="text" 
+                        required
+                        autoFocus
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none"
+                        placeholder="Es. Mario Rossi"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Crea Password</label>
+                      <input 
+                        type="password" 
+                        required
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full bg-gray-50 border-gray-200 border rounded-xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all shadow-inner outline-none"
+                        placeholder="Minimo 6 caratteri"
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      className="w-full bg-brand-blue hover:bg-brand-dark text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all hover:shadow-lg shadow-brand-blue/30 active:scale-95 mt-2"
+                    >
+                      Crea Account
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setAuthStep('email')}
+                      className="w-full text-center text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-brand-blue pt-4 transition-colors"
+                    >
+                      Torna indietro
+                    </button>
+                  </form>
+                )}
+
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
