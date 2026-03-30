@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw } from "lucide-react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 
-export const AdminSingleProduct = ({ onBack }: { onBack: () => void }) => {
-  const [baseCost, setBaseCost] = useState<number>(10);
-  const [b2cMarkup, setB2cMarkup] = useState<number>(30);
+export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void, initialData?: any }) => {
+  const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
+  const [b2cMarkup, setB2cMarkup] = useState<number>(Number(initialData?.markup) || 30);
   const [b2bMarkup, setB2bMarkup] = useState<number>(10);
   
-  const [manualB2c, setManualB2c] = useState<string>("");
+  const [manualB2c, setManualB2c] = useState<string>(initialData?.price || "");
   const [manualB2b, setManualB2b] = useState<string>("");
 
   const b2cPrice = manualB2c ? parseFloat(manualB2c) : baseCost * (1 + b2cMarkup / 100);
@@ -17,9 +17,24 @@ export const AdminSingleProduct = ({ onBack }: { onBack: () => void }) => {
   const [specs, setSpecs] = useState<{key: string, value: string}[]>([{key: "", value: ""}]);
   const [variants, setVariants] = useState<{type: 'Colore' | 'Taglia', value: string}[]>([{type: 'Colore', value: ""}]);
 
-  const handleManualPrice = (val: string, type: 'b2c' | 'b2b') => {
+  const [amazonMarkup, setAmazonMarkup] = useState<number>(Number(initialData?.amazonMarkup) || 15);
+  const [amazonManualPrice, setAmazonManualPrice] = useState<string>(initialData?.amazonPrice || "");
+  const [ebayMarkup, setEbayMarkup] = useState<number>(Number(initialData?.ebayMarkup) || 11);
+  const [ebayManualPrice, setEbayManualPrice] = useState<string>(initialData?.ebayPrice || "");
+
+  const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || "");
+  const [description, setDescription] = useState<string>(initialData?.description || "");
+  const [amazonTitle, setAmazonTitle] = useState<string>(initialData?.amazonTitle || "");
+  const [ebayTitle, setEbayTitle] = useState<string>(initialData?.ebayTitle || "");
+
+  const amazonPrice = amazonManualPrice ? parseFloat(amazonManualPrice) : baseCost * (1 + amazonMarkup / 100);
+  const ebayPrice = ebayManualPrice ? parseFloat(ebayManualPrice) : baseCost * (1 + ebayMarkup / 100);
+
+  const handleManualPrice = (val: string, type: 'b2c' | 'b2b' | 'amazon' | 'ebay') => {
     if (type === 'b2c') setManualB2c(val);
     if (type === 'b2b') setManualB2b(val);
+    if (type === 'amazon') setAmazonManualPrice(val);
+    if (type === 'ebay') setEbayManualPrice(val);
   };
 
   return (
@@ -92,6 +107,37 @@ export const AdminSingleProduct = ({ onBack }: { onBack: () => void }) => {
           </div>
           
           <div className="space-y-4">
+            <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><Plus className="w-5 h-5 text-gray-400"/> Varianti (Colori & Taglie)</h3>
+            <div className="space-y-3">
+              {variants.map((v, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <select 
+                    value={v.type}
+                    onChange={e => {
+                      const newV = [...variants]; newV[i].type = e.target.value as 'Colore' | 'Taglia'; setVariants(newV);
+                    }}
+                    className="w-32 bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-tighter"
+                  >
+                    <option>Colore</option>
+                    <option>Taglia</option>
+                  </select>
+                  <input 
+                    type="text" 
+                    value={v.value}
+                    onChange={e => {
+                      const newV = [...variants]; newV[i].value = e.target.value; setVariants(newV);
+                    }}
+                    placeholder={v.type === 'Colore' ? "es. Nero Matt" : "es. XL / 42"} 
+                    className="flex-1 bg-white border-gray-200 rounded-lg px-4 py-2 text-sm font-bold" 
+                  />
+                  <button onClick={() => setVariants(variants.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                </div>
+              ))}
+              <button onClick={() => setVariants([...variants, {type: 'Colore', value: ""}])} className="text-[10px] font-black uppercase text-brand-yellow hover:text-brand-dark transition-colors bg-brand-yellow/10 px-3 py-2 rounded-lg border border-brand-yellow/20">+ Aggiungi Variante</button>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><Layers className="w-5 h-5 text-gray-400"/> Tassonomia Avanzata</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <label className="block">
@@ -137,12 +183,26 @@ export const AdminSingleProduct = ({ onBack }: { onBack: () => void }) => {
                 <div className="space-y-4 relative z-10">
                   <label className="block">
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Titolo Ottimizzato SEO</span>
-                    <input type="text" placeholder="Override per Amazon..." className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
+                    <input type="text" value={amazonTitle} onChange={e => setAmazonTitle(e.target.value)} placeholder="Override per Amazon..." className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
                   </label>
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Aggiunta Spese Comm. (%)</span>
-                    <input type="number" defaultValue="15" className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
-                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Costo riferimento:</span>
+                    <span className="text-[9px] font-black text-brand-dark">€{baseCost.toFixed(2)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Ricarico (%)</span>
+                      <input type="number" value={amazonMarkup} onChange={e => setAmazonMarkup(Number(e.target.value))} className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
+                    </label>
+                    <label className="block relative">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Prezzo Finale (Manuale)</span>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400 font-bold">€</span>
+                        <input type="number" value={amazonManualPrice || (amazonPrice ? amazonPrice.toFixed(2) : "0.00")} onChange={e => setAmazonManualPrice(e.target.value)} className={`w-full bg-orange-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-orange-300 ${amazonManualPrice ? 'ring-2 ring-orange-200' : ''}`} />
+                        {amazonManualPrice && <button onClick={() => setAmazonManualPrice("")} className="absolute -bottom-4 right-0 text-[8px] font-black text-orange-600 uppercase">Reset</button>}
+                      </div>
+                    </label>
+                  </div>
                   <label className="block">
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Esenzione GTIN</span>
                     <select className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500">
@@ -175,6 +235,24 @@ export const AdminSingleProduct = ({ onBack }: { onBack: () => void }) => {
                     <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Titolo + Sottotitolo Store</span>
                     <input type="text" placeholder="Titolo per inserzione eBay..." className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
                   </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Costo riferimento:</span>
+                    <span className="text-[9px] font-black text-brand-dark">€{baseCost.toFixed(2)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Ricarico (%)</span>
+                      <input type="number" value={ebayMarkup} onChange={e => setEbayMarkup(Number(e.target.value))} className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
+                    </label>
+                    <label className="block relative">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Prezzo Finale (Manuale)</span>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold">€</span>
+                        <input type="number" value={ebayManualPrice || ebayPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'ebay')} className={`w-full bg-blue-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-blue-300 ${ebayManualPrice ? 'ring-2 ring-blue-200' : ''}`} />
+                        {ebayManualPrice && <button onClick={() => setEbayManualPrice("")} className="absolute -bottom-4 right-0 text-[8px] font-black text-blue-600 uppercase">Reset</button>}
+                      </div>
+                    </label>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <label className="block">
                       <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Comm. (%)</span>

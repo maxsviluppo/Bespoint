@@ -41,13 +41,22 @@ import {
   Edit2,
   ExternalLink,
   Layers,
-  Globe
+  Globe,
+  Download,
+  ShoppingBag,
+  Table,
+  FileText,
+  FileCode,
+  Truck
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
 import { AdminSingleProduct } from "./AdminSingleProduct";
+import { AdminMassiveImport } from "./AdminMassiveImport";
+import { AdminOrders } from "./AdminOrders";
+import { AdminCouriers } from "./AdminCouriers";
 
 // --- Components ---
 
@@ -915,7 +924,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(true);
   
   // Auth State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -959,8 +968,9 @@ export default function App() {
   }, [currentUser, authStep]);
   const [isMobileAdminMenuOpen, setIsMobileAdminMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo' | 'products'>('company');
+  const [adminActiveTab, setAdminActiveTab] = useState<'company' | 'slides' | 'categories' | 'seo' | 'products' | 'marketplaces' | 'orders' | 'couriers'>('orders');
   const [adminProductView, setAdminProductView] = useState<'list' | 'single' | 'mass'>('list');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [adminTopIdx, setAdminTopIdx] = useState(0);
   const [adminMidIdx, setAdminMidIdx] = useState(0);
   const [adminBotIdx, setAdminBotIdx] = useState(0);
@@ -2118,6 +2128,26 @@ export default function App() {
                   </button>
                   <button 
                     onClick={() => {
+                      setAdminActiveTab('orders' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'orders' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <ShoppingBag className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Ordini</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('couriers');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'couriers' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Truck className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Corrieri</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
                       setAdminActiveTab('products');
                       setIsMobileAdminMenuOpen(false);
                     }}
@@ -2125,6 +2155,16 @@ export default function App() {
                   >
                     <Package className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
                     {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Prodotti</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('marketplaces');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'marketplaces' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Globe className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Marketplaces</span>}
                   </button>
                   <button 
                     onClick={() => {
@@ -2145,7 +2185,8 @@ export default function App() {
                   <X className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
                   {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Esci</span>}
                 </button>
-              </motion.div>
+              </div>
+            </motion.div>
 
               {/* Content Area */}
               <div className="flex-1 overflow-y-auto p-8 md:p-12">
@@ -2923,6 +2964,7 @@ export default function App() {
                               </div>
                             </div>
                           )}
+                        </div>
                       </div>
                     </div>
 
@@ -3053,8 +3095,6 @@ export default function App() {
                                   </div>
                                 </div>
                                 {pageSettings.categoryBanners[catName].url && (
-                                  <div className="relative aspect-[21/9] rounded-xl overflow-hidden border border-white shadow-sm bg-white group-hover:scale-[1.01] transition-transform">
-                                    <img src={pageSettings.categoryBanners[catName].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                   </div>
                                 )}
                               </div>
@@ -3530,20 +3570,69 @@ export default function App() {
                         {adminProductView === 'mass' && "Importazione Massiva"}
                       </h2>
                       {adminProductView === 'list' && (
-                        <div className="flex gap-4">
-                          <button 
-                            onClick={() => setAdminProductView('mass')}
-                            className="bg-gray-100 text-gray-600 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-green-500 hover:text-white transition-all flex items-center gap-2"
-                          >
-                            <FileSpreadsheet className="w-4 h-4" /> Importa
-                          </button>
-                          <button 
-                            onClick={() => setAdminProductView('single')}
-                            className="bg-brand-dark text-white px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all flex items-center gap-2"
-                          >
-                            <Plus className="w-4 h-4" /> Crea Nuovo
-                          </button>
-                        </div>
+                          <div className="flex gap-4">
+                            <div className="relative">
+                              <button 
+                                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                                className="bg-white text-gray-500 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-gray-50 border border-gray-100 transition-all flex items-center gap-2 shadow-sm"
+                              >
+                                <Download className="w-4 h-4" /> Esporta <ChevronDown className={`w-4 h-4 transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              
+                              <AnimatePresence>
+                                {isExportMenuOpen && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="absolute top-full mt-2 right-0 w-48 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                  >
+                                    {[
+                                      { label: 'CSV (Excel)', format: 'csv', icon: FileSpreadsheet },
+                                      { label: 'Excel (.xlsx)', format: 'xlsx', icon: Table },
+                                      { label: 'PDF Report', format: 'pdf', icon: FileText },
+                                      { label: 'JSON Data', format: 'json', icon: FileCode }
+                                    ].map((opt) => (
+                                      <button 
+                                        key={opt.format}
+                                        onClick={() => {
+                                          if (opt.format === 'csv') {
+                                            const headers = "ID,Name,Category,Subcategory,Price,SKU\n";
+                                            const rows = PRODUCTS.map(p => `${p.id},"${p.name}","${p.category}","${p.subcategory}",${p.price},BP-${p.id.padStart(4, '0')}`).join("\n");
+                                            const blob = new Blob([headers + rows], { type: 'text/csv' });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.setAttribute('href', url);
+                                            a.setAttribute('download', 'bespoint_catalogo.csv');
+                                            a.click();
+                                          } else {
+                                            alert(`Simulazione esportazione ${opt.label}...`);
+                                          }
+                                          setIsExportMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-gray-500 hover:bg-brand-yellow hover:text-brand-dark transition-all border-b border-gray-50 last:border-none"
+                                      >
+                                        <opt.icon className="w-4 h-4" /> {opt.label}
+                                      </button>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+
+                            <button 
+                              onClick={() => setAdminProductView('mass')}
+                              className="bg-gray-100 text-gray-600 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-green-500 hover:text-white transition-all flex items-center gap-2"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" /> Importa
+                            </button>
+                            <button 
+                              onClick={() => setAdminProductView('single')}
+                              className="bg-brand-dark text-white px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all flex items-center gap-2"
+                            >
+                              <Plus className="w-4 h-4" /> Crea Nuovo
+                            </button>
+                          </div>
                       )}
                       {adminProductView !== 'list' && (
                         <button 
@@ -3590,9 +3679,15 @@ export default function App() {
                                   <td className="p-4">
                                     <div className="flex justify-center gap-2">
                                       {/* Mock market channels */}
-                                      <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center cursor-help" title="Amazon.it Attivo"><Globe className="w-3 h-3" /></span>
-                                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center cursor-help" title="eBay Attivo"><ExternalLink className="w-3 h-3" /></span>
-                                      <span className="w-6 h-6 rounded-full bg-brand-dark text-brand-yellow flex items-center justify-center cursor-help" title="Sito Web Attivo"><Layers className="w-3 h-3" /></span>
+                                      <span className="w-6 h-6 rounded-full bg-white border border-gray-100 flex items-center justify-center cursor-help overflow-hidden shadow-sm hover:scale-110 transition-transform" title="Amazon.it Attivo">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg" className="w-4 h-4 object-contain" alt="Amazon" />
+                                      </span>
+                                      <span className="w-6 h-6 rounded-full bg-white border border-gray-100 flex items-center justify-center cursor-help overflow-hidden shadow-sm hover:scale-110 transition-transform" title="eBay Attivo">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/EBay_logo.svg" className="w-4 h-4 object-contain" alt="eBay" />
+                                      </span>
+                                      <span className="w-6 h-6 rounded-full bg-brand-dark text-brand-yellow flex items-center justify-center cursor-help overflow-hidden shadow-sm hover:scale-110 transition-transform" title="Sito Web Attivo">
+                                        <Layers className="w-3 h-3" />
+                                      </span>
                                     </div>
                                   </td>
                                   <td className="p-4 text-right">
@@ -3615,6 +3710,104 @@ export default function App() {
                     {adminProductView === 'single' && (
                       <AdminSingleProduct onBack={() => setAdminProductView('list')} />
                     )}
+
+                    {adminProductView === 'mass' && (
+                      <AdminMassiveImport onBack={() => setAdminProductView('list')} />
+                    )}
+                  </div>
+                )}
+
+                {adminActiveTab === 'orders' && (
+                  <AdminOrders />
+                )}
+
+                {adminActiveTab === 'couriers' && (
+                  <AdminCouriers />
+                )}
+
+                {adminActiveTab === 'marketplaces' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                    <div>
+                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter mb-2">Integrazione Marketplaces</h2>
+                      <p className="text-sm font-bold text-gray-400 font-bold">Configura i connettori API per sincronizzare stock, prezzi e ordini con le piattaforme esterne.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Amazon Config */}
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-3xl opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                        <div className="flex items-center justify-between mb-8">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center shadow-inner">
+                              <Globe className="w-7 h-7" />
+                            </div>
+                            <h3 className="text-xl font-black uppercase tracking-tighter">Amazon SP-API</h3>
+                          </div>
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 relative"></div>
+                          </label>
+                        </div>
+                        <div className="space-y-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Seller ID</span>
+                            <input type="text" placeholder="A1BCDEFGH2IJK" className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold placeholder:text-gray-300" />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Marketplace Region</span>
+                            <select className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold">
+                              <option>Europa (Amazon.it)</option>
+                              <option>America</option>
+                            </select>
+                          </label>
+                          <button className="w-full bg-brand-dark text-orange-500 px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all flex items-center justify-center gap-2">
+                             Autorizza Canale
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* eBay Config */}
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-3xl opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                        <div className="flex items-center justify-between mb-8">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center shadow-inner">
+                              <ExternalLink className="w-7 h-7" />
+                            </div>
+                            <h3 className="text-xl font-black uppercase tracking-tighter">eBay Integration</h3>
+                          </div>
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 relative"></div>
+                          </label>
+                        </div>
+                        <div className="space-y-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">RU Name</span>
+                            <input type="text" placeholder="BesPoint-BesPoint-..." className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold placeholder:text-gray-300" />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Environment</span>
+                            <select className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold">
+                              <option>Production (Live)</option>
+                              <option>Sandbox (Test)</option>
+                            </select>
+                          </label>
+                          <button className="w-full bg-brand-dark text-blue-500 px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2">
+                             Collega Account eBay
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Add More */}
+                      <div className="bg-gray-50 rounded-3xl p-8 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-brand-yellow transition-all">
+                        <div className="w-16 h-16 bg-white text-gray-400 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:bg-brand-yellow group-hover:text-brand-dark transition-all mb-4">
+                          <Plus className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-black uppercase tracking-widest text-gray-400 group-hover:text-brand-dark transition-colors">Aggiungi Canale</h3>
+                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">ManoMano, Temu, B2B VIP Extension</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
