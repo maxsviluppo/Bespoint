@@ -23,7 +23,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/led1-3/800/800"
     ],
     has3D: true,
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    isFeatured: true
   },
   {
     id: "2",
@@ -47,7 +48,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/alarm1-3/800/800"
     ],
     has3D: true,
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    isFeatured: true
   },
   {
     id: "3",
@@ -95,7 +97,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/mower1-3/800/800"
     ],
     has3D: true,
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    isFeatured: true
   },
   {
     id: "5",
@@ -143,7 +146,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/tv1-3/800/800"
     ],
     has3D: true,
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    isFeatured: true
   },
   {
     id: "7",

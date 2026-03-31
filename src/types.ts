@@ -12,6 +12,9 @@ export interface Product {
   gallery: string[];
   has3D?: boolean;
   videoUrl?: string;
+  isFeatured?: boolean;
+  sku?: string;
+  ean?: string;
 }
 
 export interface CartItem extends Product {

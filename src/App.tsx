@@ -167,7 +167,7 @@ const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuH
   );
 };
 
-function ProductCard({ product, onClick, onAddToCart, index }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number }) {
+function ProductCard({ product, onClick, onAddToCart, index }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; key?: string }) {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -175,7 +175,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       viewport={{ once: true, margin: "-50px" }}
       transition={{ 
         duration: 0.5, 
-        delay: (index % 4) * 0.1,
+        delay: index * 0.05,
         ease: [0.21, 1.02, 0.73, 1]
       }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
@@ -185,7 +185,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       <motion.div 
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: (index % 4) * 0.1 + 0.2 }}
+        transition={{ delay: index * 0.05 + 0.2 }}
         onClick={onClick}
         className="aspect-square mb-3 cursor-pointer overflow-hidden rounded-lg bg-gray-50"
       >
@@ -196,7 +196,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       <motion.h3 
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: (index % 4) * 0.1 + 0.3 }}
+        transition={{ delay: index * 0.05 + 0.3 }}
         onClick={onClick}
         className="text-sm font-medium text-brand-dark line-clamp-2 mb-1 cursor-pointer hover:text-brand-yellow"
       >
@@ -205,7 +205,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: (index % 4) * 0.1 + 0.4 }}
+        transition={{ delay: index * 0.05 + 0.4 }}
         className="flex items-center gap-1 mb-2"
       >
         <div className="flex">
@@ -219,7 +219,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: (index % 4) * 0.1 + 0.5 }}
+          transition={{ delay: index * 0.05 + 0.5 }}
           className="flex items-baseline gap-1 mb-3"
         >
           <span className="text-xs font-bold align-top">€</span>
@@ -229,7 +229,7 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
         <motion.button 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: (index % 4) * 0.1 + 0.6 }}
+          transition={{ delay: index * 0.05 + 0.6 }}
           onClick={() => onAddToCart(product)}
           className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark py-2 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-all"
         >
@@ -945,7 +945,9 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(true);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminSearchQuery, setAdminSearchQuery] = useState("");
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState("Tutti");
   
   // Auth State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -1002,6 +1004,8 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'company' | 'slides' | 'categories' | 'seo' | 'marketing' | 'analytics' | 'products' | 'marketplaces' | 'orders' | 'couriers'>('dashboard');
   const [adminProductView, setAdminProductView] = useState<'list' | 'single' | 'mass'>('list');
+  const [editingAdminProduct, setEditingAdminProduct] = useState<Product | null>(null);
+  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [adminTopIdx, setAdminTopIdx] = useState(0);
   const [adminMidIdx, setAdminMidIdx] = useState(0);
@@ -1177,16 +1181,8 @@ export default function App() {
         parsed.homeSlides = [botSlides[0], ...parsed.homeSlides.filter((s: any) => s.position !== 'home_bottom')];
       }
 
-      if (!parsed.linkRapidi) {
-        parsed.linkRapidi = [
-          { id: '1', title: "Nuovi Arrivi", subtitle: "Scopri la collezione", color: "bg-brand-blue", seed: "gadgets", category: "Tutti", subcategory: "Tutti" },
-          { id: '2', title: "Best Seller", subtitle: "I più amati", color: "bg-brand-yellow", seed: "tech-best", category: "Tutti", subcategory: "Tutti" },
-          { id: '3', title: "Sconti Flash", subtitle: "Solo per oggi", color: "bg-red-500", seed: "flash", category: "Tutti", subcategory: "Tutti" },
-          { id: '4', title: "Illuminazione", subtitle: "Luce perfetta", color: "bg-green-600", seed: "light", category: "Illuminazione", subcategory: "Tutti" },
-          { id: '5', title: "Audio Pro", subtitle: "Suono puro", color: "bg-purple-600", seed: "audio", category: "Elettronica", subcategory: "Audio" },
-          { id: '6', title: "Smart Home", subtitle: "Casa connessa", color: "bg-orange-500", seed: "smart", category: "Sicurezza", subcategory: "Tutti" },
-        ];
-      }
+      if (!parsed.maxFeatured) parsed.maxFeatured = 8;
+      if (!parsed.maxNewArrivals) parsed.maxNewArrivals = 15;
 
       return parsed;
     }
@@ -1197,6 +1193,8 @@ export default function App() {
       categorySeo: defaultSeo,
       categories: initialCategories,
       subcategories: initialSubcategories,
+      maxFeatured: 8,
+      maxNewArrivals: 15,
       linkRapidi: [
         { id: '1', title: "Nuovi Arrivi", subtitle: "Scopri la collezione", color: "bg-brand-blue", seed: "gadgets", category: "Tutti", subcategory: "Tutti" },
         { id: '2', title: "Best Seller", subtitle: "I più amati", color: "bg-brand-yellow", seed: "tech-best", category: "Tutti", subcategory: "Tutti" },
@@ -1364,6 +1362,10 @@ export default function App() {
     setSelectedSubcategory("Tutti");
   }, [selectedCategory]);
 
+  const featuredProducts = useMemo(() => {
+    return PRODUCTS.filter(p => p.isFeatured).slice(0, pageSettings.maxFeatured || 8);
+  }, [cartTrigger, pageSettings.maxFeatured]);
+
   const filteredProducts = useMemo(() => {
     const filtered = PRODUCTS.filter(p => {
       const matchesCategory = selectedCategory === "Tutti" || p.category === selectedCategory;
@@ -1379,7 +1381,7 @@ export default function App() {
       if (sortBy === "newest") return parseInt(b.id) - parseInt(a.id);
       return 0;
     });
-  }, [selectedCategory, selectedSubcategory, searchQuery, sortBy]);
+  }, [selectedCategory, selectedSubcategory, searchQuery, sortBy, cartTrigger]);
 
   // --- Simulated Backend Auth Methods ---
   const getUsers = () => JSON.parse(localStorage.getItem('bespoint_users') || '[]');
@@ -1701,7 +1703,7 @@ export default function App() {
           style={{ opacity: heroOpacity, y: heroY }}
           className="relative w-full overflow-hidden mb-8 origin-top"
         >
-          <div className="h-64 sm:h-80 w-full relative">
+          <div className="h-[460px] sm:h-[550px] w-full relative">
             <div className="absolute inset-0 bg-gradient-to-b from-brand-blue/40 to-transparent z-10" />
             <AnimatePresence mode="wait">
               <motion.div
@@ -1796,7 +1798,7 @@ export default function App() {
               viewport={{ once: true }}
               className="flex items-center justify-between mb-4"
             >
-              <h2 className="text-lg font-bold text-brand-dark">Le scelte migliori per te</h2>
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">LE SCELTE MIGLIORI PER TE</h2>
               <button className="text-xs font-bold text-blue-600">Vedi tutte</button>
             </motion.div>
             <div className="flex overflow-x-auto lg:grid lg:grid-cols-12 lg:grid-rows-2 lg:h-[450px] no-scrollbar gap-4 pb-4">
@@ -1852,6 +1854,31 @@ export default function App() {
           </section>
 
           <SlideSection slides={middleSlides} />
+
+          {/* Home Showcase (Vetrina) */}
+          {searchQuery === "" && featuredProducts.length > 0 && (
+            <section className="px-4 mb-16 mt-0">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="mb-3"
+              >
+                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">VETRINA</h2>
+              </motion.div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {featuredProducts.map((product, index) => (
+                  <ProductCard 
+                    key={`featured-${product.id}`}
+                    product={product} 
+                    onClick={() => setSelectedProduct(product)} 
+                    onAddToCart={addToCart}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -1861,11 +1888,12 @@ export default function App() {
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3"
         >
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-brand-dark">Prodotti in vetrina</h2>
-            <span className="text-xs text-gray-400 font-medium">({filteredProducts.length} risultati)</span>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
+              {selectedCategory === "Tutti" ? "ULTIMI ARRIVI" : `${selectedCategory}`}
+            </h2>
           </div>
           
           <div className="flex items-center gap-3">
@@ -1894,15 +1922,14 @@ export default function App() {
               <p className="text-gray-400 font-medium">Nessun prodotto trovato</p>
             </div>
           ) : (
-            filteredProducts.map((product, index) => (
-              <div key={product.id}>
-                <ProductCard 
-                  product={product} 
-                  onClick={() => setSelectedProduct(product)} 
-                  onAddToCart={addToCart}
-                  index={index}
-                />
-              </div>
+            (selectedCategory === "Tutti" ? filteredProducts.slice(0, pageSettings.maxNewArrivals || 15) : filteredProducts).map((product, index) => (
+              <ProductCard 
+                key={`new-${product.id}`}
+                product={product} 
+                onClick={() => setSelectedProduct(product)} 
+                onAddToCart={addToCart}
+                index={index}
+              />
             ))
           )}
         </div>
@@ -1938,7 +1965,7 @@ export default function App() {
                 transition={{ delay: 0.2 }}
                 className="text-3xl font-black text-white uppercase tracking-tighter mb-2 drop-shadow-lg"
               >
-                Bespoint Experience
+                BESPOINT EXPERIENCE
               </motion.h2>
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
@@ -2170,17 +2197,17 @@ export default function App() {
                     { tab: 'dashboard', label: 'Panoramica', icon: Home, color: 'bg-brand-dark text-white' },
                     { tab: 'company', label: 'Azienda', icon: Grid, color: 'bg-brand-yellow text-brand-dark font-black' },
                     { tab: 'slides', label: 'Slide', icon: Play, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'seo', label: 'SEO & Google', icon: Globe, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'analytics', label: 'Analytics', icon: BarChart2, color: 'bg-indigo-600 text-white' },
-                    { tab: 'marketing', label: 'Marketing & Adv', icon: Target, color: 'bg-orange-500 text-white' },
-                    { tab: 'categories', label: 'Categorie', icon: Compass, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'orders', label: 'Ordini', icon: ShoppingBag, color: 'bg-brand-yellow text-brand-dark font-black' },
-                    { tab: 'couriers', label: 'Corrieri', icon: Truck, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'products', label: 'Prodotti', icon: Package, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'marketplaces', label: 'Marketplaces', icon: Globe, color: 'bg-brand-yellow text-brand-dark' },
                     { tab: 'link_rapidi', label: 'Link Rapidi', icon: Box, color: 'bg-brand-yellow text-brand-dark' },
+                    { tab: 'categories', label: 'Categorie', icon: Compass, color: 'bg-brand-yellow text-brand-dark' },
+                    { tab: 'products', label: 'Prodotti', icon: Package, color: 'bg-brand-yellow text-brand-dark' },
+                    { tab: 'couriers', label: 'Corrieri', icon: Truck, color: 'bg-brand-yellow text-brand-dark' },
+                    { tab: 'orders', label: 'Ordini', icon: ShoppingBag, color: 'bg-brand-blue text-white font-black' },
+                    { tab: 'users', label: 'Archivio Utenti', icon: Users, color: 'bg-blue-600 text-white' },
                     { tab: 'returns', label: 'Gestione Resi', icon: RefreshCw, color: 'bg-red-500 text-white' },
-                    { tab: 'users', label: 'Archivio Utenti', icon: Users, color: 'bg-blue-600 text-white' }
+                    { tab: 'seo', label: 'SEO & Google', icon: Globe, color: 'bg-indigo-700 text-white' },
+                    { tab: 'analytics', label: 'Analytics', icon: BarChart2, color: 'bg-indigo-600 text-white' },
+                    { tab: 'marketplaces', label: 'Marketplace', icon: Globe, color: 'bg-amber-600 text-white' },
+                    { tab: 'marketing', label: 'Marketing', icon: Target, color: 'bg-orange-500 text-white' }
                   ].map((item) => (
                     <div key={item.tab} className="px-3">
                       <button 
@@ -2561,77 +2588,7 @@ export default function App() {
                   </div>
                 )}
 
-                {adminActiveTab === 'marketing' && (
-                  <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
-                    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[3rem] p-12 text-white relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                       <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                          <div className="text-center md:text-left space-y-4">
-                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full backdrop-blur-md border border-white/30 text-[10px] font-black uppercase tracking-widest">
-                                <Target className="w-3.5 h-3.5" /> Marketing Central
-                             </div>
-                             <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-2">Potenzia le Vendite</h2>
-                             <p className="text-lg font-bold text-white/80 max-w-xl">Gestisci le tue campagne Meta e Google Ads direttamente dal pannello BesPoint.</p>
-                          </div>
-                          <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 text-center min-w-[280px]">
-                             <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Budget Mensile Allocato</p>
-                             <p className="text-5xl font-black">€4.500</p>
-                             <div className="mt-4 flex items-center justify-center gap-2 text-green-300 font-bold">
-                                <TrendingUp className="w-4 h-4" /> +12% vs mese scorso
-                             </div>
-                          </div>
-                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
-                          <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                                <Facebook className="w-7 h-7" />
-                             </div>
-                             <div>
-                                <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter leading-none">Meta Ads Manager</h3>
-                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Facebook & Instagram</p>
-                             </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                             <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Impression</p>
-                                <p className="text-2xl font-black text-brand-dark">850k</p>
-                             </div>
-                             <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Click</p>
-                                <p className="text-2xl font-black text-brand-dark">12.4k</p>
-                             </div>
-                          </div>
-                          <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-700 transition-all">Configura Pixel & API</button>
-                       </div>
-
-                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
-                          <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center">
-                                <Share2 className="w-7 h-7" />
-                             </div>
-                             <div>
-                                <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter leading-none">Google Ads Center</h3>
-                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Search & Shopping</p>
-                             </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                             <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">ROAS</p>
-                                <p className="text-2xl font-black text-brand-dark">4.2x</p>
-                             </div>
-                             <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Conversioni</p>
-                                <p className="text-2xl font-black text-brand-dark">342</p>
-                             </div>
-                          </div>
-                          <button className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all">Collega Merchant Center</button>
-                       </div>
-                    </div>
-                  </div>
-                )}
 
                 {adminActiveTab === 'seo' && (
                   <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
@@ -2714,8 +2671,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-                 {/* Duplicated Tab Removed */}
 
                 {adminActiveTab === 'slides' && (
                   <div className="w-full">
@@ -4130,163 +4085,8 @@ export default function App() {
                 )}
 
                 {adminActiveTab === 'marketing' && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Marketing & Campagne Adv</h2>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Gestione ROI, Pixel e Performance Canali</p>
-                      </div>
-                      <div className="flex gap-4">
-                        <button className="bg-white border border-gray-100 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-brand-dark shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2">
-                           <FileText className="w-4 h-4" /> Report PDF
-                        </button>
-                        <button className="bg-orange-500 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:scale-[1.02] transition-all flex items-center gap-2">
-                           <Plus className="w-4 h-4" /> Nuova Campagna
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {[
-                        { label: 'Spesa Totale (Spend)', value: '€4.250', change: '+5.2%', isPos: false, icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-50' },
-                        { label: 'Valore Vendite (Sales)', value: '€21.840', change: '+22.5%', isPos: true, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50' },
-                        { label: 'ROAS Totale', value: '5.14x', change: '+0.4x', isPos: true, icon: PieChart, color: 'text-blue-500', bg: 'bg-blue-50' },
-                        { label: 'Costo per ACQ (CPA)', value: '€12,50', change: '-4.1%', isPos: true, icon: Target, color: 'text-purple-500', bg: 'bg-purple-50' }
-                      ].map((stat, i) => (
-                        <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                           <div className="flex justify-between items-start mb-4">
-                              <div className={`p-4 ${stat.bg} rounded-2xl`}>
-                                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                              </div>
-                              <div className={`text-[10px] font-black px-2 py-1 rounded-lg ${stat.isPos ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                {stat.change}
-                              </div>
-                           </div>
-                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{stat.label}</p>
-                           <h4 className="text-3xl font-black text-brand-dark">{stat.value}</h4>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                       <div className="lg:col-span-2 space-y-8">
-                          <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-6">
-                             <div className="flex justify-between items-center">
-                                <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter">Campagne Attive</h3>
-                                <button className="text-[10px] font-black uppercase text-brand-blue hover:underline">Vedi Tutti i Canali</button>
-                             </div>
-                             <div className="space-y-4">
-                                {[
-                                  { name: 'Sconti Primavera 2024', platform: 'Meta', spend: 1200, sales: 6500, roas: 5.4, status: 'Active' },
-                                  { name: 'Google Search Brand', platform: 'Google', spend: 450, sales: 3200, roas: 7.1, status: 'Active' },
-                                  { name: 'Retargeting Carrello', platform: 'Meta', spend: 850, sales: 4100, roas: 4.8, status: 'Paused' },
-                                  { name: 'Performance Max 01', platform: 'Google', spend: 1750, sales: 8040, roas: 4.6, status: 'Active' }
-                                ].map((camp, i) => (
-                                  <div key={i} className="flex flex-col md:flex-row items-center justify-between p-6 bg-gray-50 rounded-3xl border border-gray-100 group hover:border-brand-yellow/30 transition-all">
-                                     <div className="flex items-center gap-4 flex-1">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${camp.platform === 'Meta' ? 'bg-blue-600' : 'bg-white'}`}>
-                                           {camp.platform === 'Meta' ? <Facebook className="w-6 h-6 text-white" /> : <div className="text-xs font-black text-blue-500">G</div>}
-                                        </div>
-                                        <div>
-                                           <h5 className="text-sm font-black text-brand-dark leading-none mb-1">{camp.name}</h5>
-                                           <span className={`text-[9px] font-bold uppercase ${camp.status === 'Active' ? 'text-green-500':'text-gray-400'}`}>● {camp.status}</span>
-                                        </div>
-                                     </div>
-                                     <div className="grid grid-cols-3 gap-8 mt-4 md:mt-0 text-center md:text-right px-6">
-                                        <div>
-                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Spend</p>
-                                          <p className="text-sm font-black text-brand-dark">€{camp.spend}</p>
-                                        </div>
-                                        <div>
-                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Sales</p>
-                                          <p className="text-sm font-black text-brand-dark">€{camp.sales}</p>
-                                        </div>
-                                        <div>
-                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">ROAS</p>
-                                          <p className="text-sm font-black text-green-600">{camp.roas}x</p>
-                                        </div>
-                                     </div>
-                                     <button className="p-3 bg-white text-gray-300 rounded-xl hover:text-brand-dark transition-all md:ml-4">
-                                        <ChevronDown className="w-4 h-4 rotate-270" />
-                                     </button>
-                                  </div>
-                                ))}
-                             </div>
-                          </div>
-                       </div>
-
-                       <div className="space-y-8">
-                          <div className="bg-brand-dark p-8 rounded-[3rem] text-white space-y-8 relative overflow-hidden">
-                             <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500 rounded-full blur-[80px] opacity-20 -mr-20 -mt-20"></div>
-                             <h3 className="text-xl font-black uppercase tracking-tighter relative z-10 flex items-center gap-2">
-                                <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span> Connessione Canali
-                             </h3>
-                             
-                             <div className="space-y-6 relative z-10">
-                                {/* Meta Pixel */}
-                                <div className="space-y-3">
-                                   <div className="flex items-center justify-between">
-                                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Meta Pixel ID</label>
-                                      <span className="text-[8px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded uppercase">Connected</span>
-                                   </div>
-                                   <input 
-                                     type="text" 
-                                     placeholder="Inserisci Pixel ID..." 
-                                     className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:ring-brand-yellow focus:border-brand-yellow"
-                                     value="92384729384729"
-                                     readOnly
-                                   />
-                                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2 block">Conversion API Token</label>
-                                   <input 
-                                     type="password" 
-                                     placeholder="EAA..." 
-                                     className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:ring-brand-yellow focus:border-brand-yellow"
-                                     value="••••••••••••••••••••••••"
-                                     readOnly
-                                   />
-                                </div>
-
-                                <div className="w-full h-px bg-white/10"></div>
-
-                                {/* Google Ads */}
-                                <div className="space-y-3">
-                                   <div className="flex items-center justify-between">
-                                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Google Ads Conversion ID</label>
-                                   </div>
-                                   <input 
-                                     type="text" 
-                                     placeholder="AW-XXXXXXXXX" 
-                                     className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:ring-brand-yellow focus:border-brand-yellow"
-                                   />
-                                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2 block">Conversion Label</label>
-                                   <input 
-                                     type="text" 
-                                     placeholder="Labl_XXXXXXXX" 
-                                     className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:ring-brand-yellow focus:border-brand-yellow"
-                                   />
-                                </div>
-
-                                <button className="w-full py-5 bg-brand-yellow text-brand-dark rounded-[2rem] text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                                   Salva Configurazione Tracking
-                                </button>
-                             </div>
-                          </div>
-
-                          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-[3rem] text-white space-y-4 shadow-2xl relative overflow-hidden group">
-                             <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl opacity-10 -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
-                             <div className="flex items-center gap-3">
-                                <Sparkles className="w-6 h-6 text-brand-yellow" />
-                                <h3 className="text-xl font-black uppercase tracking-tighter">Suggerimenti AI</h3>
-                             </div>
-                             <p className="text-white/60 text-xs font-bold leading-relaxed">
-                                La tua campagna "Sconti Primavera" ha superato il budget previsto ma mantiene un ROAS eccellente. Suggeriamo di scalare il budget del +25%.
-                             </p>
-                             <button className="w-full py-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">
-                                Applica Ottimizzazione
-                             </button>
-                          </div>
-                       </div>
-                    </div>
+                  <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest bg-white rounded-[3rem] border border-gray-100 shadow-sm">
+                    I controlli per la Vetrina e i Nuovi Arrivi sono stati spostati in <span className="text-brand-yellow bg-brand-dark px-2 py-0.5 rounded ml-1">Gestione Prodotti</span>
                   </div>
                 )}
 
@@ -4299,7 +4099,14 @@ export default function App() {
                         {adminProductView === 'mass' && "Importazione Massiva"}
                       </h2>
                       {adminProductView === 'list' && (
-                          <div className="flex gap-4">
+                          <div className="flex gap-4 items-center">
+                            <button 
+                              onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}
+                              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest transition-all border ${showFeaturedOnly ? 'bg-brand-yellow text-brand-dark border-brand-yellow shadow-lg shadow-brand-yellow/20' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                            >
+                              <Sparkles className={`w-4 h-4 ${showFeaturedOnly ? 'fill-brand-dark' : ''}`} />
+                              {showFeaturedOnly ? 'Solo Vetrina Attiva' : 'Filtra Vetrina'}
+                            </button>
                             <div className="relative">
                               <button 
                                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -4356,7 +4163,10 @@ export default function App() {
                               <FileSpreadsheet className="w-4 h-4" /> Importa
                             </button>
                             <button 
-                              onClick={() => setAdminProductView('single')}
+                              onClick={() => {
+                                setEditingAdminProduct(null);
+                                setAdminProductView('single');
+                              }}
                               className="bg-brand-dark text-white px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all flex items-center gap-2"
                             >
                               <Plus className="w-4 h-4" /> Crea Nuovo
@@ -4374,12 +4184,84 @@ export default function App() {
                     </div>
                     
                     {adminProductView === 'list' && (
-                      <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                      <div className="space-y-6">
+                        {/* Limits & Filters Row */}
+                        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-12 h-12 bg-brand-yellow rounded-2xl flex items-center justify-center shadow-lg shadow-brand-yellow/10">
+                                    <Layers className="w-5 h-5 text-brand-dark" />
+                                 </div>
+                                 <div>
+                                    <h3 className="text-lg font-black uppercase tracking-tighter text-brand-dark">Display Home Controls</h3>
+                                    <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Configura i limiti di visualizzazione per la homepage</p>
+                                 </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-4">
+                                 <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 flex items-center gap-3">
+                                    <span className="text-[10px] font-black uppercase text-gray-400">Vetrina Max:</span>
+                                    <input 
+                                      type="number" 
+                                      value={pageSettings.maxFeatured}
+                                      onChange={e => setPageSettings(prev => ({ ...prev, maxFeatured: Number(e.target.value) }))}
+                                      className="w-16 bg-transparent text-sm font-black text-brand-dark focus:outline-none"
+                                    />
+                                 </div>
+                                 <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 flex items-center gap-3">
+                                    <span className="text-[10px] font-black uppercase text-gray-400">Nuovi Arrivi Max:</span>
+                                    <input 
+                                      type="number" 
+                                      value={pageSettings.maxNewArrivals}
+                                      onChange={e => setPageSettings(prev => ({ ...prev, maxNewArrivals: Number(e.target.value) }))}
+                                      className="w-16 bg-transparent text-sm font-black text-brand-dark focus:outline-none"
+                                    />
+                                 </div>
+                              </div>
+                           </div>
+
+                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
+                              <div className="md:col-span-2 relative">
+                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                 <input 
+                                   type="text" 
+                                   placeholder="Cerca per Nome, SKU o EAN..." 
+                                   value={adminSearchQuery}
+                                   onChange={e => setAdminSearchQuery(e.target.value)}
+                                   className="w-full bg-gray-50 border-gray-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                                 />
+                              </div>
+                              <div className="relative">
+                                 <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                 <select 
+                                   value={adminCategoryFilter}
+                                   onChange={e => setAdminCategoryFilter(e.target.value)}
+                                   className="w-full bg-gray-50 border-gray-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all appearance-none"
+                                 >
+                                   <option value="Tutti">Tutte le Categorie</option>
+                                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                 </select>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setAdminSearchQuery("");
+                                  setAdminCategoryFilter("Tutti");
+                                  setShowFeaturedOnly(false);
+                                }}
+                                className="bg-gray-100 text-gray-500 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                              >
+                                Reset Filtri
+                              </button>
+                           </div>
+                        </div>
+
+                        <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100">
                         <div className="overflow-x-auto">
                           <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-widest text-gray-400">
                                 <th className="p-4">Prodotto</th>
+                                <th className="p-4 text-center">In Vetrina</th>
                                 <th className="p-4">Categoria / Variante</th>
                                 <th className="p-4">Prezzo Base</th>
                                 <th className="p-4 text-center">Canali Attivi</th>
@@ -4387,7 +4269,18 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                              {PRODUCTS.map(p => (
+                              {PRODUCTS.filter(p => {
+                                const matchesSearch = adminSearchQuery === "" || 
+                                  p.name.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
+                                  (p.sku && p.sku.toLowerCase().includes(adminSearchQuery.toLowerCase())) ||
+                                  (p.ean && p.ean.toLowerCase().includes(adminSearchQuery.toLowerCase())) ||
+                                  `BP-${p.id.padStart(4, '0')}`.toLowerCase().includes(adminSearchQuery.toLowerCase());
+                                
+                                const matchesCategory = adminCategoryFilter === "Tutti" || p.category === adminCategoryFilter;
+                                const matchesFeatured = !showFeaturedOnly || p.isFeatured;
+                                
+                                return matchesSearch && matchesCategory && matchesFeatured;
+                              }).map(p => (
                                 <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                                   <td className="p-4">
                                     <div className="flex items-center gap-4">
@@ -4397,6 +4290,22 @@ export default function App() {
                                         <p className="text-xs text-gray-500 font-medium">SKU: BP-{p.id.padStart(4, '0')}</p>
                                       </div>
                                     </div>
+                                  </td>
+                                  <td className="p-4">
+                                      <div className="flex justify-center">
+                                         <label className="relative inline-flex items-center cursor-pointer group">
+                                            <input 
+                                              type="checkbox" 
+                                              className="sr-only peer" 
+                                              checked={p.isFeatured} 
+                                              onChange={() => {
+                                                p.isFeatured = !p.isFeatured;
+                                                setCartTrigger(c => c + 1); 
+                                              }} 
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative shadow-inner group-hover:scale-105 transition-transform"></div>
+                                         </label>
+                                      </div>
                                   </td>
                                   <td className="p-4">
                                     <div className="flex flex-col gap-1">
@@ -4421,7 +4330,10 @@ export default function App() {
                                   </td>
                                   <td className="p-4 text-right">
                                     <button 
-                                      onClick={() => setAdminProductView('single')}
+                                      onClick={() => {
+                                        setEditingAdminProduct(p);
+                                        setAdminProductView('single');
+                                      }}
                                       className="p-2 text-gray-400 hover:text-brand-yellow hover:bg-brand-dark rounded-lg transition-colors inline-block"
                                       title="Modifica Singolo"
                                     >
@@ -4433,11 +4345,19 @@ export default function App() {
                             </tbody>
                           </table>
                         </div>
+                        </div>
                       </div>
                     )}
 
                     {adminProductView === 'single' && (
-                      <AdminSingleProduct onBack={() => setAdminProductView('list')} />
+                      <AdminSingleProduct 
+                        initialData={editingAdminProduct}
+                        onBack={() => {
+                          setEditingAdminProduct(null);
+                          setAdminProductView('list');
+                          setCartTrigger(c => c + 1); // Ensure list and home update with new changes
+                        }} 
+                      />
                     )}
 
                     {adminProductView === 'mass' && (
