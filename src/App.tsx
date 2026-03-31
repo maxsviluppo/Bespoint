@@ -1183,6 +1183,13 @@ export default function App() {
 
       if (!parsed.maxFeatured) parsed.maxFeatured = 8;
       if (!parsed.maxNewArrivals) parsed.maxNewArrivals = 15;
+      if (parsed.isFeaturedEnabled === undefined) parsed.isFeaturedEnabled = false;
+      if (parsed.isNewArrivalsEnabled === undefined) parsed.isNewArrivalsEnabled = true;
+      if (parsed.isSpecialCategoryEnabled === undefined) parsed.isSpecialCategoryEnabled = false;
+      if (!parsed.specialCategoryTitle) parsed.specialCategoryTitle = "Nuova Sezione";
+      if (parsed.specialCategoryValue === undefined) parsed.specialCategoryValue = "";
+      if (parsed.specialSubcategoryValue === undefined) parsed.specialSubcategoryValue = "Tutti";
+      if (!parsed.specialCategoryMax) parsed.specialCategoryMax = 4;
 
       return parsed;
     }
@@ -1195,6 +1202,13 @@ export default function App() {
       subcategories: initialSubcategories,
       maxFeatured: 8,
       maxNewArrivals: 15,
+      isFeaturedEnabled: false,
+      isNewArrivalsEnabled: true,
+      isSpecialCategoryEnabled: false,
+      specialCategoryTitle: "Speciale Natale",
+      specialCategoryValue: "",
+      specialSubcategoryValue: "Tutti",
+      specialCategoryMax: 4,
       linkRapidi: [
         { id: '1', title: "Nuovi Arrivi", subtitle: "Scopri la collezione", color: "bg-brand-blue", seed: "gadgets", category: "Tutti", subcategory: "Tutti" },
         { id: '2', title: "Best Seller", subtitle: "I più amati", color: "bg-brand-yellow", seed: "tech-best", category: "Tutti", subcategory: "Tutti" },
@@ -1365,6 +1379,17 @@ export default function App() {
   const featuredProducts = useMemo(() => {
     return PRODUCTS.filter(p => p.isFeatured).slice(0, pageSettings.maxFeatured || 8);
   }, [cartTrigger, pageSettings.maxFeatured]);
+
+  const specialCategoryProducts = useMemo(() => {
+    if (!pageSettings.isSpecialCategoryEnabled || !pageSettings.specialCategoryValue) return [];
+    const filtered = PRODUCTS.filter(p => {
+      const matchesCategory = p.category === pageSettings.specialCategoryValue;
+      const matchesSubcategory = pageSettings.specialSubcategoryValue === "Tutti" || p.subcategory === pageSettings.specialSubcategoryValue;
+      return matchesCategory && matchesSubcategory;
+    });
+    // Simple shuffle for rotation
+    return [...filtered].sort(() => Math.random() - 0.5).slice(0, pageSettings.specialCategoryMax || 4);
+  }, [pageSettings.isSpecialCategoryEnabled, pageSettings.specialCategoryValue, pageSettings.specialSubcategoryValue, pageSettings.specialCategoryMax, cartTrigger]);
 
   const filteredProducts = useMemo(() => {
     const filtered = PRODUCTS.filter(p => {
@@ -1853,10 +1878,35 @@ export default function App() {
             </div>
           </section>
 
+          {/* Special Category Showcase (e.g. Natale) */}
+          {searchQuery === "" && pageSettings.isSpecialCategoryEnabled && specialCategoryProducts.length > 0 && (
+            <section className="px-4 mb-16 mt-0">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="mb-3"
+              >
+                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{pageSettings.specialCategoryTitle}</h2>
+              </motion.div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {specialCategoryProducts.map((product, index) => (
+                  <ProductCard 
+                    key={`special-${product.id}`}
+                    product={product} 
+                    onClick={() => setSelectedProduct(product)} 
+                    onAddToCart={addToCart}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           <SlideSection slides={middleSlides} />
 
           {/* Home Showcase (Vetrina) */}
-          {searchQuery === "" && featuredProducts.length > 0 && (
+          {searchQuery === "" && pageSettings.isFeaturedEnabled && featuredProducts.length > 0 && (
             <section className="px-4 mb-16 mt-0">
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
@@ -1882,8 +1932,9 @@ export default function App() {
         </>
       )}
 
-      {/* Product Grid Section */}
-      <section className="px-4 relative z-10 mb-16">
+      {/* Product Grid Section (Ultimi Arrivi) */}
+      {pageSettings.isNewArrivalsEnabled && (
+        <section className="px-4 relative z-10 mb-16">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
@@ -1934,6 +1985,7 @@ export default function App() {
           )}
         </div>
       </section>
+      )}
 
       {selectedCategory === "Tutti" && <SlideSection slides={bottomSlides} />}
 
@@ -4198,26 +4250,101 @@ export default function App() {
                                  </div>
                               </div>
                               
-                              <div className="flex items-center gap-4">
-                                 <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 flex items-center gap-3">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Vetrina Max:</span>
-                                    <input 
-                                      type="number" 
-                                      value={pageSettings.maxFeatured}
-                                      onChange={e => setPageSettings(prev => ({ ...prev, maxFeatured: Number(e.target.value) }))}
-                                      className="w-16 bg-transparent text-sm font-black text-brand-dark focus:outline-none"
-                                    />
-                                 </div>
-                                 <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 flex items-center gap-3">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Nuovi Arrivi Max:</span>
-                                    <input 
-                                      type="number" 
-                                      value={pageSettings.maxNewArrivals}
-                                      onChange={e => setPageSettings(prev => ({ ...prev, maxNewArrivals: Number(e.target.value) }))}
-                                      className="w-16 bg-transparent text-sm font-black text-brand-dark focus:outline-none"
-                                    />
-                                 </div>
-                              </div>
+                              <div className="flex flex-wrap items-center gap-4">
+                                  {/* Featured Toggle */}
+                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                     <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                          type="checkbox" 
+                                          className="sr-only peer" 
+                                          checked={pageSettings.isFeaturedEnabled} 
+                                          onChange={() => setPageSettings(prev => ({ ...prev, isFeaturedEnabled: !prev.isFeaturedEnabled }))}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative shadow-inner"></div>
+                                     </label>
+                                     <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase text-brand-dark">Vetrina</span>
+                                        <input 
+                                          type="number" 
+                                          value={pageSettings.maxFeatured}
+                                          onChange={e => setPageSettings(prev => ({ ...prev, maxFeatured: Number(e.target.value) }))}
+                                          className="w-12 bg-transparent text-[11px] font-black text-gray-500 focus:outline-none border-b border-gray-200"
+                                        />
+                                     </div>
+                                  </div>
+
+                                  {/* New Arrivals Toggle */}
+                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                     <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                          type="checkbox" 
+                                          className="sr-only peer" 
+                                          checked={pageSettings.isNewArrivalsEnabled} 
+                                          onChange={() => setPageSettings(prev => ({ ...prev, isNewArrivalsEnabled: !prev.isNewArrivalsEnabled }))}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative shadow-inner"></div>
+                                     </label>
+                                     <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase text-brand-dark">Ultimi Arrivi</span>
+                                        <input 
+                                          type="number" 
+                                          value={pageSettings.maxNewArrivals}
+                                          onChange={e => setPageSettings(prev => ({ ...prev, maxNewArrivals: Number(e.target.value) }))}
+                                          className="w-12 bg-transparent text-[11px] font-black text-gray-500 focus:outline-none border-b border-gray-200"
+                                        />
+                                     </div>
+                                  </div>
+                                  {/* Special Category Toggle */}
+                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                     <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                          type="checkbox" 
+                                          className="sr-only peer" 
+                                          checked={pageSettings.isSpecialCategoryEnabled} 
+                                          onChange={() => setPageSettings(prev => ({ ...prev, isSpecialCategoryEnabled: !prev.isSpecialCategoryEnabled }))}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative shadow-inner"></div>
+                                     </label>
+                                     <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <input 
+                                            type="text" 
+                                            value={pageSettings.specialCategoryTitle}
+                                            onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryTitle: e.target.value }))}
+                                            placeholder="Titolo Sezione (es. Speciale Natale)"
+                                            className="bg-transparent text-[10px] font-black uppercase text-brand-dark focus:outline-none border-b border-brand-yellow/30 w-32"
+                                          />
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <select 
+                                            value={pageSettings.specialCategoryValue}
+                                            onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryValue: e.target.value, specialSubcategoryValue: "Tutti" }))}
+                                            className="bg-gray-100 text-[9px] font-black uppercase p-1 rounded-md border-none focus:ring-1 focus:ring-brand-yellow max-w-[80px]"
+                                          >
+                                            <option value="">Seleziona...</option>
+                                            {CATEGORIES.filter(c => c !== "Tutti").map(c => <option key={c} value={c}>{c}</option>)}
+                                          </select>
+                                          <select 
+                                            value={pageSettings.specialSubcategoryValue}
+                                            onChange={e => setPageSettings(prev => ({ ...prev, specialSubcategoryValue: e.target.value }))}
+                                            className="bg-gray-100 text-[9px] font-black uppercase p-1 rounded-md border-none focus:ring-1 focus:ring-brand-yellow max-w-[80px]"
+                                          >
+                                            <option value="Tutti">Tutti (Sub)</option>
+                                            {pageSettings.specialCategoryValue && SUBCATEGORIES[pageSettings.specialCategoryValue]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                                          </select>
+                                          <div className="flex items-center gap-0.5 ml-1">
+                                            <span className="text-[8px] text-gray-400 font-black uppercase">Qty:</span>
+                                            <input 
+                                              type="number" 
+                                              value={pageSettings.specialCategoryMax}
+                                              onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryMax: Number(e.target.value) }))}
+                                              className="w-6 bg-transparent text-[10px] font-black text-gray-500 focus:outline-none border-none p-0"
+                                            />
+                                          </div>
+                                        </div>
+                                     </div>
+                                  </div>
+                               </div>
                            </div>
 
                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-50">

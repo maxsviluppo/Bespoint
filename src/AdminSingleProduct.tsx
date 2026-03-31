@@ -44,7 +44,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
   const [specs, setSpecs] = useState<{key: string, value: string}[]>([{key: "", value: ""}]);
   
   // NEW: State for Master Stock (Simple Product)
-  const [masterStock, setMasterStock] = useState<number>(100);
+  const [masterStock, setMasterStock] = useState<number>(initialData?.stock || 0);
   const [masterAllocations, setMasterAllocations] = useState({ amazon: 0, ebay: 0 });
 
   // UPDATED: Variants State with detailed inventory
