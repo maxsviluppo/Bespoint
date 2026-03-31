@@ -108,6 +108,12 @@ export const AdminUsers = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Page Title */}
+            <div className="mb-2">
+                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Archivio Utenti</h2>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Gestione database clienti e cronologia acquisti</p>
+            </div>
+
             {/* Header Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {[
@@ -116,7 +122,7 @@ export const AdminUsers = () => {
                     { label: "Tasso Ritenzione", val: "68%", sub: "+5% vs l'anno scorso", icon: Activity, color: "text-blue-500" },
                     { label: "Valore Medio", val: "€78.50", sub: "Per singolo ordine", icon: DollarSign, color: "text-green-500" },
                 ].map((s, i) => (
-                    <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
+                    <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 transition-all relative overflow-hidden group">
                         <div className={`absolute top-0 right-0 w-24 h-24 ${s.color.replace('text-', 'bg-')}/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:scale-150 transition-transform`}></div>
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-3 rounded-2xl ${s.color.replace('text-', 'bg-')}/10 ${s.color}`}>
@@ -131,14 +137,14 @@ export const AdminUsers = () => {
             </div>
 
             {/* Main Library */}
-            <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center bg-gray-50/50 gap-6">
                     <div className="relative w-full md:w-[500px]">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5 font-bold" />
                         <input 
                             type="text" 
                             placeholder="Cerca cliente per nome, email, cellulare o ID..." 
-                            className="w-full pl-16 pr-6 py-5 bg-white border-transparent rounded-[2.5rem] text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 transition-all shadow-inner"
+                            className="w-full pl-16 pr-6 py-5 bg-white border-transparent rounded-[2.5rem] text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 transition-all font-mono"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -149,13 +155,13 @@ export const AdminUsers = () => {
                                <button 
                                    key={f}
                                    onClick={() => setFilter(f)}
-                                   className={`px-5 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-brand-dark text-brand-yellow shadow-lg' : 'text-gray-400 hover:text-brand-dark'}`}
+                                   className={`px-5 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-brand-dark text-brand-yellow' : 'text-gray-400 hover:text-brand-dark'}`}
                                >
                                    {f}
                                </button>
                            ))}
                         </div>
-                        <button className="p-5 bg-brand-yellow text-brand-dark rounded-full hover:scale-110 active:scale-95 transition-all shadow-lg">
+                        <button className="p-5 bg-brand-yellow text-brand-dark rounded-full hover:scale-110 active:scale-95 transition-all">
                             <Download className="w-5 h-5" />
                         </button>
                     </div>
@@ -178,7 +184,7 @@ export const AdminUsers = () => {
                                 <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
                                     <td className="p-6 pl-10">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md group-hover:scale-110 transition-transform">
+                                            <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-100 group-hover:scale-110 transition-transform">
                                                 <img src={user.avatar} className="w-full h-full object-cover" />
                                             </div>
                                             <div>
@@ -208,7 +214,7 @@ export const AdminUsers = () => {
                                     <td className="p-6 text-right">
                                         <button 
                                             onClick={() => setSelectedUser(user)}
-                                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-brand-yellow hover:text-brand-dark hover:shadow-xl transition-all"
+                                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-brand-yellow hover:text-brand-dark transition-all"
                                         >
                                             <ChevronRight className="w-5 h-5" />
                                         </button>
@@ -235,12 +241,12 @@ export const AdminUsers = () => {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="fixed top-12 bottom-12 left-1/2 -ml-[450px] w-[900px] bg-white z-[130] rounded-[4rem] shadow-2xl flex overflow-hidden max-h-[800px]"
+                            className="fixed top-12 bottom-12 left-1/2 -ml-[450px] w-[900px] bg-white z-[130] rounded-[4rem] border border-gray-100 flex overflow-hidden max-h-[800px]"
                         >
                             {/* Sidebar Detail */}
                             <div className="w-[350px] bg-gray-50 border-r border-gray-100 flex flex-col p-10">
                                 <div className="text-center mb-10">
-                                    <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-2xl mx-auto mb-6">
+                                    <div className="w-40 h-40 rounded-full overflow-hidden border border-white mx-auto mb-6">
                                         <img src={selectedUser.avatar} className="w-full h-full object-cover" />
                                     </div>
                                     <h2 className="text-3xl font-black text-brand-dark tracking-tighter uppercase leading-none">{selectedUser.name}</h2>
@@ -269,7 +275,7 @@ export const AdminUsers = () => {
                                         </div>
                                     </div>
 
-                                    <div className="p-6 bg-brand-dark text-brand-yellow rounded-3xl shadow-xl">
+                                    <div className="p-6 bg-brand-dark text-brand-yellow rounded-3xl">
                                         <div className="flex justify-between items-center mb-4">
                                             <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Insight Finanziario</h4>
                                             <TrendingUp className="w-4 h-4" />
@@ -298,14 +304,14 @@ export const AdminUsers = () => {
                                     <div className="absolute left-6 top-10 bottom-10 w-0.5 bg-gray-50"></div>
                                     {selectedUser.history.map((h, i) => (
                                         <div key={i} className="flex gap-6 relative group">
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg z-10 transition-transform group-hover:scale-110 ${h.type === 'Ordine' ? 'bg-brand-yellow text-brand-dark' : 'bg-red-500 text-white'}`}>
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 z-10 transition-transform group-hover:scale-110 ${h.type === 'Ordine' ? 'bg-brand-yellow text-brand-dark' : 'bg-red-500 text-white'}`}>
                                                 {h.type === 'Ordine' ? <ShoppingBag className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
                                             </div>
-                                            <div className="flex-1 bg-gray-50 p-6 rounded-[2rem] border border-white shadow-sm flex items-center justify-between group-hover:border-brand-yellow/30 transition-all">
+                                            <div className="flex-1 bg-gray-50 p-6 rounded-[2rem] border border-white flex items-center justify-between group-hover:border-brand-yellow/30 transition-all">
                                                 <div>
                                                     <div className="flex items-center gap-3 mb-1">
                                                         <h4 className="font-black text-brand-dark uppercase tracking-tighter">{h.type}: {h.id}</h4>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest bg-white px-2 py-1 rounded-md text-gray-400">{h.status}</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-widest bg-white px-2 py-1 rounded-md text-gray-400 border border-gray-100">{h.status}</span>
                                                     </div>
                                                     <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
                                                        <Calendar className="w-3 h-3" />
@@ -336,7 +342,7 @@ export const AdminUsers = () => {
                             
                             <button 
                                 onClick={() => setSelectedUser(null)}
-                                className="absolute top-8 right-8 p-4 bg-brand-dark text-brand-yellow rounded-2xl hover:scale-110 active:scale-95 transition-all shadow-2xl z-50"
+                                className="absolute top-8 right-8 p-4 bg-brand-dark text-brand-yellow rounded-2xl hover:scale-110 active:scale-95 transition-all z-50 border border-white/10"
                             >
                                 <ArrowRight className="w-6 h-6 rotate-180" />
                             </button>

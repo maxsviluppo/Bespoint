@@ -258,7 +258,7 @@ export const AdminCouriers = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-4xl font-black text-brand-dark uppercase tracking-tighter leading-none mb-2 text-balance">Corrieri & Logistica</h2>
+          <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter leading-none mb-2">Configurazione Corrieri</h2>
           <div className="flex items-center gap-2">
             <span className="w-8 h-1 bg-brand-yellow rounded-full" />
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Automazione Spedizioni & Integrazioni API</p>
@@ -266,27 +266,26 @@ export const AdminCouriers = () => {
         </div>
         <button 
           onClick={() => setIsAdding(true)}
-          className="group relative bg-brand-dark text-brand-yellow px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 active:scale-95 overflow-hidden w-full md:w-auto"
+          className="group relative bg-brand-dark text-brand-yellow px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all flex items-center gap-3 active:scale-95 overflow-hidden w-full md:w-auto"
         >
-          <div className="absolute inset-0 bg-brand-yellow/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-          <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-500" />
-          <span className="relative z-10">Nuovo Corriere</span>
+          <Plus className="w-5 h-5" />
+          <span>Nuovo Corriere</span>
         </button>
       </div>
 
       {/* Search & Stats Bar */}
-      <div className="bg-white p-6 md:p-8 rounded-[3rem] border border-gray-100 shadow-xl shadow-black/[0.03] flex flex-col md:flex-row justify-between items-center gap-8">
+      <div className="bg-white p-6 md:p-8 rounded-[3rem] border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-8">
         <div className="relative w-full md:w-[28rem]">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5 font-bold" />
           <input 
             type="text" 
             placeholder="Cerca un partner logistico..." 
-            className="w-full pl-16 pr-6 py-5 bg-gray-50/50 border-2 border-transparent rounded-[2rem] text-sm font-bold focus:ring-8 focus:ring-brand-yellow/10 focus:bg-white focus:border-brand-yellow/30 transition-all shadow-inner"
+            className="w-full pl-16 pr-6 py-5 bg-gray-50/50 border-2 border-transparent rounded-[2rem] text-sm font-bold focus:ring-4 focus:ring-brand-yellow/10 focus:bg-white focus:border-brand-yellow/30 transition-all font-mono"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-6 md:gap-12 flex-wrap justify-center">
+        <div className="flex items-center gap-6 md:gap-12 flex-wrap justify-center text-black">
           <div className="flex flex-col items-center">
             <span className="text-2xl font-black text-brand-dark">{couriers.length}</span>
             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Totali</span>
@@ -319,14 +318,14 @@ export const AdminCouriers = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-[3rem] shadow-2xl overflow-hidden"
+              className="relative w-full max-w-4xl bg-white rounded-[3rem] border border-gray-100 overflow-hidden"
             >
               <div className="bg-brand-dark p-8 md:p-10 flex justify-between items-center text-white">
                 <div>
                   <h3 className="text-2xl font-black text-brand-yellow uppercase tracking-tighter">Nuovo Corriere</h3>
                   <p className="text-xs text-brand-yellow/60 font-bold uppercase tracking-widest mt-1">Configura il profilo logistico</p>
                 </div>
-                <button onClick={() => setIsAdding(false)} className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                <button onClick={() => setIsAdding(false)} className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all font-sans">
                   <X />
                 </button>
               </div>
@@ -342,34 +341,34 @@ export const AdminCouriers = () => {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Nome Corriere</label>
-                      <input 
-                        type="text" 
-                        placeholder="es: DHL Global"
-                        value={newCourier.name}
-                        onChange={(e) => setNewCourier({...newCourier, name: e.target.value})}
-                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all"
-                      />
+                       <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Nome Corriere</label>
+                       <input 
+                         type="text" 
+                         placeholder="es: DHL Global"
+                         value={newCourier.name}
+                         onChange={(e) => setNewCourier({...newCourier, name: e.target.value})}
+                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all font-mono"
+                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Immagine Logo (URL)</label>
-                      <input 
-                        type="text" 
-                        placeholder="https://..."
-                        value={newCourier.logo}
-                        onChange={(e) => setNewCourier({...newCourier, logo: e.target.value})}
-                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all"
-                      />
+                       <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Immagine Logo (URL)</label>
+                       <input 
+                         type="text" 
+                         placeholder="https://..."
+                         value={newCourier.logo}
+                         onChange={(e) => setNewCourier({...newCourier, logo: e.target.value})}
+                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all font-mono"
+                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Template URL Tracking</label>
-                      <input 
-                        type="text" 
-                        placeholder="https://server.com/track?id={trackingId}"
-                        value={newCourier.trackingUrl}
-                        onChange={(e) => setNewCourier({...newCourier, trackingUrl: e.target.value})}
-                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all"
-                      />
+                       <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Template URL Tracking</label>
+                       <input 
+                         type="text" 
+                         placeholder="https://server.com/track?id={trackingId}"
+                         value={newCourier.trackingUrl}
+                         onChange={(e) => setNewCourier({...newCourier, trackingUrl: e.target.value})}
+                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all font-mono"
+                       />
                     </div>
                   </div>
                 </section>
@@ -398,7 +397,7 @@ export const AdminCouriers = () => {
                             [feat.key]: !((newCourier.characteristics as any)[feat.key]) 
                           }
                         })}
-                        className={`flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all ${
+                        className={`flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all font-sans ${
                           (newCourier.characteristics as any)[feat.key]
                             ? 'bg-brand-yellow/10 border-brand-yellow text-brand-dark'
                             : 'bg-white border-gray-100 text-gray-300'
@@ -421,7 +420,7 @@ export const AdminCouriers = () => {
                 </button>
                 <button 
                   onClick={addCourier}
-                  className="px-12 py-5 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 font-sans"
+                  className="px-12 py-5 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all font-sans"
                 >
                   Conferma & Salva
                 </button>
@@ -437,12 +436,12 @@ export const AdminCouriers = () => {
           <motion.div 
             layout
             key={courier.id}
-            className="group relative bg-white rounded-[3.5rem] border border-gray-100 shadow-[0_10px_60px_rgba(0,0,0,0.02)] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden"
+            className="group relative bg-white rounded-[3.5rem] border border-gray-100 hover:border-brand-yellow/30 transition-all duration-500 overflow-hidden"
           >
             {/* Status Badge */}
             <div className="absolute top-8 right-8 flex flex-col items-end gap-2">
               <div 
-                className={`w-3 h-3 rounded-full border-4 border-white shadow-sm transition-all duration-500 ${courier.isActive ? 'bg-green-500' : 'bg-gray-300'}`} 
+                className={`w-3 h-3 rounded-full border-4 border-white transition-all duration-500 ${courier.isActive ? 'bg-green-500' : 'bg-gray-300'}`} 
                 title={courier.isActive ? "Attivo" : "Disabilitato"}
               />
             </div>
@@ -452,7 +451,7 @@ export const AdminCouriers = () => {
               <div className="flex justify-between items-start">
                 <div className="relative">
                   {courier.isDefault && (
-                    <div className="absolute -top-3 -left-3 bg-brand-yellow text-brand-dark p-1.5 rounded-full shadow-lg border-2 border-white z-10 animate-pulse" title="Corriere Predefinito">
+                    <div className="absolute -top-3 -left-3 bg-brand-yellow text-brand-dark p-1.5 rounded-full border border-white z-10 animate-pulse" title="Corriere Predefinito">
                       <Star className="w-3 h-3 fill-brand-dark" />
                     </div>
                   )}
@@ -465,7 +464,7 @@ export const AdminCouriers = () => {
                     {getCourierIcon(courier.logo, "w-10 h-10")}
                   </div>
                   {courier.apiConfig.type !== 'none' && (
-                    <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white p-2 rounded-xl shadow-lg border-2 border-white">
+                    <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white p-2 rounded-xl border border-white">
                       <Zap className="w-3 h-3 fill-white" />
                     </div>
                   )}
@@ -475,13 +474,13 @@ export const AdminCouriers = () => {
                   <button 
                     onClick={() => setIsEditingDetails(courier)}
                     title="Modifica"
-                    className="p-3 bg-gray-50 text-gray-400 hover:bg-brand-yellow hover:text-brand-dark rounded-xl transition-all shadow-sm"
+                    className="p-3 bg-gray-50 text-gray-400 hover:bg-brand-yellow hover:text-brand-dark rounded-xl transition-all"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => deleteCourier(courier.id)}
-                    className="p-3 bg-red-50 text-red-300 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                    className="p-3 bg-red-50 text-red-300 hover:bg-red-500 hover:text-white rounded-xl transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -496,7 +495,7 @@ export const AdminCouriers = () => {
                     API: {courier.apiConfig.type.toUpperCase()}
                   </span>
                   <span className="text-gray-200">|</span>
-                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1 font-sans">
                     <RefreshCw className="w-2.5 h-2.5" /> {courier.characteristics.avgDeliveryTime}
                   </span>
                 </div>
@@ -522,7 +521,7 @@ export const AdminCouriers = () => {
               <div className="grid grid-cols-1 gap-3 pt-2">
                 <button 
                   onClick={() => setIsEditingApi(courier.id)}
-                  className="bg-brand-dark text-brand-yellow py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-black/5 group/btn font-sans"
+                  className="bg-brand-dark text-brand-yellow py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all group/btn font-sans"
                 >
                   <Key className="w-3.5 h-3.5" />
                   Configura API
@@ -530,7 +529,7 @@ export const AdminCouriers = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     onClick={() => toggleStatus(courier.id)}
-                    className={`py-3.5 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm font-sans ${
+                    className={`py-3.5 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all font-sans ${
                       courier.isActive 
                         ? 'bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500' 
                         : 'bg-green-50 text-green-600 hover:bg-green-100'
@@ -543,7 +542,7 @@ export const AdminCouriers = () => {
                     href={courier.trackingUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-gray-50 text-gray-400 hover:bg-white hover:text-brand-dark border border-gray-100 rounded-xl flex items-center justify-center shadow-sm py-3.5 transition-all"
+                    className="bg-gray-50 text-gray-400 hover:bg-white hover:text-brand-dark border border-gray-100 rounded-xl flex items-center justify-center py-3.5 transition-all font-sans"
                   >
                     <Globe className="w-3 h-3" />
                   </a>
@@ -570,11 +569,11 @@ export const AdminCouriers = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-xl h-full bg-white shadow-2xl flex flex-col text-black"
+              className="relative w-full max-w-xl h-full bg-white border-l border-gray-100 flex flex-col text-black"
             >
               <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div className="flex gap-4 items-center">
-                  <div className="w-12 h-12 rounded-2xl bg-brand-dark flex items-center justify-center shadow-lg">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-dark flex items-center justify-center">
                     <FileJson className="w-6 h-6 text-brand-yellow" />
                   </div>
                   <div>
@@ -582,7 +581,7 @@ export const AdminCouriers = () => {
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{couriers.find(c => c.id === isEditingApi)?.name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsEditingApi(null)} className="p-3 bg-white hover:bg-gray-100 rounded-xl transition-all shadow-sm">
+                <button onClick={() => setIsEditingApi(null)} className="p-3 bg-white hover:bg-gray-100 rounded-xl transition-all font-sans">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -606,7 +605,7 @@ export const AdminCouriers = () => {
                         }}
                         className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all font-sans ${
                           couriers.find(c => c.id === isEditingApi)?.apiConfig.testMode 
-                            ? 'bg-amber-50 border-amber-400 text-amber-600 shadow-md' 
+                            ? 'bg-amber-50 border-amber-400 text-amber-600' 
                             : 'bg-white border-gray-100 text-gray-300'
                         }`}
                       >
@@ -619,7 +618,7 @@ export const AdminCouriers = () => {
                         }}
                         className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all font-sans ${
                           !couriers.find(c => c.id === isEditingApi)?.apiConfig.testMode 
-                            ? 'bg-green-50 border-green-400 text-green-600 shadow-md' 
+                            ? 'bg-green-50 border-green-400 text-green-600' 
                             : 'bg-white border-gray-100 text-gray-300'
                         }`}
                       >
@@ -630,21 +629,23 @@ export const AdminCouriers = () => {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Provider API</label>
-                    <select 
-                      className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all appearance-none"
-                      value={couriers.find(c => c.id === isEditingApi)?.apiConfig.type || 'none'}
-                      onChange={(e) => {
-                        const courier = couriers.find(c => c.id === isEditingApi);
-                        if (courier) updateCourierApi(isEditingApi, { ...courier.apiConfig, type: e.target.value as any });
-                      }}
-                    >
-                      <option value="none">Nessuna Integrazione</option>
-                      <option value="gls">GLS WebService</option>
-                      <option value="dhl">DHL Express API</option>
-                      <option value="brt">BRT API Gateway</option>
-                      <option value="poste">Crononline (Poste)</option>
-                      <option value="custom">Custom JSON/REST</option>
-                    </select>
+                    <div className="relative">
+                       <select 
+                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow transition-all appearance-none font-mono"
+                         value={couriers.find(c => c.id === isEditingApi)?.apiConfig.type || 'none'}
+                         onChange={(e) => {
+                           const courier = couriers.find(c => c.id === isEditingApi);
+                           if (courier) updateCourierApi(isEditingApi, { ...courier.apiConfig, type: e.target.value as any });
+                         }}
+                       >
+                         <option value="none">Nessuna Integrazione</option>
+                         <option value="gls">GLS WebService</option>
+                         <option value="dhl">DHL Express API</option>
+                         <option value="brt">BRT API Gateway</option>
+                         <option value="poste">Crononline (Poste)</option>
+                         <option value="custom">Custom JSON/REST</option>
+                       </select>
+                    </div>
                   </div>
 
                   <div className="space-y-6 text-black">
@@ -660,7 +661,7 @@ export const AdminCouriers = () => {
                           <field.icon className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4" />
                           <input 
                             type={field.type || 'text'}
-                            className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all shadow-inner"
+                            className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all font-mono"
                             value={(couriers.find(c => c.id === isEditingApi)?.apiConfig as any)[field.key] || ''}
                             onChange={(e) => {
                               const courier = couriers.find(c => c.id === isEditingApi);
@@ -684,9 +685,6 @@ export const AdminCouriers = () => {
                         value={`https://api.bespoint.it/v1/webhooks/shipping/${isEditingApi}`}
                         className="w-full pl-14 pr-12 py-4 bg-white border-2 border-brand-yellow/20 rounded-2xl text-[11px] font-bold text-brand-dark/50"
                       />
-                      <button className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-brand-yellow text-brand-dark rounded-lg hover:bg-brand-orange transition-all">
-                        <Camera className="w-3 h-3" />
-                      </button>
                     </div>
                   </div>
 
@@ -712,7 +710,7 @@ export const AdminCouriers = () => {
                         }
                       }}
                       id="test-api-btn"
-                      className="w-full py-4 bg-white border-2 border-gray-100 text-brand-dark rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:border-brand-yellow transition-all shadow-sm"
+                      className="w-full py-4 bg-white border-2 border-gray-100 text-brand-dark rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:border-brand-yellow transition-all font-sans font-sans"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       Testa Connessione API
@@ -724,7 +722,7 @@ export const AdminCouriers = () => {
               <div className="p-8 bg-gray-50 border-t border-gray-100">
                 <button 
                   onClick={() => setIsEditingApi(null)}
-                  className="w-full bg-brand-dark text-brand-yellow py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all font-sans"
+                  className="w-full bg-brand-dark text-brand-yellow py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-widest transition-all font-sans"
                 >
                   Salva Configurazione
                 </button>
@@ -737,7 +735,7 @@ export const AdminCouriers = () => {
       {/* Edit Details Table/Modal */}
       <AnimatePresence>
         {isEditingDetails && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 text-black font-sans">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -749,7 +747,7 @@ export const AdminCouriers = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-4xl bg-white rounded-[3.5rem] shadow-2xl overflow-hidden text-black"
+              className="relative w-full max-w-4xl bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden text-black"
             >
               <div className="bg-brand-yellow p-8 md:p-10 flex justify-between items-center">
                 <div className="flex gap-4 items-center">
@@ -761,7 +759,7 @@ export const AdminCouriers = () => {
                     <p className="text-[10px] text-brand-dark/60 font-bold uppercase tracking-widest mt-1">Stai modificando {isEditingDetails.name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsEditingDetails(null)} className="w-12 h-12 rounded-2xl bg-brand-dark/10 flex items-center justify-center text-brand-dark hover:bg-brand-dark/20 transition-all">
+                <button onClick={() => setIsEditingDetails(null)} className="w-12 h-12 rounded-2xl bg-brand-dark/10 flex items-center justify-center text-brand-dark hover:bg-brand-dark/20 transition-all font-sans">
                   <X />
                 </button>
               </div>
@@ -774,7 +772,7 @@ export const AdminCouriers = () => {
                       type="text" 
                       value={isEditingDetails.name}
                       onChange={(e) => setIsEditingDetails({...isEditingDetails, name: e.target.value})}
-                      className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all shadow-inner"
+                      className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all font-mono"
                     />
                   </div>
                   <div className="space-y-4">
@@ -787,7 +785,7 @@ export const AdminCouriers = () => {
                         <select 
                           value={isEditingDetails.logo}
                           onChange={(e) => setIsEditingDetails({...isEditingDetails, logo: e.target.value})}
-                          className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all shadow-inner appearance-none"
+                          className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all appearance-none font-mono"
                         >
                           <option value="gls">Icona GLS (Truck Blue)</option>
                           <option value="dhl">Icona DHL (Zap Yellow)</option>
@@ -797,39 +795,31 @@ export const AdminCouriers = () => {
                         
                         <button
                           onClick={() => setIsEditingDetails({...isEditingDetails, isDefault: !isEditingDetails.isDefault})}
-                          className={`w-full flex items-center justify-between px-6 py-4 rounded-[1.5rem] border-2 transition-all ${
+                          className={`w-full flex items-center justify-between px-6 py-4 rounded-[1.5rem] border-2 transition-all font-sans ${
                             isEditingDetails.isDefault 
-                              ? 'bg-brand-yellow/10 border-brand-yellow text-brand-dark' 
-                              : 'bg-white border-gray-100 text-gray-400'
+                              ? 'bg-brand-yellow text-brand-dark border-brand-yellow' 
+                              : 'bg-white text-gray-300 border-gray-100'
                           }`}
                         >
-                          <span className="text-[10px] font-black uppercase tracking-widest">Imposta come Predefinito</span>
-                          <Star className={`w-4 h-4 ${isEditingDetails.isDefault ? 'fill-brand-yellow text-brand-yellow' : 'text-gray-200'}`} />
+                          <span className="text-[9px] font-black uppercase tracking-widest pl-2">Imposta come Predefinito</span>
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isEditingDetails.isDefault ? 'bg-brand-dark text-brand-yellow' : 'bg-gray-50 text-gray-200'}`}>
+                            <Check className="w-3 h-3" />
+                          </div>
                         </button>
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Note Interne</label>
-                    <textarea 
-                      rows={3}
-                      value={isEditingDetails.notes || ''}
-                      onChange={(e) => setIsEditingDetails({...isEditingDetails, notes: e.target.value})}
-                      className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all shadow-inner resize-none"
-                      placeholder="Scrivi qui note private per la logistica..."
-                    />
-                  </div>
                 </div>
 
                 <div className="space-y-8">
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">Caratteristiche Tecniche</h4>
-                    <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Caratteristiche Attive</label>
+                    <div className="grid grid-cols-2 gap-3">
                       {[
-                        { label: 'Supporta Contrassegno', key: 'supportsCashOnDelivery', icon: CreditCard },
-                        { label: 'Servizio Assicurazione', key: 'supportsInsurance', icon: ShieldCheck },
-                        { label: 'Ritiro Sede / Locker', key: 'supportsPickup', icon: PackageCheck },
-                        { label: 'Spedizioni Hub Global', key: 'supportsInternational', icon: Globe2 },
+                        { label: 'Contrassegno', key: 'supportsCashOnDelivery', icon: CreditCard },
+                        { label: 'Assicurazione', key: 'supportsInsurance', icon: ShieldCheck },
+                        { label: 'Ritiro Sede', key: 'supportsPickup', icon: PackageCheck },
+                        { label: 'Internazionale', key: 'supportsInternational', icon: Globe2 },
                       ].map((feat) => (
                         <button
                           key={feat.key}
@@ -840,86 +830,51 @@ export const AdminCouriers = () => {
                               [feat.key]: !((isEditingDetails.characteristics as any)[feat.key]) 
                             }
                           })}
-                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all font-sans ${
                             (isEditingDetails.characteristics as any)[feat.key]
-                              ? 'bg-brand-yellow/5 border-brand-yellow/30 text-brand-dark shadow-sm'
-                              : 'bg-white border-gray-100 text-gray-400'
+                              ? 'bg-brand-yellow/10 border-brand-yellow text-brand-dark'
+                              : 'bg-white border-gray-50 text-gray-300'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <feat.icon className={`w-4 h-4 ${(isEditingDetails.characteristics as any)[feat.key] ? 'text-brand-yellow' : 'text-gray-200'}`} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">{feat.label}</span>
-                          </div>
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                            (isEditingDetails.characteristics as any)[feat.key] ? 'bg-brand-yellow text-brand-dark shadow-lg' : 'bg-gray-100 text-gray-300'
-                          }`}>
-                            <Check className="w-3 h-3" />
-                          </div>
+                          <feat.icon className="w-3 h-3" />
+                          <span className="text-[8px] font-black uppercase tracking-widest">{feat.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Delivery Time</label>
-                      <input 
-                        type="text" 
-                        value={isEditingDetails.characteristics.avgDeliveryTime}
-                        onChange={(e) => setIsEditingDetails({
-                          ...isEditingDetails,
-                          characteristics: { ...isEditingDetails.characteristics, avgDeliveryTime: e.target.value }
-                        })}
-                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Max Kg/Pack</label>
-                      <input 
-                        type="number" 
-                        value={isEditingDetails.characteristics.maxWeightPerPackage || 30}
-                        onChange={(e) => setIsEditingDetails({
-                          ...isEditingDetails,
-                          characteristics: { ...isEditingDetails.characteristics, maxWeightPerPackage: parseInt(e.target.value) }
-                        })}
-                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow transition-all"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Tempo di Consegna Medio</label>
+                    <input 
+                      type="text" 
+                      value={isEditingDetails.characteristics.avgDeliveryTime}
+                      onChange={(e) => setIsEditingDetails({
+                        ...isEditingDetails, 
+                        characteristics: { ...isEditingDetails.characteristics, avgDeliveryTime: e.target.value }
+                      })}
+                      className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold focus:border-brand-yellow focus:bg-white transition-all font-mono"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="p-8 md:p-10 bg-gray-50 border-t border-gray-100 flex justify-end gap-4 overflow-hidden">
-                <button 
+              <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
+                 <button 
                   onClick={() => setIsEditingDetails(null)}
-                  className="px-8 py-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest text-gray-400 hover:bg-gray-200 transition-all font-sans"
+                  className="px-10 py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest text-gray-400 hover:bg-gray-200 transition-all font-sans"
                 >
-                  Cancella
+                  Annulla
                 </button>
                 <button 
                   onClick={() => updateCourier(isEditingDetails)}
-                  className="px-12 py-5 bg-brand-dark text-brand-yellow rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-2xl shadow-black/10 font-sans"
+                  className="px-12 py-5 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all font-sans"
                 >
-                  Conferma Modifiche
+                  Salva Modifiche
                 </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      {/* Empty State */}
-      {filteredCouriers.length === 0 && (
-        <div className="py-40 text-center space-y-8 bg-white rounded-[4rem] border border-gray-100 shadow-inner">
-          <div className="w-32 h-32 bg-gray-50 rounded-[3rem] flex items-center justify-center mx-auto border-4 border-dashed border-gray-200 animate-pulse">
-            <Truck className="w-16 h-16 text-gray-200" />
-          </div>
-          <div>
-            <p className="text-brand-dark font-black uppercase tracking-widest text-lg">Nessun partner logistico trovato</p>
-            <p className="text-gray-400 font-bold text-xs uppercase tracking-[0.2em] mt-2 text-balance">Prova ad aggiungere un nuovo corriere o cambia i filtri di ricerca</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

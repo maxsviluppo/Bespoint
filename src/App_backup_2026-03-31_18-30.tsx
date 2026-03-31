@@ -1073,9 +1073,9 @@ export default function App() {
     const defaultBanners: Record<string, any> = {};
     const defaultHomeSlides: any[] = [];
 
+    // Use CATEGORIES and SUBCATEGORIES from data.ts as initial defaults if not saved
     const initialCategories = CATEGORIES;
     const initialSubcategories = SUBCATEGORIES;
-    const defaultSeo: Record<string, any> = {};
 
     initialCategories.filter(c => c !== "Tutti").forEach((cat, index) => {
       defaultBanners[cat] = { 
@@ -1083,11 +1083,6 @@ export default function App() {
         alt: cat, 
         title: cat,
         link: "" 
-      };
-
-      defaultSeo[cat] = {
-        metaTitle: `${cat} di Alta Qualità - BesPoint`,
-        metaDescription: `Scopri la nostra selezione esclusiva di ${cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato su BesPoint.`
       };
 
       // Top Slide - Only for the first category
@@ -1134,9 +1129,7 @@ export default function App() {
       if (!parsed.categories) parsed.categories = initialCategories;
       if (!parsed.subcategories) parsed.subcategories = initialSubcategories;
 
-      // Ensure all current categories exist in saved settings banners and SEO
-      if (!parsed.categorySeo) parsed.categorySeo = defaultSeo;
-
+      // Ensure all current categories exist in saved settings banners
       parsed.categories.filter((c: string) => c !== "Tutti").forEach((cat: string) => {
         if (!parsed.categoryBanners[cat]) {
           parsed.categoryBanners[cat] = { 
@@ -1144,12 +1137,6 @@ export default function App() {
             alt: cat, 
             title: cat,
             link: "" 
-          };
-        }
-        if (!parsed.categorySeo[cat]) {
-          parsed.categorySeo[cat] = {
-            metaTitle: `${cat} di Alta Qualità - BesPoint`,
-            metaDescription: `Scopri la nostra selezione esclusiva di ${cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato su BesPoint.`
           };
         }
       });
@@ -1194,7 +1181,6 @@ export default function App() {
     return {
       homeSlides: defaultHomeSlides,
       categoryBanners: defaultBanners,
-      categorySeo: defaultSeo,
       categories: initialCategories,
       subcategories: initialSubcategories,
       linkRapidi: [
@@ -1348,17 +1334,6 @@ export default function App() {
     }, 4000);
     return () => clearInterval(timer);
   }, [topSlides.length]);
-
-  useEffect(() => {
-    if (isAdminOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isAdminOpen]);
 
   useEffect(() => {
     setSelectedSubcategory("Tutti");
@@ -2132,31 +2107,28 @@ export default function App() {
                 {/* Sidebar */}
                 <motion.div 
                   initial={{ x: -280 }}
-                  animate={{ x: 0, width: isSidebarCollapsed ? 83 : 256 }}
-                  className={`h-full bg-gray-50 flex flex-col transition-all duration-500 relative z-20 ${isMobileAdminMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+                  animate={{ x: 0 }}
+                  className={`${isSidebarCollapsed ? 'w-24' : 'w-72 md:w-80'} h-full bg-brand-dark flex flex-col transition-all duration-500 relative z-20 shadow-2xl ${isMobileAdminMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
                 >
 
             {/* Sidebar Menu */}
             <motion.div 
               initial={false}
               animate={{ 
-                width: window.innerWidth < 768 ? (isMobileAdminMenuOpen ? '100%' : 0) : (isSidebarCollapsed ? 83 : 256),
+                width: window.innerWidth < 768 ? (isMobileAdminMenuOpen ? '100%' : 0) : (isSidebarCollapsed ? 80 : 256),
                 x: window.innerWidth < 768 && !isMobileAdminMenuOpen ? -300 : 0,
                 opacity: window.innerWidth < 768 && !isMobileAdminMenuOpen ? 0 : 1
               }}
-              className={`bg-gray-50 border-r border-gray-100 flex flex-col relative transition-all duration-300 z-40 h-full overflow-hidden ${window.innerWidth < 768 ? (isMobileAdminMenuOpen ? 'fixed inset-0 pt-20' : 'hidden') : ''}`}
+              className={`bg-gray-50 border-r border-gray-100 flex flex-col p-6 relative transition-all duration-300 z-40 ${window.innerWidth < 768 ? (isMobileAdminMenuOpen ? 'fixed inset-0 pt-20' : 'hidden') : ''}`}
             >
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 w-[43px] h-[43px] bg-white border-2 border-brand-yellow rounded-full items-center justify-center z-[70] hover:scale-110 transition-all group active:scale-95"
-                  title={isSidebarCollapsed ? "Espandi Menu" : "Contrai Menu"}
+                  className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-100 rounded-full items-center justify-center shadow-sm z-10 hover:bg-brand-yellow transition-colors"
                 >
-                  <div className="flex items-center justify-center mr-0.5">
-                    {isSidebarCollapsed ? <Plus className="w-5 h-5 text-brand-dark rotate-45" /> : <ChevronLeft className="w-5 h-5 text-brand-dark" />}
-                  </div>
+                  {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </button>
 
-                <div className={`hidden md:flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3 px-6'} mt-6 mb-10 overflow-hidden`}>
+                <div className="hidden md:flex items-center gap-3 mb-10 overflow-hidden">
                   <div className="w-10 h-10 bg-brand-blue rounded-xl flex-shrink-0 flex items-center justify-center">
                     <Shield className="w-6 h-6 text-brand-yellow" />
                   </div>
@@ -2164,46 +2136,140 @@ export default function App() {
                     <h3 className="font-black text-brand-dark uppercase tracking-tighter whitespace-nowrap">Admin Panel</h3>
                   )}
                 </div>
+                
+                <nav className="space-y-2 flex-1">
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('company');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'company' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Grid className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Azienda</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('slides');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'slides' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Play className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Slide</span>}
+                  </button>
+                  <button 
+                    onClick={() => setAdminActiveTab('seo')}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'seo' ? 'bg-brand-yellow text-brand-dark shadow-lg shadow-brand-yellow/20' : 'text-gray-400 hover:bg-gray-50 hover:text-brand-dark'}`}
+                  >
+                    <Globe className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>SEO & Google</span>}
+                  </button>
 
-                <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
-                  {[
-                    { tab: 'dashboard', label: 'Panoramica', icon: Home, color: 'bg-brand-dark text-white' },
-                    { tab: 'company', label: 'Azienda', icon: Grid, color: 'bg-brand-yellow text-brand-dark font-black' },
-                    { tab: 'slides', label: 'Slide', icon: Play, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'seo', label: 'SEO & Google', icon: Globe, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'analytics', label: 'Analytics', icon: BarChart2, color: 'bg-indigo-600 text-white' },
-                    { tab: 'marketing', label: 'Marketing & Adv', icon: Target, color: 'bg-orange-500 text-white' },
-                    { tab: 'categories', label: 'Categorie', icon: Compass, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'orders', label: 'Ordini', icon: ShoppingBag, color: 'bg-brand-yellow text-brand-dark font-black' },
-                    { tab: 'couriers', label: 'Corrieri', icon: Truck, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'products', label: 'Prodotti', icon: Package, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'marketplaces', label: 'Marketplaces', icon: Globe, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'link_rapidi', label: 'Link Rapidi', icon: Box, color: 'bg-brand-yellow text-brand-dark' },
-                    { tab: 'returns', label: 'Gestione Resi', icon: RefreshCw, color: 'bg-red-500 text-white' },
-                    { tab: 'users', label: 'Archivio Utenti', icon: Users, color: 'bg-blue-600 text-white' }
-                  ].map((item) => (
-                    <div key={item.tab} className="px-3">
-                      <button 
-                        onClick={() => {
-                          setAdminActiveTab(item.tab as any);
-                          setIsMobileAdminMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-3.5 md:py-2.5 rounded-xl font-bold text-sm transition-all ${adminActiveTab === item.tab ? item.color : 'text-gray-400 hover:bg-gray-100/50'}`}
-                        title={isSidebarCollapsed ? item.label : ''}
-                      >
-                        <item.icon className="w-5 h-5 flex-shrink-0" />
-                        {!isSidebarCollapsed && <span>{item.label}</span>}
-                      </button>
-                    </div>
-                  ))}
+                  <button 
+                    onClick={() => setAdminActiveTab('analytics')}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'analytics' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:bg-gray-50 hover:text-brand-dark'}`}
+                  >
+                    <BarChart2 className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Analytics</span>}
+                  </button>
+
+                  <button 
+                    onClick={() => setAdminActiveTab('marketing')}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'marketing' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-gray-400 hover:bg-gray-50 hover:text-brand-dark'}`}
+                  >
+                    <Target className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Marketing & Adv</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('categories');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'categories' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Compass className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Categorie</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('orders' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'orders' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <ShoppingBag className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Ordini</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('couriers');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'couriers' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Truck className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Corrieri</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('products');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'products' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Package className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Prodotti</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('marketplaces');
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'marketplaces' ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Globe className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Marketplaces</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('link_rapidi' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === ('link_rapidi' as any) ? 'bg-brand-yellow text-brand-dark shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Box className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Link Rapidi</span>}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('returns' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'returns' ? 'bg-red-500 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <RefreshCw className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Gestione Resi</span>}
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      setAdminActiveTab('users' as any);
+                      setIsMobileAdminMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm transition-all ${adminActiveTab === 'users' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    <Users className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
+                    {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Archivio Utenti</span>}
+                  </button>
                 </nav>
 
                 <button 
                   onClick={() => setIsAdminOpen(false)}
-                  className={`mt-auto w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center gap-2'} px-4 py-4 md:py-3 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all`}
+                  className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-4 md:py-3 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all"
                 >
                   <X className="w-6 h-6 md:w-5 md:h-5 flex-shrink-0" />
-                  {!isSidebarCollapsed && <span>Esci</span>}
+                  {(window.innerWidth >= 768 ? !isSidebarCollapsed : true) && <span>Esci</span>}
                 </button>
             </motion.div>
           </motion.div>
@@ -2214,7 +2280,7 @@ export default function App() {
                   <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="flex justify-between items-end">
                       <div>
-                        <h2 className="text-3xl font-black text-brand-dark leading-none tracking-tighter uppercase">Bentornato</h2>
+                        <h2 className="text-[40px] font-black text-brand-dark leading-none tracking-tighter uppercase">Benvenuto, Boss 👋</h2>
                         <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-[0.2em]">Ecco l'andamento del tuo impero BesPoint</p>
                       </div>
                       <div className="hidden md:flex gap-4">
@@ -2236,7 +2302,7 @@ export default function App() {
                         { label: 'Resi Gestiti', value: '12', change: '-5%', icon: Repeat, color: 'text-red-500', bg: 'bg-white' },
                         { label: 'Nuovi Clienti', value: '342', change: '+22%', icon: UserPlus, color: 'text-purple-500', bg: 'bg-white' }
                       ].map((stat, i) => (
-                        <div key={i} className={`${stat.bg} ${stat.bg === 'bg-brand-dark' ? 'text-white' : 'text-brand-dark border border-gray-100'} p-8 rounded-[3rem] hover:-translate-y-2 transition-all relative overflow-hidden group`}>
+                        <div key={i} className={`${stat.bg} ${stat.bg === 'bg-brand-dark' ? 'text-white' : 'text-brand-dark border border-gray-100'} p-8 rounded-[3rem] shadow-xl hover:-translate-y-2 transition-all relative overflow-hidden group`}>
                            <div className="flex justify-between items-start relative z-10">
                               <div className={`p-4 ${stat.bg === 'bg-brand-dark' ? 'bg-white/10' : 'bg-gray-50'} rounded-2xl group-hover:rotate-12 transition-transform`}>
                                 <stat.icon className={`w-7 h-7 ${stat.color}`} />
@@ -2256,7 +2322,7 @@ export default function App() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                        {/* Sales Trend Chart */}
-                       <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
+                       <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl space-y-8">
                           <div className="flex justify-between items-center">
                              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Andamento Vendite</h3>
                              <div className="flex p-1 bg-gray-50 rounded-xl">
@@ -2275,9 +2341,9 @@ export default function App() {
                                     <motion.div 
                                       initial={{ height: 0 }}
                                       animate={{ height: `${h}%` }}
-                                      className="w-full bg-gradient-to-t from-brand-blue/5 to-brand-blue rounded-2xl group-hover:from-brand-yellow group-hover:to-brand-yellow/80 transition-all duration-500"
+                                      className="w-full bg-gradient-to-t from-brand-blue/5 to-brand-blue rounded-2xl group-hover:from-brand-yellow group-hover:to-brand-yellow/80 transition-all duration-500 shadow-sm"
                                     />
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-brand-dark text-white px-3 py-1.5 rounded-xl text-[11px] font-black opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap scale-75 group-hover:scale-100">
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-brand-dark text-white px-3 py-1.5 rounded-xl text-[11px] font-black opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-2xl scale-75 group-hover:scale-100">
                                       €{(h * 1500).toLocaleString()}
                                     </div>
                                   </div>
@@ -2289,7 +2355,7 @@ export default function App() {
 
                        {/* Top/Worst Products */}
                        <div className="space-y-6">
-                          <div className="bg-brand-dark p-8 rounded-[3rem] text-white space-y-6">
+                          <div className="bg-brand-dark p-8 rounded-[3rem] text-white shadow-2xl space-y-6">
                              <h3 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-green-400" /> Top Venduti
                              </h3>
@@ -2313,7 +2379,7 @@ export default function App() {
                              </div>
                           </div>
 
-                          <div className="bg-white p-8 rounded-[3rem] border border-gray-100 space-y-6">
+                          <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-6">
                              <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                                 <TrendingDown className="w-5 h-5 text-red-500" /> Meno Venduti
                              </h3>
@@ -2324,7 +2390,7 @@ export default function App() {
                                 ].map((p, i) => (
                                   <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
                                            <Box className="w-5 h-5 text-gray-300" />
                                         </div>
                                         <div>
@@ -2370,11 +2436,11 @@ export default function App() {
                               </div>
                             </label>
                             {companySettings.imageLogo && (
-                              <div className="w-32 h-32 bg-white border border-gray-100 rounded-2xl p-2 flex items-center justify-center relative">
+                              <div className="w-32 h-32 bg-white border border-gray-100 rounded-2xl p-2 flex items-center justify-center relative shadow-sm">
                                 <img src={companySettings.imageLogo} className="max-w-full max-h-full object-contain" />
                                 <button 
                                   onClick={() => setCompanySettings({...companySettings, imageLogo: ""})}
-                                  className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:scale-110 transition-transform"
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg hover:scale-110 transition-transform"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -2403,11 +2469,11 @@ export default function App() {
                               </div>
                             </label>
                             {companySettings.favicon && (
-                              <div className="w-14 h-14 bg-white border border-gray-100 rounded-xl p-1 flex items-center justify-center relative">
+                              <div className="w-14 h-14 bg-white border border-gray-100 rounded-xl p-1 flex items-center justify-center relative shadow-sm">
                                 <img src={companySettings.favicon} className="w-full h-full object-contain rounded-lg" />
                                 <button 
                                   onClick={() => setCompanySettings({...companySettings, favicon: ""})}
-                                  className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full"
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full shadow-lg"
                                 >
                                   <X className="w-2 h-2" />
                                 </button>
@@ -2563,17 +2629,17 @@ export default function App() {
 
                 {adminActiveTab === 'marketing' && (
                   <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
-                    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[3rem] p-12 text-white relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[3rem] p-12 text-white shadow-2xl relative overflow-hidden">
                        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
                           <div className="text-center md:text-left space-y-4">
                              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full backdrop-blur-md border border-white/30 text-[10px] font-black uppercase tracking-widest">
                                 <Target className="w-3.5 h-3.5" /> Marketing Central
                              </div>
-                             <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-2">Potenzia le Vendite</h2>
+                             <h2 className="text-[50px] font-black leading-none tracking-tighter uppercase">Potenzia le Vendite</h2>
                              <p className="text-lg font-bold text-white/80 max-w-xl">Gestisci le tue campagne Meta e Google Ads direttamente dal pannello BesPoint.</p>
                           </div>
-                          <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 text-center min-w-[280px]">
+                          <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 text-center min-w-[280px] shadow-2xl">
                              <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Budget Mensile Allocato</p>
                              <p className="text-5xl font-black">€4.500</p>
                              <div className="mt-4 flex items-center justify-center gap-2 text-green-300 font-bold">
@@ -2584,9 +2650,9 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
+                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl space-y-8">
                           <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
                                 <Facebook className="w-7 h-7" />
                              </div>
                              <div>
@@ -2604,12 +2670,12 @@ export default function App() {
                                 <p className="text-2xl font-black text-brand-dark">12.4k</p>
                              </div>
                           </div>
-                          <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-700 transition-all">Configura Pixel & API</button>
+                          <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-[1.02] transition-all">Configura Pixel & API</button>
                        </div>
 
-                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
+                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl space-y-8">
                           <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center">
+                             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shadow-inner">
                                 <Share2 className="w-7 h-7" />
                              </div>
                              <div>
@@ -2627,7 +2693,7 @@ export default function App() {
                                 <p className="text-2xl font-black text-brand-dark">342</p>
                              </div>
                           </div>
-                          <button className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all">Collega Merchant Center</button>
+                          <button className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-red-600/20 hover:scale-[1.02] transition-all">Collega Merchant Center</button>
                        </div>
                     </div>
                   </div>
@@ -2635,43 +2701,39 @@ export default function App() {
 
                 {adminActiveTab === 'seo' && (
                   <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="flex justify-between items-end">
                        <div>
-                          <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter leading-none mb-2">SEO & Indicizzazione</h2>
-                          <div className="flex items-center gap-2">
-                            <span className="w-8 h-1 bg-brand-yellow rounded-full" />
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ottimizzazione Motori di Ricerca & Google</p>
-                          </div>
+                          <h2 className="text-[40px] font-black text-brand-dark leading-none tracking-tighter uppercase">SEO & Indicizzazione</h2>
+                          <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-[0.2em]">Ottimizza la tua visibilità sui motori di ricerca</p>
                        </div>
-                       <button className="bg-brand-dark text-brand-yellow px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all flex items-center gap-3">
-                         <Globe className="w-5 h-5" />
-                         <span>Invia Sitemap</span>
-                       </button>
+                       <div className="flex gap-3">
+                          <button className="px-6 py-3 bg-brand-yellow text-brand-dark rounded-xl font-black uppercase text-xs tracking-widest shadow-lg">Invia Sitemap</button>
+                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                        <div className="lg:col-span-2 space-y-8">
-                          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100">
+                          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl">
                              <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter mb-8 flex items-center gap-3">
                                 <Globe className="w-6 h-6 text-brand-blue" /> Configurazione Meta Tags Globali
                              </h3>
                              <div className="space-y-6">
                                 <div className="space-y-2">
                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Meta Title Default</label>
-                                   <input type="text" className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all font-mono" placeholder="BesPoint | Il meglio del tech e della casa" />
+                                   <input type="text" className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-brand-dark shadow-inner" placeholder="BesPoint | Il meglio del tech e della casa" />
                                 </div>
                                 <div className="space-y-2">
                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Meta Description Default</label>
-                                   <textarea className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all font-mono" rows={3}></textarea>
+                                   <textarea className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-brand-dark shadow-inner" rows={3}></textarea>
                                 </div>
                              </div>
                           </div>
 
-                          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100">
+                          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl">
                              <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter mb-8 flex items-center gap-3">
-                                <Search className="w-6 h-6 text-brand-blue" /> Generatore Snippet URL Automatico
+                                <Search className="w-6 h-6 text-brand-blue" /> Generatore Snippet URL Automatioco
                              </h3>
-                             <div className="p-8 bg-brand-dark rounded-[2.5rem] text-white space-y-4">
+                             <div className="p-8 bg-brand-dark rounded-[2rem] text-white space-y-4">
                                 <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Esempio Anteprima Google</p>
                                 <p className="text-blue-400 text-sm font-bold">https://bespoint.it/categoria/lampade-led</p>
                                 <p className="text-lg font-black leading-tight uppercase">Lampade Led Minimal - BesPoint</p>
@@ -2685,7 +2747,7 @@ export default function App() {
                           </div>
                        </div>
 
-                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8">
+                       <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl space-y-8">
                           <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter flex items-center gap-3">
                              <Activity className="w-6 h-6 text-green-500" /> Health Check SEO
                           </h3>
@@ -2760,7 +2822,7 @@ export default function App() {
                           });
                           setPageSettings({ ...pageSettings, homeSlides: newSlides });
                         }}
-                        className="bg-brand-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all active:scale-95"
+                        className="bg-brand-blue text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-lg active:scale-95"
                       >
                         Genera Slide per Categoria
                       </button>
@@ -2768,14 +2830,14 @@ export default function App() {
 
                     {/* Home Slides Management */}
                     <div className="space-y-6">
-                                    <div className="bg-white p-5 rounded-3xl border border-gray-100 space-y-4">
+                                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
                             Slide Top (Hero)
                           </h3>
                           
-                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
                             <div className="flex items-center">
                               <button 
                                 onClick={() => setAdminTopIdx(prev => Math.max(0, prev - 1))}
@@ -2947,14 +3009,14 @@ export default function App() {
                     </div>
 
                     {/* MIDDLE SLIDES */}
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 space-y-4">
+                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
                             Slide Middle
                           </h3>
                           
-                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
                             <div className="flex items-center">
                               <button 
                                 onClick={() => setAdminMidIdx(prev => Math.max(0, prev - 1))}
@@ -3113,14 +3175,14 @@ export default function App() {
                       </div>
 
                       {/* BOTTOM SLIDES */}
-                      <div className="bg-white p-5 rounded-3xl border border-gray-100 space-y-4">
+                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
                             Slide Bottom
                           </h3>
                           
-                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
                             <div className="flex items-center">
                               <button 
                                 onClick={() => setAdminBotIdx(prev => Math.max(0, prev - 1))}
@@ -3427,7 +3489,7 @@ export default function App() {
                         <button 
                           onClick={handleAiSuggest}
                           disabled={isAiSuggesting}
-                          className="bg-brand-blue text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-dark transition-all flex items-center gap-2 disabled:opacity-50"
+                          className="bg-brand-blue text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-dark transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
                         >
                           {isAiSuggesting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 
                           Suggerimento AI
@@ -3435,7 +3497,7 @@ export default function App() {
                         {!isAddingCategory ? (
                           <button 
                             onClick={() => setIsAddingCategory(true)}
-                            className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all flex items-center gap-2"
+                            className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-md flex items-center gap-2"
                           >
                             <Plus className="w-3 h-3" /> Aggiungi Categoria
                           </button>
@@ -3456,13 +3518,6 @@ export default function App() {
                                     ...pageSettings,
                                     categories: [...pageSettings.categories, newCategoryName],
                                     subcategories: { ...pageSettings.subcategories, [newCategoryName]: [] },
-                                    categorySeo: { 
-                                      ...pageSettings.categorySeo, 
-                                      [newCategoryName]: { 
-                                        metaTitle: `${newCategoryName} di Alta Qualità - BesPoint`, 
-                                        metaDescription: `Scopri la nostra selezione esclusiva di ${newCategoryName}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato su BesPoint.` 
-                                      } 
-                                    },
                                     categoryBanners: { ...pageSettings.categoryBanners, [newCategoryName]: { url: '', alt: '', title: '', link: '' } }
                                   });
                                   setNewCategoryName("");
@@ -3512,7 +3567,7 @@ export default function App() {
                                 });
                                 setAiSuggestions(null);
                               }}
-                              className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all"
+                              className="bg-brand-yellow text-brand-dark px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-md"
                             >
                               Applica Tutto
                             </button>
@@ -3709,9 +3764,9 @@ export default function App() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {(pageSettings.linkRapidi || []).map((item: any, idx: number) => (
-                        <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 space-y-4 hover:bg-gray-50 transition-all group overflow-hidden">
+                        <div key={item.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4 hover:shadow-xl transition-all group overflow-hidden">
                           <div className="flex justify-between items-start">
-                            <div className={`${item.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
+                            <div className={`${item.color} w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg`}>
                               <Box className="w-6 h-6 text-white" />
                             </div>
                             <button 
@@ -3929,63 +3984,25 @@ export default function App() {
                             <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
                             SEO per Categorie (SERP Preview)
                           </h3>
-                                             {pageSettings.categories.filter((cat: string) => cat !== "Tutti").slice(0, showAllSeoCategories ? pageSettings.categories.length : 3).map((cat: string) => (
-                              <div key={cat} className="p-6 bg-gray-50 rounded-3xl border border-gray-100 space-y-5 group hover:border-brand-yellow transition-all">
-                                <div className="flex justify-between items-center bg-white p-3 rounded-2xl border border-gray-100">
-                                  <span className="text-xs font-black uppercase text-brand-blue flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-brand-yellow rounded-full"></span>
-                                    {cat}
-                                  </span>
-                                  <button 
-                                    onClick={() => {
-                                      setPageSettings({
-                                        ...pageSettings,
-                                        categorySeo: {
-                                          ...pageSettings.categorySeo,
-                                          [cat]: {
-                                            metaTitle: `${cat} di Alta Qualità - BesPoint`,
-                                            metaDescription: `Scopri la nostra selezione esclusiva di ${cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato su BesPoint.`
-                                          }
-                                        }
-                                      });
-                                    }}
-                                    className="text-[9px] font-black uppercase text-brand-dark bg-brand-yellow px-3 py-1 rounded-lg hover:bg-brand-orange transition-all active:scale-95"
-                                  >
-                                    Autocompila Default
-                                  </button>
+                          <div className="space-y-6">
+                            {CATEGORIES.filter(cat => cat !== "Tutti").slice(0, showAllSeoCategories ? CATEGORIES.length : 3).map(cat => (
+                              <div key={cat} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-black uppercase text-brand-blue">{cat}</span>
+                                  <button className="text-[10px] font-black uppercase text-brand-yellow hover:underline">Autocompila</button>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                  <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Meta Title</label>
-                                    <input 
-                                      className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm focus:ring-brand-blue focus:border-brand-blue transition-all"
-                                      placeholder={`Meta Title per ${cat}...`}
-                                      value={pageSettings.categorySeo[cat]?.metaTitle || ""}
-                                      onChange={(e) => setPageSettings({
-                                        ...pageSettings,
-                                        categorySeo: {
-                                          ...pageSettings.categorySeo,
-                                          [cat]: { ...pageSettings.categorySeo[cat], metaTitle: e.target.value }
-                                        }
-                                      })}
-                                    />
-                                  </div>
-                                  <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Meta Description</label>
-                                    <input 
-                                      className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm focus:ring-brand-blue focus:border-brand-blue transition-all"
-                                      placeholder={`Meta Description per ${cat}...`}
-                                      value={pageSettings.categorySeo[cat]?.metaDescription || ""}
-                                      onChange={(e) => setPageSettings({
-                                        ...pageSettings,
-                                        categorySeo: {
-                                          ...pageSettings.categorySeo,
-                                          [cat]: { ...pageSettings.categorySeo[cat], metaDescription: e.target.value }
-                                        }
-                                      })}
-                                    />
-                                  </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <input 
+                                    className="w-full bg-white border-gray-200 rounded-xl px-4 py-2 text-xs font-bold"
+                                    placeholder={`Meta Title per ${cat}...`}
+                                    defaultValue={`${cat} di Alta Qualità - Acquista su BesPoint`}
+                                  />
+                                  <input 
+                                    className="w-full bg-white border-gray-200 rounded-xl px-4 py-2 text-xs font-bold"
+                                    placeholder={`Meta Description per ${cat}...`}
+                                    defaultValue={`Scopri la nostra selezione esclusiva di ${cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato.`}
+                                  />
                                 </div>
 
                                 {/* Google SERP Preview */}
@@ -3996,18 +4013,21 @@ export default function App() {
                                     <span className="text-[#5f6368]">{cat.toLowerCase()}</span>
                                   </div>
                                   <div className="text-[#1a0dab] text-lg font-medium hover:underline cursor-pointer leading-tight mb-1">
-                                    {pageSettings.categorySeo[cat]?.metaTitle || `${cat} di Alta Qualità - BesPoint`}
+                                    {cat} di Alta Qualità - Acquista su BesPoint
                                   </div>
-                                  <div className="text-[#4d5156] text-xs leading-relaxed line-clamp-2">
-                                    {pageSettings.categorySeo[cat]?.metaDescription || `Scopri la nostra selezione esclusiva di ${cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato su BesPoint.`}
+                                  <div className="text-[#4d5156] text-xs leading-relaxed">
+                                    Scopri la nostra selezione esclusiva di {cat}. Qualità garantita, spedizione veloce e i migliori prezzi del mercato.
                                   </div>
                                 </div>
                               </div>
                             ))}
-                          {!showAllSeoCategories && pageSettings.categories.length > 3 && (
+                            <button className="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all">
+                              Vedi tutte le categorie
+                            </button>
+                          {!showAllSeoCategories && CATEGORIES.length > 3 && (
                             <button 
                               onClick={() => setShowAllSeoCategories(true)}
-                              className="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all border border-gray-200">
+                              className="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all">
                               Vedi tutte le categorie
                             </button>
                           )}
@@ -4020,6 +4040,7 @@ export default function App() {
                           )}
                           </div>
                         </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -4123,6 +4144,25 @@ export default function App() {
                               </div>
                             </div>
                           ))}
+                        </div>
+
+                        <div className="pt-6 border-t border-gray-50">
+                          <label className="block space-y-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">ID Google Analytics (Tracking ID)</span>
+                            <div className="relative">
+                              <BarChart className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-dark/20 w-5 h-5" />
+                              <input 
+                                type="text"
+                                placeholder="G-XXXXXXXXXX"
+                                value={companySettings.googleAnalyticsId || ""}
+                                onChange={(e) => setCompanySettings({...companySettings, googleAnalyticsId: e.target.value})}
+                                className="w-full pl-16 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-base font-black focus:border-brand-yellow focus:bg-white transition-all shadow-inner"
+                              />
+                            </div>
+                            <p className="text-[9px] font-bold text-gray-400 p-2 italic leading-relaxed">
+                              * Inserisci il codice di tracciamento per attivare l'invio automatico dei dati a Google.
+                            </p>
+                          </label>
                         </div>
                       </div>
                     </div>

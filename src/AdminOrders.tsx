@@ -129,6 +129,12 @@ export const AdminOrders = () => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
+      {/* Page Title */}
+      <div className="mb-2">
+        <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Gestione Ordini</h2>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Monitora e gestisci le spedizioni del tuo store</p>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
@@ -137,7 +143,7 @@ export const AdminOrders = () => {
           { label: "In Consegna", val: orders.filter(o => o.status === 'shipped').length.toString(), sub: "In transito", icon: Truck, color: "text-blue-500" },
           { label: "Completati", val: orders.filter(o => o.status === 'delivered').length.toString(), sub: "Mese Corrente", icon: CheckCircle2, color: "text-green-500" },
         ].map((s, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+          <div key={i} className="bg-white p-6 rounded-[2rem] border border-gray-100 transition-all group overflow-hidden relative">
             <div className={`absolute top-0 right-0 w-24 h-24 ${s.color.replace('text-', 'bg-')}/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:scale-150 transition-transform`}></div>
             <div className="flex justify-between items-start mb-4">
                <div className={`p-3 rounded-2xl ${s.color.replace('text-', 'bg-')}/10 ${s.color}`}>
@@ -152,13 +158,13 @@ export const AdminOrders = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5 font-bold" />
           <input 
             type="text" 
             placeholder="Cerca ordine, cliente o SKU..." 
-            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 focus:bg-white transition-all shadow-inner"
+            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 focus:bg-white transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -170,7 +176,7 @@ export const AdminOrders = () => {
               <button 
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-brand-dark text-brand-yellow shadow-lg' : 'text-gray-400 hover:text-brand-dark'}`}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-brand-dark text-brand-yellow' : 'text-gray-400 hover:text-brand-dark'}`}
               >
                 {f}
               </button>
@@ -178,7 +184,7 @@ export const AdminOrders = () => {
           </div>
           <button 
             onClick={() => window.print()}
-            className="px-6 py-4 bg-brand-dark text-brand-yellow rounded-2xl hover:bg-brand-yellow hover:text-brand-dark transition-all shadow-lg flex items-center gap-2"
+            className="px-6 py-4 bg-brand-dark text-brand-yellow rounded-2xl hover:bg-brand-yellow hover:text-brand-dark transition-all flex items-center gap-2"
             title="Esporta PDF"
           >
             <Printer className="w-5 h-5" />
@@ -199,7 +205,7 @@ export const AdminOrders = () => {
               a.click();
               document.body.removeChild(a);
             }}
-            className="px-6 py-4 bg-brand-yellow text-brand-dark rounded-2xl hover:bg-brand-dark hover:text-brand-yellow transition-all shadow-lg flex items-center gap-2"
+            className="px-6 py-4 bg-brand-yellow text-brand-dark rounded-2xl hover:bg-brand-dark hover:text-brand-yellow transition-all flex items-center gap-2"
           >
             <Download className="w-5 h-5" />
             <span className="text-[10px] font-black uppercase tracking-widest">CSV</span>
@@ -208,7 +214,7 @@ export const AdminOrders = () => {
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-700">
+      <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-700">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-brand-dark text-brand-yellow">
@@ -231,7 +237,7 @@ export const AdminOrders = () => {
                 </td>
                 <td className="p-5">
                    <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                        {getChannelIcon(order.channel)}
                      </div>
                      <span className="text-xs font-black text-brand-dark uppercase tracking-tight">{order.channel}</span>
@@ -254,51 +260,51 @@ export const AdminOrders = () => {
                    </div>
                 </td>
                 <td className="p-5 text-right">
-                  <div className="flex justify-end gap-3 transition-all">
-                    <button 
-                      onClick={() => setSelectedOrderId(order.id)}
-                      className="p-3 bg-brand-yellow text-brand-dark rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
-                      title="Vedi Dettagli"
-                    >
-                       <Eye className="w-5 h-5" />
-                    </button>
-                    <div className="relative">
-                      <button 
-                        onClick={() => setCarrierSelectorId(order.id === carrierSelectorId ? null : order.id)}
-                        className={`p-3 rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center gap-2 ${order.carrierId ? 'bg-brand-yellow text-brand-dark' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
-                        title={order.carrierId ? `Corriere: ${COURIERS.find(c => c.id === order.carrierId)?.name}` : "Seleziona Corriere"}
-                      >
-                         <Truck className="w-5 h-5" />
-                      </button>
-                      
-                      <AnimatePresence>
-                        {carrierSelectorId === order.id && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                            className="absolute bottom-full mb-4 right-0 w-[450px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50 overflow-hidden"
-                          >
-                            <p className="text-[10px] font-black uppercase tracking-widest text-brand-dark mb-4 px-2">Scegli Corriere</p>
-                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                              {COURIERS.map(c => (
-                                <button 
-                                  key={c.id}
-                                  onClick={() => updateOrderCarrier(order.id, c.id)}
-                                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${order.carrierId === c.id ? 'bg-brand-yellow text-brand-dark' : 'hover:bg-gray-50'}`}
-                                >
-                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1 border border-gray-100">
-                                    {getCourierIcon(c.logo, "w-5 h-5")}
-                                  </div>
-                                  <span className="text-[10px] font-black uppercase tracking-tight truncate">{c.name}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
+                   <div className="flex justify-end gap-3 transition-all">
+                     <button 
+                       onClick={() => setSelectedOrderId(order.id)}
+                       className="p-3 bg-brand-yellow text-brand-dark rounded-xl hover:scale-110 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+                       title="Vedi Dettagli"
+                     >
+                        <Eye className="w-5 h-5" />
+                     </button>
+                     <div className="relative">
+                       <button 
+                         onClick={() => setCarrierSelectorId(order.id === carrierSelectorId ? null : order.id)}
+                         className={`p-3 rounded-xl hover:scale-110 active:scale-95 transition-all flex items-center gap-2 border border-transparent ${order.carrierId ? 'bg-brand-yellow text-brand-dark' : 'bg-gray-100 text-gray-400 border-gray-200'}`}
+                         title={order.carrierId ? `Corriere: ${COURIERS.find(c => c.id === order.carrierId)?.name}` : "Seleziona Corriere"}
+                       >
+                          <Truck className="w-5 h-5" />
+                       </button>
+                       
+                       <AnimatePresence>
+                         {carrierSelectorId === order.id && (
+                           <motion.div 
+                             initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                             animate={{ opacity: 1, scale: 1, y: 0 }}
+                             exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                             className="absolute bottom-full mb-4 right-0 w-[450px] bg-white rounded-3xl border border-gray-100 p-6 z-50 overflow-hidden"
+                           >
+                             <p className="text-[10px] font-black uppercase tracking-widest text-brand-dark mb-4 px-2">Scegli Corriere</p>
+                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                               {COURIERS.map(c => (
+                                 <button 
+                                   key={c.id}
+                                   onClick={() => updateOrderCarrier(order.id, c.id)}
+                                   className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${order.carrierId === c.id ? 'bg-brand-yellow text-brand-dark' : 'hover:bg-gray-50'}`}
+                                 >
+                                   <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1 border border-gray-100">
+                                     {getCourierIcon(c.logo, "w-5 h-5")}
+                                   </div>
+                                   <span className="text-[10px] font-black uppercase tracking-tight truncate">{c.name}</span>
+                                 </button>
+                               ))}
+                             </div>
+                           </motion.div>
+                         )}
+                       </AnimatePresence>
+                     </div>
+                   </div>
                 </td>
               </tr>
             ))}
@@ -331,7 +337,7 @@ export const AdminOrders = () => {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300, mass: 0.8 }}
-              className="fixed top-0 right-0 bottom-0 w-full max-w-2xl bg-white z-[110] shadow-2xl flex flex-col"
+              className="fixed top-0 right-0 bottom-0 w-full max-w-2xl bg-white z-[110] border-l border-gray-100 flex flex-col"
             >
               {/* Header */}
               <div className="p-8 bg-brand-dark text-brand-yellow flex items-center justify-between">
@@ -343,7 +349,7 @@ export const AdminOrders = () => {
                         {isUpdatingStatus ? <RefreshCw className="w-3 h-3 animate-spin" /> : selectedOrder.status}
                         <ChevronDown className="w-3 h-3" />
                       </button>
-                      <div className="absolute top-full mt-2 left-0 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-20">
+                      <div className="absolute top-full mt-2 left-0 w-48 bg-white rounded-2xl border border-gray-100 overflow-hidden opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-20">
                          {['pending', 'shipped', 'delivered', 'cancelled'].map(s => (
                            <button 
                              key={s}
@@ -408,7 +414,7 @@ export const AdminOrders = () => {
                         <input 
                           type="text" 
                           placeholder="Tracking ID..."
-                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 focus:bg-white transition-all shadow-inner"
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-brand-yellow/20 focus:bg-white transition-all"
                           value={selectedOrder.trackingId}
                           onChange={(e) => updateTrackingId(selectedOrder.id, e.target.value)}
                         />
@@ -422,9 +428,9 @@ export const AdminOrders = () => {
                       <h3 className="text-xs font-black uppercase tracking-widest">Corriere</h3>
                     </div>
                     <div className="relative group/carrier-modal">
-                      <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white hover:shadow-lg transition-all text-left">
+                      <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white transition-all text-left">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center p-1 border border-gray-100">
+                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 border border-gray-100">
                             {selectedOrder.carrierId ? (
                               getCourierIcon(COURIERS.find(c => c.id === selectedOrder.carrierId)?.logo || "default", "w-6 h-6")
                             ) : (
@@ -440,7 +446,7 @@ export const AdminOrders = () => {
                         <ChevronDown className="w-4 h-4 text-gray-300" />
                       </button>
                       
-                      <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden opacity-0 invisible group-hover/carrier-modal:opacity-100 group-hover/carrier-modal:visible transition-all z-20 p-2">
+                      <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-2xl border border-gray-100 overflow-hidden opacity-0 invisible group-hover/carrier-modal:opacity-100 group-hover/carrier-modal:visible transition-all z-20 p-2">
                         {COURIERS.map(c => (
                           <button 
                             key={c.id}
@@ -465,7 +471,7 @@ export const AdminOrders = () => {
                     <h3 className="text-xs font-black uppercase tracking-widest">Pagamento</h3>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
                       <CreditCard className="w-5 h-5 text-brand-dark" />
                     </div>
                     <span className="font-black text-[10px] text-brand-dark uppercase tracking-tight">{selectedOrder.payment}</span>
@@ -484,7 +490,7 @@ export const AdminOrders = () => {
                   
                   <div className="space-y-4">
                     {selectedOrder.items.length > 0 ? selectedOrder.items.map((item: any) => (
-                      <div key={item.id} className="flex gap-4 p-4 rounded-3xl border border-gray-100 hover:border-brand-yellow/30 transition-all group bg-white hover:shadow-xl shadow-sm">
+                      <div key={item.id} className="flex gap-4 p-4 rounded-3xl border border-gray-100 hover:border-brand-yellow/30 transition-all group bg-white">
                         <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0 group-hover:scale-105 transition-transform">
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                         </div>
@@ -638,4 +644,3 @@ export const AdminOrders = () => {
     </div>
   );
 };
-
