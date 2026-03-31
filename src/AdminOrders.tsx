@@ -24,16 +24,18 @@ import {
   Hash,
   Printer,
   FileText,
-  Tag
+  Tag,
+  Box,
+  Zap,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const COURIERS = [
-  { id: 'gls', name: 'GLS Italy', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/GLS_Logo.svg' },
-  { id: 'dhl', name: 'DHL Express', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/DHL-Logo.svg' },
-  { id: 'brt', name: 'BRT Corriere Espresso', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/03/Logo_BRT.png' },
-  { id: 'tnt', name: 'TNT Global', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/TNT_Logo.svg' },
-  { id: 'poste', name: 'Poste Italiane', logo: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Poste_Italiane_Logo.svg' },
+  { id: 'gls', name: 'GLS Italy', logo: 'gls' },
+  { id: 'dhl', name: 'DHL Express', logo: 'dhl' },
+  { id: 'brt', name: 'BRT Corriere Espresso', logo: 'brt' },
+  { id: 'poste', name: 'Poste Italiane', logo: 'poste' },
 ];
 
 const INITIAL_ORDERS = [
@@ -113,6 +115,16 @@ export const AdminOrders = () => {
                           o.id.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  const getCourierIcon = (logo: string, className: string = "w-10 h-10") => {
+    switch (logo) {
+      case 'gls': return <Truck className={`${className} text-blue-600`} />;
+      case 'dhl': return <Zap className={`${className} text-yellow-600`} />;
+      case 'brt': return <Box className={`${className} text-red-600`} />;
+      case 'poste': return <Globe className={`${className} text-yellow-600`} />;
+      default: return <Truck className={`${className} text-gray-400`} />;
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -265,7 +277,7 @@ export const AdminOrders = () => {
                             initial={{ opacity: 0, scale: 0.9, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                            className="absolute bottom-full mb-4 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 z-50 overflow-hidden"
+                            className="absolute bottom-full mb-4 right-0 w-[450px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50 overflow-hidden"
                           >
                             <p className="text-[10px] font-black uppercase tracking-widest text-brand-dark mb-4 px-2">Scegli Corriere</p>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -276,7 +288,7 @@ export const AdminOrders = () => {
                                   className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${order.carrierId === c.id ? 'bg-brand-yellow text-brand-dark' : 'hover:bg-gray-50'}`}
                                 >
                                   <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1 border border-gray-100">
-                                    <img src={c.logo} alt={c.name} className="w-full h-full object-contain" />
+                                    {getCourierIcon(c.logo, "w-5 h-5")}
                                   </div>
                                   <span className="text-[10px] font-black uppercase tracking-tight truncate">{c.name}</span>
                                 </button>
@@ -414,7 +426,7 @@ export const AdminOrders = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center p-1 border border-gray-100">
                             {selectedOrder.carrierId ? (
-                              <img src={COURIERS.find(c => c.id === selectedOrder.carrierId)?.logo} className="w-full h-full object-contain" alt="" />
+                              getCourierIcon(COURIERS.find(c => c.id === selectedOrder.carrierId)?.logo || "default", "w-6 h-6")
                             ) : (
                               <Truck className="w-5 h-5 text-gray-300" />
                             )}
@@ -435,10 +447,10 @@ export const AdminOrders = () => {
                             onClick={() => updateOrderCarrier(selectedOrder.id, c.id)}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${selectedOrder.carrierId === c.id ? 'bg-brand-yellow text-brand-dark' : 'hover:bg-gray-50'}`}
                           >
-                            <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center p-1 border border-gray-100">
-                              <img src={c.logo} alt={c.name} className="w-full h-full object-contain" />
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-tight">{c.name}</span>
+                          <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center p-1 border border-gray-100">
+                            {getCourierIcon(c.logo, "w-4 h-4")}
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-tight">{c.name}</span>
                           </button>
                         ))}
                       </div>
@@ -627,6 +639,3 @@ export const AdminOrders = () => {
   );
 };
 
-const RefreshCw = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-);

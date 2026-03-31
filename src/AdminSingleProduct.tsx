@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw } from "lucide-react";
+import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown } from "lucide-react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 
 export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void, initialData?: any }) => {
@@ -272,6 +272,56 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                   </label>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3 mt-10">
+               <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark flex items-center gap-2">
+                 <Search className="w-5 h-5 text-gray-400"/> SEO & Google Search Console
+               </h3>
+               <button 
+                onClick={() => {
+                  const titleInput = document.getElementById('seo-title') as HTMLInputElement;
+                  const descInput = document.getElementById('seo-desc') as HTMLTextAreaElement;
+                  const prodTitle = (document.querySelector('input[placeholder="Titolo gestionale per sito web..."]') as HTMLInputElement)?.value;
+                  const prodDesc = (document.querySelector('textarea[placeholder="Decrizione per il sito ecommerce..."]') as HTMLTextAreaElement)?.value;
+                  
+                  if (titleInput && prodTitle) titleInput.value = `${prodTitle} | Acquista su BesPoint`;
+                  if (descInput && prodDesc) descInput.value = prodDesc.substring(0, 155) + "...";
+                }}
+                className="text-[10px] font-black uppercase bg-brand-yellow/10 text-brand-dark px-3 py-1.5 rounded-lg border border-brand-yellow/20 hover:bg-brand-yellow transition-all"
+               >
+                 Auto-Genera SEO
+               </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+               <label className="block">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Meta Title (Sito Web)</span>
+                 <input id="seo-title" type="text" placeholder="Titolo SEO ottimizzato per Google..." className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" />
+               </label>
+               <label className="block">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Meta Description (Sito Web)</span>
+                 <textarea id="seo-desc" rows={3} placeholder="Descrizione persuasiva per aumentare i click sui motori di ricerca..." className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-blue focus:border-brand-blue resize-none"></textarea>
+               </label>
+
+               <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-gray-100 space-y-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-300">Anteprima Risultato Google (Desktop)</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-[11px] text-[#202124]">
+                       <span>https://bespoint.it</span>
+                       <ChevronDown className="w-2.5 h-2.5 text-[#5f6368] rotate-270" />
+                       <span className="text-[#5f6368]">prodotti</span>
+                    </div>
+                    <div className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium leading-tight mb-1">
+                      {amazonTitle || "Titolo Prodotto Ottimizzato | BesPoint Shop"}
+                    </div>
+                    <p className="text-[12px] text-[#4d5156] leading-relaxed line-clamp-2">
+                       {description.substring(0, 160) || "Questa è la descrizione che apparirà su Google. Deve essere accattivante per convincere gli utenti a cliccare sul tuo prodotto."}
+                    </p>
+                  </div>
+               </div>
             </div>
           </div>
           
