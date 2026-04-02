@@ -21,7 +21,8 @@ import {
   Package,
   ArrowRight,
   AlertTriangle,
-  Activity
+  Activity,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -43,6 +44,13 @@ interface ReturnRequest {
     resolution?: 'refund' | 'replacement' | 'coupon' | 'none';
     messages: { role: 'user' | 'admin', text: string, date: string }[];
     history: { status: string, date: string, note?: string }[];
+    photos?: string[];
+}
+
+interface AdminReturnsProps {
+    returns: ReturnRequest[];
+    setReturns: React.Dispatch<React.SetStateAction<ReturnRequest[]>>;
+    initialSelectedId?: string | null;
 }
 
 const MOCK_RETURNS: ReturnRequest[] = [
@@ -65,7 +73,7 @@ const MOCK_RETURNS: ReturnRequest[] = [
             { role: 'user', text: "Salve, il prodotto è arrivato non funzionante. Vorrei un cambio.", date: "31 Mar 2026 10:00" }
         ],
         history: [
-            { status: "Richiesta Creata", date: "31 Mar 2026 10:00" }
+            { status: "Richiesta Inviata", date: "31 Mar 2026 10:00" }
         ]
     },
     {
@@ -84,20 +92,38 @@ const MOCK_RETURNS: ReturnRequest[] = [
         details: "Le dimensioni non sono adatte al mio soffitto, vorrei restituirlo per un rimborso.",
         status: "processing",
         resolution: "refund",
+        photos: ["https://picsum.photos/seed/broken4/600/600", "https://picsum.photos/seed/box2/600/600"],
         messages: [
             { role: 'user', text: "Vorrei restituire il pannello, è troppo grande.", date: "30 Mar 2026 09:15" },
             { role: 'admin', text: "Certamente, abbiamo inoltrato la richiesta al magazzino.", date: "30 Mar 2026 11:30" }
         ],
         history: [
-            { status: "Richiesta Creata", date: "30 Mar 2026 09:15" },
+            { status: "Richiesta Inviata", date: "30 Mar 2026 09:15" },
             { status: "In Lavorazione", date: "30 Mar 2026 11:30", note: "Verifica integrità imballaggio richiesta" }
         ]
     }
 ];
 
-export const AdminReturns = () => {
-    const [returns, setReturns] = useState<ReturnRequest[]>(MOCK_RETURNS);
+const STATUS_LABELS: Record<string, string> = {
+    pending: 'RICHIESTA INVIATA',
+    processing: 'IN LAVORAZIONE',
+    approved: 'APPROVATO',
+    rejected: 'RIFIUTATO',
+    completed: 'COMPLETATO'
+};
+
+export const AdminReturns = ({ returns, setReturns, initialSelectedId }: AdminReturnsProps) => {
     const [selectedRequest, setSelectedRequest] = useState<ReturnRequest | null>(null);
+
+    React.useEffect(() => {
+        if (initialSelectedId) {
+            const req = returns.find(r => r.id === initialSelectedId);
+            if (req) {
+                setSelectedRequest(req);
+            }
+        }
+    }, [initialSelectedId, returns]);
+
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState("all");
     const [adminMsg, setAdminMsg] = useState("");
@@ -114,10 +140,10 @@ export const AdminReturns = () => {
         setReturns(prev => prev.map(r => r.id === id ? {
             ...r,
             status,
-            history: [...r.history, { status: `Stato: ${status}`, date: now, note }]
+            history: [...r.history, { status: `Passato a: ${STATUS_LABELS[status]}`, date: now, note }]
         } : r));
         if (selectedRequest?.id === id) {
-            setSelectedRequest(prev => prev ? {...prev, status, history: [...prev.history, { status: `Stato: ${status}`, date: now, note }]} : null);
+            setSelectedRequest(prev => prev ? {...prev, status, history: [...prev.history, { status: `Passato a: ${STATUS_LABELS[status]}`, date: now, note }]} : null);
         }
     };
 
@@ -231,8 +257,8 @@ export const AdminReturns = () => {
                                                 </span>
                                             </td>
                                             <td className="p-6 text-center">
-                                                <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusStyle(req.status)}`}>
-                                                    {req.status}
+                                                <span className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border ${getStatusStyle(req.status)}`}>
+                                                    {STATUS_LABELS[req.status]}
                                                 </span>
                                             </td>
                                             <td className="p-6 text-right">
@@ -271,12 +297,12 @@ export const AdminReturns = () => {
                             className="fixed top-0 right-0 bottom-0 w-full max-w-2xl bg-[#f8f9fa] z-[110] border-l border-gray-100 flex flex-col text-black"
                         >
                             {/* Header */}
-                            <div className="p-8 bg-brand-dark text-brand-yellow flex items-center justify-between">
+                            <div className="p-6 bg-brand-dark text-brand-yellow flex items-center justify-between">
                                 <div>
                                     <div className="flex items-center gap-4 mb-2">
-                                        <h2 className="text-3xl font-black tracking-tighter uppercase">{selectedRequest.id}</h2>
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyle(selectedRequest.status)}`}>
-                                            {selectedRequest.status}
+                                        <h2 className="text-2xl font-black tracking-tighter uppercase">{selectedRequest.id}</h2>
+                                        <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${getStatusStyle(selectedRequest.status)}`}>
+                                            {STATUS_LABELS[selectedRequest.status]}
                                         </span>
                                     </div>
                                     <p className="text-xs font-bold opacity-60 uppercase tracking-widest flex items-center gap-2">
@@ -291,21 +317,34 @@ export const AdminReturns = () => {
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar text-black">
-                                {/* Problem Summary */}
-                                <div className="bg-red-50 p-6 rounded-[2rem] border-2 border-red-100">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar text-black">
+                                {/* Problem Summary *                                 <div className="bg-red-50 p-6 rounded-[2rem] border-2 border-red-100">
                                     <div className="flex gap-4">
                                         <div className="p-4 bg-red-500 text-white rounded-2xl h-fit">
                                             <AlertTriangle className="w-6 h-6" />
                                         </div>
-                                        <div>
-                                            <h3 className="text-sm font-black text-red-600 uppercase tracking-widest mb-2">Descrizione del Problema</h3>
-                                            <p className="text-sm font-bold text-red-900 leading-relaxed italic border-l-4 border-red-200 pl-4">
+                                        <div className="flex-1">
+                                            <h3 className="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1.5">Descrizione del Problema</h3>
+                                            <p className="text-xs font-bold text-red-900 leading-relaxed italic border-l-4 border-red-200 pl-3 mb-4">
                                                 "{selectedRequest.details}"
                                             </p>
+                                            
+                                            {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                                                <div className="flex gap-2.5 overflow-x-auto pb-2 custom-scrollbar">
+                                                    {selectedRequest.photos.map((photo, idx) => (
+                                                        <div key={idx} className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/50 shadow-sm shrink-0 cursor-zoom-in relative group/photo">
+                                                            <img src={photo} className="w-full h-full object-cover" />
+                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <Eye className="w-4 h-4 text-white" />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
+v>
 
                                 {/* Order & Product Context */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-black">
@@ -318,10 +357,16 @@ export const AdminReturns = () => {
                                             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 shrink-0">
                                                 <img src={selectedRequest.product.image} className="w-full h-full object-cover" />
                                             </div>
-                                            <div className="flex flex-col justify-center">
-                                                <p className="font-black text-brand-dark text-sm leading-tight mb-1">{selectedRequest.product.name}</p>
-                                                <p className="text-xs font-bold text-brand-dark/40">SKU: BP-{selectedRequest.product.id.padStart(4, '0')}</p>
-                                                <p className="text-lg font-black text-brand-dark mt-2">€{selectedRequest.product.price.toFixed(2)}</p>
+                                            <div className="flex-1">
+                                                <div className="flex gap-2 items-center mb-1.5">
+                                                    <span className="text-[8px] font-black bg-brand-yellow text-brand-dark px-2 py-0.5 rounded-md uppercase tracking-widest">ORD: {selectedRequest.orderId}</span>
+                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">ID: BP-{selectedRequest.product.id.padStart(4, '0')}</span>
+                                                </div>
+                                                <p className="font-black text-brand-dark text-sm leading-tight mb-2">{selectedRequest.product.name}</p>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-black text-brand-dark">€{selectedRequest.product.price.toFixed(2)}</p>
+                                                    <span className="text-[10px] font-bold text-gray-300 italic">Prezzo Unitario</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -339,12 +384,12 @@ export const AdminReturns = () => {
                                                 <span className="text-xs font-bold text-brand-dark truncate">{selectedRequest.customerEmail}</span>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-brand-dark border border-gray-100">
-                                                    <MapPin className="w-4 h-4" />
+                                                <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-brand-dark border border-gray-100">
+                                                    <MapPin className="w-3 h-3" />
                                                 </div>
-                                                <span className="text-xs font-bold text-brand-dark">Verbania (VB), Italia</span>
+                                                <span className="text-[10px] font-bold text-brand-dark">Verbania (VB), Italia</span>
                                             </div>
-                                            <button className="w-full py-2 bg-brand-yellow/20 text-brand-dark text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-brand-yellow/40 transition-all font-sans">Vedi Storico Cliente</button>
+                                            <button className="w-full py-1.5 bg-brand-yellow/20 text-brand-dark text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-brand-yellow/40 transition-all font-sans">Vedi Storico Cliente</button>
                                         </div>
                                     </div>
                                 </div>
@@ -484,7 +529,7 @@ export const AdminReturns = () => {
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="p-8 bg-white border-t border-gray-100 grid grid-cols-2 gap-4">
+                            <div className="p-6 bg-white border-t border-gray-100 grid grid-cols-2 gap-4">
                                 <button 
                                     onClick={() => updateStatus(selectedRequest.id, 'rejected', "Richiesta non conforme alle politiche di reso")}
                                     className="py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white hover:text-red-500 transition-all border border-transparent hover:border-red-100 font-sans"

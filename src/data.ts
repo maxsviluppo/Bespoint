@@ -24,7 +24,8 @@ export const PRODUCTS: Product[] = [
     ],
     has3D: true,
     videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    isFeatured: true
+    isFeatured: true,
+    tags: ["efficiente", "cartongesso", "led", "incasso"]
   },
   {
     id: "2",

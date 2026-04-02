@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ArrowLeft,
+  ArrowRight,
   Home,
   Grid,
   User,
@@ -47,6 +48,8 @@ import {
   Table,
   FileText,
   FileCode,
+  Tag,
+  CreditCard,
   Truck,
   ListFilter,
   LayoutGrid,
@@ -66,7 +69,10 @@ import {
   ClipboardCheck,
   Activity,
   Repeat,
-  UserPlus
+  UserPlus,
+  CheckCircle2,
+  XCircle,
+  LayoutDashboard
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -74,14 +80,15 @@ import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { AdminMassiveImport } from "./AdminMassiveImport";
-import { AdminOrders } from "./AdminOrders";
+import { AdminOrders, INITIAL_ORDERS } from "./AdminOrders";
 import { AdminCouriers } from "./AdminCouriers";
 import { AdminReturns } from "./AdminReturns";
 import { AdminUsers } from "./AdminUsers";
+import { AdminReviews } from "./AdminReviews";
 
 // --- Components ---
 
-const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuHidden: boolean; count: number; key?: string }) => {
+const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuHidden: boolean; count: number; key?: any }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -167,7 +174,63 @@ const CartSplash = ({ trigger, isMenuHidden, count }: { trigger: number; isMenuH
   );
 };
 
-function ProductCard({ product, onClick, onAddToCart, index }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; key?: string }) {
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void, key?: any }) => {
+  const icons = {
+    success: <CheckCircle2 className="w-5 h-5 text-green-500" />,
+    error: <XCircle className="w-5 h-5 text-red-500" />,
+    info: <Activity className="w-5 h-5 text-blue-500" />
+  };
+
+  const bgColors = {
+    success: 'bg-white border-green-100 shadow-[0_10px_40px_rgba(34,197,94,0.1)]',
+    error: 'bg-white border-red-100 shadow-[0_10px_40px_rgba(239,68,68,0.1)]',
+    info: 'bg-white border-blue-100 shadow-[0_10px_40px_rgba(59,130,246,0.1)]'
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      className={`${bgColors[type]} border p-4 rounded-3xl flex items-center gap-4 min-w-[320px] pointer-events-auto backdrop-blur-xl bg-white/90 shadow-2xl`}
+    >
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${type === 'success' ? 'bg-green-50' : type === 'error' ? 'bg-red-50' : 'bg-blue-50'}`}>
+        {icons[type]}
+      </div>
+      <p className="text-[13px] font-bold text-brand-dark flex-1 leading-tight">{message}</p>
+      <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
+        <X className="w-4 h-4 text-gray-400" />
+      </button>
+    </motion.div>
+  );
+};
+
+const ToastContainer = ({ toasts, onClose }: { toasts: { id: string; message: string; type: 'success' | 'error' | 'info' }[], onClose: (id: string) => void }) => {
+  return (
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-3 pointer-events-none w-full max-w-sm px-6">
+      <AnimatePresence mode="popLayout">
+        {toasts.map(toast => (
+          <Toast 
+            key={toast.id} 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => onClose(toast.id)} 
+          />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+function ProductCard({ product, onClick, onAddToCart, index, reviews = [] }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; reviews?: any[]; key?: any }) {
+  const productReviews = reviews.filter(r => r.productId === product.id && r.status === 'approved');
+  const avgRating = productReviews.length > 0 
+    ? productReviews.reduce((s, r) => s + r.rating, 0) / productReviews.length 
+    : product.rating;
+  const reviewCount = productReviews.length > 0 
+    ? productReviews.length + product.reviews 
+    : product.reviews;
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -210,10 +273,10 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
       >
         <div className="flex">
           {[...Array(5)].map((_, i) => (
-            <Star key={`card-star-${i}`} className={`w-3 h-3 ${i < Math.floor(product.rating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
+            <Star key={`card-star-${i}`} className={`w-3 h-3 ${i < Math.floor(avgRating) ? "text-brand-yellow fill-brand-yellow" : "text-gray-200"}`} />
           ))}
         </div>
-        <span className="text-[10px] text-blue-600 font-medium">{product.reviews}</span>
+        <span className="text-[10px] text-blue-600 font-medium">{reviewCount}</span>
       </motion.div>
       <div className="mt-auto">
         <motion.div 
@@ -240,12 +303,20 @@ function ProductCard({ product, onClick, onAddToCart, index }: { product: Produc
   );
 }
 
-const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; key?: string }) => {
+const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [] }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; key?: any }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  const approvedReviews = reviews.filter(rev => rev.productId === product.id && rev.status === 'approved');
+  const avgRating = approvedReviews.length > 0
+    ? approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length
+    : product.rating;
+  const reviewCount = approvedReviews.length > 0
+    ? approvedReviews.length + product.reviews
+    : product.reviews;
 
   const scroll = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -440,28 +511,29 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: P
                   <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark">Recensioni</h4>
                   <div className="flex items-center bg-brand-yellow px-2 py-1 rounded-lg">
                     <Star className="w-3 h-3 text-brand-dark fill-brand-dark mr-1" />
-                    <span className="text-xs font-black text-brand-dark">{product.rating}</span>
+                    <span className="text-xs font-black text-brand-dark">{avgRating.toFixed(1)}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  {[
-                    { stars: 5, percentage: 75 },
-                    { stars: 4, percentage: 15 },
-                    { stars: 3, percentage: 5 },
-                  ].map((row) => (
-                    <div key={row.stars} className="flex items-center gap-2 text-[10px]">
-                      <span className="w-10 font-bold text-gray-500">{row.stars} stelle</span>
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${row.percentage}%` }}
-                          className="h-full bg-brand-yellow"
-                        />
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = approvedReviews.filter(r => r.rating === stars).length;
+                    const percentage = approvedReviews.length > 0 ? Math.round((count / approvedReviews.length) * 100) : 0;
+                    return (
+                      <div key={stars} className="flex items-center gap-2 text-[10px]">
+                        <span className="w-10 font-bold text-gray-400">{stars} stelle</span>
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${percentage}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={`h-full ${stars >= 4 ? 'bg-brand-yellow' : stars === 3 ? 'bg-orange-400' : 'bg-red-400'}`}
+                          />
+                        </div>
+                        <span className="w-8 text-right text-gray-400 font-bold">{percentage}%</span>
                       </div>
-                      <span className="w-6 text-right text-gray-400 font-bold uppercase">{row.percentage}%</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Individual Review Sample */}
@@ -475,7 +547,7 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: P
                   <p className="text-[11px] text-gray-600 italic leading-relaxed">"Qualità eccezionale, arrivato in 24 ore. BesPoint una garanzia!"</p>
                 </div>
 
-                <button className="w-full text-center text-xs font-bold text-blue-600 hover:underline pt-2">Vedi tutte le {product.reviews} recensioni</button>
+                <button className="w-full text-center text-xs font-bold text-blue-600 hover:underline pt-2">Vedi tutte le {reviewCount} recensioni</button>
               </div>
             </div>
           </div>
@@ -630,11 +702,828 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop }: { product: P
   );
 };
 
-const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: { 
+const ITALIAN_PROVINCES = [
+  { code: 'AG', name: 'Agrigento' }, { code: 'AL', name: 'Alessandria' }, { code: 'AN', name: 'Ancona' },
+  { code: 'AO', name: 'Aosta' }, { code: 'AR', name: 'Arezzo' }, { code: 'AP', name: 'Ascoli Piceno' },
+  { code: 'AT', name: 'Asti' }, { code: 'AV', name: 'Avellino' }, { code: 'BA', name: 'Bari' },
+  { code: 'BT', name: 'Barletta-Andria-Trani' }, { code: 'BL', name: 'Belluno' }, { code: 'BN', name: 'Benevento' },
+  { code: 'BG', name: 'Bergamo' }, { code: 'BI', name: 'Biella' }, { code: 'BO', name: 'Bologna' },
+  { code: 'BZ', name: 'Bolzano' }, { code: 'BS', name: 'Brescia' }, { code: 'BR', name: 'Brindisi' },
+  { code: 'CA', name: 'Cagliari' }, { code: 'CL', name: 'Caltanissetta' }, { code: 'CB', name: 'Campobasso' },
+  { code: 'CI', name: 'Carbonia-Iglesias' }, { code: 'CE', name: 'Caserta' }, { code: 'CT', name: 'Catania' },
+  { code: 'CZ', name: 'Catanzaro' }, { code: 'CH', name: 'Chieti' }, { code: 'CO', name: 'Como' },
+  { code: 'CS', name: 'Cosenza' }, { code: 'CR', name: 'Cremona' }, { code: 'KR', name: 'Crotone' },
+  { code: 'CN', name: 'Cuneo' }, { code: 'EN', name: 'Enna' }, { code: 'FM', name: 'Fermo' },
+  { code: 'FE', name: 'Ferrara' }, { code: 'FI', name: 'Firenze' }, { code: 'FG', name: 'Foggia' },
+  { code: 'FC', name: 'Forlì-Cesena' }, { code: 'FR', name: 'Frosinone' }, { code: 'GE', name: 'Genova' },
+  { code: 'GO', name: 'Gorizia' }, { code: 'GR', name: 'Grosseto' }, { code: 'IM', name: 'Imperia' },
+  { code: 'IS', name: 'Isernia' }, { code: 'SP', name: 'La Spezia' }, { code: 'AQ', name: 'L\'Aquila' },
+  { code: 'LT', name: 'Latina' }, { code: 'LE', name: 'Lecce' }, { code: 'LC', name: 'Lecco' },
+  { code: 'LI', name: 'Livorno' }, { code: 'LO', name: 'Lodi' }, { code: 'LU', name: 'Lucca' },
+  { code: 'MC', name: 'Macerata' }, { code: 'MN', name: 'Mantova' }, { code: 'MS', name: 'Massa-Carrara' },
+  { code: 'MT', name: 'Matera' }, { code: 'VS', name: 'Medio Campidano' }, { code: 'ME', name: 'Messina' },
+  { code: 'MI', name: 'Milano' }, { code: 'MO', name: 'Modena' }, { code: 'MB', name: 'Monza e della Brianza' },
+  { code: 'NA', name: 'Napoli' }, { code: 'NO', name: 'Novara' }, { code: 'NU', name: 'Nuoro' },
+  { code: 'OG', name: 'Ogliastra' }, { code: 'OT', name: 'Olbia-Tempio' }, { code: 'OR', name: 'Oristano' },
+  { code: 'PD', name: 'Padova' }, { code: 'PA', name: 'Palermo' }, { code: 'PR', name: 'Parma' },
+  { code: 'PV', name: 'Pavia' }, { code: 'PG', name: 'Perugia' }, { code: 'PU', name: 'Pesaro e Urbino' },
+  { code: 'PE', name: 'Pescara' }, { code: 'PC', name: 'Piacenza' }, { code: 'PI', name: 'Pisa' },
+  { code: 'PT', name: 'Pistoia' }, { code: 'PN', name: 'Pordenone' }, { code: 'PZ', name: 'Potenza' },
+  { code: 'PO', name: 'Prato' }, { code: 'RG', name: 'Ragusa' }, { code: 'RA', name: 'Ravenna' },
+  { code: 'RC', name: 'Reggio Calabria' }, { code: 'RE', name: 'Reggio Emilia' }, { code: 'RI', name: 'Rieti' },
+  { code: 'RN', name: 'Rimini' }, { code: 'RM', name: 'Roma' }, { code: 'RO', name: 'Rovigo' },
+  { code: 'SA', name: 'Salerno' }, { code: 'SS', name: 'Sassari' }, { code: 'SV', name: 'Savona' },
+  { code: 'SI', name: 'Siena' }, { code: 'SR', name: 'Siracusa' }, { code: 'SO', name: 'Sondrio' },
+  { code: 'TA', name: 'Taranto' }, { code: 'TE', name: 'Teramo' }, { code: 'TR', name: 'Terni' },
+  { code: 'TO', name: 'Torino' }, { code: 'TP', name: 'Trapani' }, { code: 'TN', name: 'Trento' },
+  { code: 'TV', name: 'Treviso' }, { code: 'TS', name: 'Trieste' }, { code: 'UD', name: 'Udine' },
+  { code: 'VA', name: 'Varese' }, { code: 'VE', name: 'Venezia' }, { code: 'VB', name: 'Verbano-Cusio-Ossola' },
+  { code: 'VC', name: 'Vercelli' }, { code: 'VR', name: 'Verona' }, { code: 'VV', name: 'Vibo Valentia' },
+  { code: 'VI', name: 'Vicenza' }, { code: 'VT', name: 'Viterbo' }
+];
+
+const PREDEFINED_CITIES = [
+  "Roma", "Milano", "Napoli", "Torino", "Palermo", "Genova", "Bologna", "Firenze", "Bari", "Catania", 
+  "Venezia", "Verona", "Messina", "Padova", "Trieste", "Taranto", "Brescia", "Parma", "Prato", "Modena", 
+  "Reggio Calabria", "Reggio Emilia", "Perugia", "Ravenna", "Livorno", "Cagliari", "Foggia", "Rimini", 
+  "Salerno", "Ferrara"
+].sort();
+
+const CheckoutSheet = ({ 
+  items, 
+  onClose, 
+  settings, 
+  currentUser,
+  onAuthOpen,
+  appOrders,
+  setAppOrders,
+  setCart,
+  companySettings,
+  addToast
+}: { 
+  items: CartItem[]; 
+  onClose: () => void; 
+  settings: any;
+  currentUser: any;
+  onAuthOpen: () => void;
+  appOrders: any[];
+  setAppOrders: (orders: any[]) => void;
+  setCart: (cart: any[]) => void;
+  companySettings: any;
+  addToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+}) => {
+  const [shippingForm, setShippingForm] = useState({
+    name: currentUser?.name || '',
+    street: currentUser?.addressStreet || '',
+    city: currentUser?.addressCity || '',
+    zip: currentUser?.addressZip || '',
+    province: currentUser?.addressProvince || '',
+    phone: currentUser?.phone || '',
+    email: currentUser?.email || '',
+    notes: '',
+    isCustomCity: false
+  });
+
+  const [orderId] = useState(() => `BP-${new Date().getFullYear()}-${Math.floor(Math.random() * 899 + 100)}`);
+
+  const [step, setStep] = useState<'shipping' | 'methods' | 'details' | 'success'>(
+    (currentUser?.addressStreet && currentUser?.addressCity) ? 'methods' : 'shipping'
+  );
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  useEffect(() => {
+    if (currentUser) {
+      setShippingForm(prev => ({
+        ...prev,
+        name: currentUser.name || prev.name,
+        email: currentUser.email || prev.email,
+        phone: currentUser.phone || prev.phone,
+        street: currentUser.addressStreet || prev.street,
+        city: currentUser.addressCity || prev.city,
+        zip: currentUser.addressZip || prev.zip,
+        province: currentUser.addressProvince || prev.province,
+        isCustomCity: currentUser.addressCity && !PREDEFINED_CITIES.includes(currentUser.addressCity)
+      }));
+      
+      // Auto-advance to Step 2 if address info is already complete
+      if (currentUser.addressStreet && currentUser.addressCity && step === 'shipping') {
+        setStep('methods');
+        addToast("Bentornato! Abbiamo pre-compilato i tuoi dati di spedizione.", "success");
+      }
+    }
+  }, [currentUser, step]);
+
+  const handleConfirmOrder = () => {
+    if (!currentUser) {
+      onAuthOpen();
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    // Simula tempo di transazione
+    setTimeout(() => {
+      const newOrder = {
+        id: orderId,
+        date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+        customer: shippingForm.name || currentUser?.name || "Cliente Registrato",
+        email: shippingForm.email || currentUser?.email || "guest@bespoint.it",
+        phone: shippingForm.phone,
+        channel: 'website',
+        total: total,
+        status: 'pending',
+        itemsCount: items.length,
+        address: `${shippingForm.street}, ${shippingForm.city} (${shippingForm.province}) - CAP ${shippingForm.zip}`,
+        notes: shippingForm.notes,
+        payment: selectedMethod === 'stripe' ? 'Carta di Credito (Stripe)' : 
+                 selectedMethod === 'paypal' ? 'PayPal' : 
+                 selectedMethod === 'cod' ? 'Contrassegno' : 'Bonifico Bancario',
+        paymentType: selectedMethod, // Helps in filtering
+        items: items.map(item => ({ 
+          id: item.id, 
+          name: item.name, 
+          qty: item.quantity, 
+          price: item.price, 
+          image: item.image 
+        }))
+      };
+
+      setAppOrders([newOrder, ...appOrders]);
+      setCart([]);
+      setIsProcessing(false);
+      setStep('success');
+    }, 1500);
+  };
+  const handlePrintProforma = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const methodLabel = selectedMethod === 'stripe' ? 'Carta di Credito / GPay' 
+      : selectedMethod === 'paypal' ? 'PayPal' 
+      : selectedMethod === 'bank' ? 'Bonifico Bancario' 
+      : 'Contrassegno';
+
+    const itemsHTML = items.map(item => `
+      <tr>
+        <td style="padding:8px 4px;border-bottom:1px solid #f0f0f0;">
+          ${item.image ? `<img src="${item.image}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;border:1px solid #eee;" />` : ''}
+        </td>
+        <td style="padding:8px 4px;border-bottom:1px solid #f0f0f0;">
+          <strong style="font-size:12px;color:#0a0a0a;">${item.name}</strong>
+          <div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">SKU-${item.id.padStart(4,'0')}</div>
+        </td>
+        <td style="padding:8px 4px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:12px;">&euro;${item.price.toFixed(2)}</td>
+        <td style="padding:8px 4px;border-bottom:1px solid #f0f0f0;text-align:center;">
+          <span style="background:#f5f5f5;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:900;">${item.quantity}</span>
+        </td>
+        <td style="padding:8px 4px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:900;font-size:12px;">&euro;${(item.price*item.quantity).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const bankHTML = selectedMethod === 'bank' ? `
+      <div style="background:#fffde7;border:1px solid #ffd600;border-radius:8px;padding:12px;margin-top:16px;">
+        <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;">Dati per il Bonifico</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><div style="font-size:8px;color:#aaa;text-transform:uppercase;">Beneficiario</div><strong style="font-size:12px;">${settings.bankOwner || 'BESPOINT S.R.L.'}</strong></div>
+          <div><div style="font-size:8px;color:#aaa;text-transform:uppercase;">IBAN</div><strong style="font-size:12px;letter-spacing:1px;">${settings.bankIban || '—'}</strong></div>
+        </div>
+      </div>` : selectedMethod === 'cod' ? `
+      <div style="background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:12px;margin-top:16px;">
+        <div style="font-size:10px;font-weight:700;color:#b45309;">${settings.codNote || 'Pagamento in contanti direttamente al corriere alla consegna.'}</div>
+      </div>` : '';
+
+    const logoHTML = companySettings.imageLogo 
+      ? `<img src="${companySettings.imageLogo}" style="height:60px;object-fit:contain;" referrerpolicy="no-referrer" />`
+      : `<div style="width:52px;height:52px;background:#ffd600;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;font-style:italic;">${companySettings.logo}</div>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Proforma Ordine — ${companySettings.name}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    * { margin:0;padding:0;box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif;background:white;color:#0a0a0a;padding:24px 32px; }
+    table { width:100%;border-collapse:collapse; }
+    @media print {
+      @page { size:A4 portrait;margin:12mm 14mm; }
+      body { padding:0; }
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:3px solid #ffd600;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${logoHTML}
+      <div>
+        <div style="font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:-0.5px;">${companySettings.name}</div>
+        <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">${companySettings.legalName || ''}</div>
+      </div>
+    </div>
+      <div style="text-align:right;">
+      <div style="font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:-1px;">PROFORMA</div>
+      <div style="font-size:12px;font-weight:900;color:#2563eb;">#${orderId}</div>
+      <div style="font-size:9px;color:#888;text-transform:uppercase;">${new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'long',year:'numeric'})}</div>
+    </div>
+  </div>
+
+  <!-- ANAGRAFICA + SPEDIZIONE -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px;">
+      <div style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;">Cliente</div>
+      <div style="font-weight:900;font-size:13px;">${shippingForm.name}</div>
+      <div style="font-size:10px;color:#555;margin-top:2px;">${shippingForm.email}</div>
+      <div style="font-size:10px;color:#2563eb;font-weight:700;">${shippingForm.phone}</div>
+    </div>
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px;">
+      <div style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;">Destinazione merce</div>
+      <div style="font-weight:700;font-size:12px;">${shippingForm.street}</div>
+      <div style="font-size:10px;color:#555;">${shippingForm.zip} ${shippingForm.city} (${shippingForm.province})</div>
+      ${shippingForm.notes ? `<div style="font-size:9px;color:#ca8a04;margin-top:4px;font-weight:700;">NOTE: ${shippingForm.notes}</div>` : ''}
+    </div>
+  </div>
+
+  <!-- PAGAMENTO -->
+  <div style="background:#0a0a0a;color:white;border-radius:8px;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <div style="font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px;">Metodo di Pagamento</div>
+      <div style="font-weight:900;font-size:13px;color:#ffd600;">${methodLabel}</div>
+    </div>
+    <div style="font-size:9px;border:1px solid rgba(255,214,0,0.3);background:rgba(255,214,0,0.1);color:#ffd600;padding:3px 10px;border-radius:99px;font-weight:900;text-transform:uppercase;">In attesa</div>
+  </div>
+
+  <!-- PRODOTTI -->
+  <table>
+    <thead>
+      <tr style="background:#f5f5f5;">
+        <th style="padding:8px 4px;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;width:44px;"></th>
+        <th style="padding:8px 4px;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;text-align:left;">Articolo</th>
+        <th style="padding:8px 4px;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;text-align:center;">Prezzo</th>
+        <th style="padding:8px 4px;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;text-align:center;">Qt</th>
+        <th style="padding:8px 4px;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;text-align:right;">Totale</th>
+      </tr>
+    </thead>
+    <tbody>${itemsHTML}</tbody>
+  </table>
+
+  <!-- TOTALI -->
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:16px;padding-top:12px;border-top:2px solid #f0f0f0;">
+    <div style="display:flex;justify-content:space-between;width:200px;font-size:10px;color:#888;">
+      <span>Subtotale</span><span style="color:#0a0a0a;font-weight:700;">&euro;${total.toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;width:200px;font-size:10px;color:#16a34a;font-weight:700;">
+      <span>Spedizione</span><span>&euro;0,00</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;width:220px;background:#ffd600;padding:10px 16px;border-radius:10px;margin-top:4px;">
+      <span style="font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Totale Ordine</span>
+      <span style="font-weight:900;font-size:18px;">&euro;${total.toFixed(2)}</span>
+    </div>
+  </div>
+
+  ${bankHTML}
+
+  <!-- FOOTER -->
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #eee;font-size:8px;color:#aaa;text-align:center;">
+    Documento proforma generato automaticamente da ${companySettings.name}. Non costituisce fattura fiscale.
+    La fattura elettronica sarà emessa e trasmessa tramite SDI al momento della spedizione.
+  </div>
+</body>
+</html>`;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 600);
+  };
+
+  if (step === 'success') {
+    return (
+      <>
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+          className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
+        />
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
+        >
+          <div className="bg-white rounded-[3rem] p-12 text-center max-w-sm shadow-2xl space-y-6 pointer-events-auto">
+            <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto text-white">
+              <Check className="w-12 h-12" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Ordine Ricevuto!</h2>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">Grazie per aver scelto BesPoint</p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <p className="text-[10px] font-black uppercase text-gray-400">ID Ordine Web</p>
+              <p className="text-lg font-black text-brand-dark">{orderId}</p>
+            </div>
+            <button 
+              onClick={onClose}
+              className="w-full py-4 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all"
+            >
+              Torna alla Home
+            </button>
+          </div>
+        </motion.div>
+      </>
+    );
+  }
+  return (
+    <>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
+      />
+      <motion.div 
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[40px] z-[101] shadow-2xl flex flex-col lg:inset-y-0 lg:right-0 lg:left-auto lg:w-full lg:max-w-2xl lg:rounded-none"
+      >
+        <div className="p-8 flex items-center justify-between border-b border-gray-100">
+          <div>
+            <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Checkout</h2>
+            <p className="text-xs text-secondary font-bold uppercase tracking-widest">{items.length} articoli • Totale €{total.toFixed(2)}</p>
+          </div>
+          <button onClick={onClose} className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Checkout Stepper */}
+        <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between relative overflow-hidden bg-gray-50/30">
+          <div className="absolute top-[38px] left-16 right-16 h-1 bg-gray-100 rounded-full">
+            <motion.div 
+               initial={{ width: 0 }}
+               animate={{ width: step === 'shipping' ? '0%' : step === 'methods' ? '50%' : '100%' }}
+               className="h-full bg-brand-yellow rounded-full shadow-[0_0_10px_rgba(255,214,0,0.4)]"
+            />
+          </div>
+          
+          {[
+            { id: 1, label: 'Spedizione', s: 'shipping' },
+            { id: 2, label: 'Pagamento', s: 'methods' },
+            { id: 3, label: 'Conferma', s: 'details' }
+          ].map((s, idx) => {
+            const currentStepNum = step === 'shipping' ? 1 : step === 'methods' ? 2 : 3;
+            const isCompleted = currentStepNum > s.id;
+            const isActive = currentStepNum === s.id;
+            
+            return (
+              <div key={s.id} className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onClick={() => {
+                if (isCompleted) {
+                  if (s.s === 'shipping') setStep('shipping');
+                  if (s.s === 'methods') setStep('methods');
+                }
+              }}>
+                <motion.div 
+                   animate={{ 
+                     backgroundColor: (isCompleted || isActive) ? "#FFD600" : "#FFFFFF",
+                     borderColor: (isCompleted || isActive) ? "#FFD600" : "#E5E7EB",
+                     scale: isActive ? 1.1 : 1
+                   }}
+                   className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all shadow-sm ${isActive ? 'shadow-brand-yellow/30' : ''}`}
+                >
+                  {isCompleted ? <Check className="w-5 h-5 text-brand-dark" /> : <span className={isActive ? 'text-brand-dark' : 'text-gray-400'}>{s.id}</span>}
+                </motion.div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-brand-dark' : isCompleted ? 'text-brand-blue' : 'text-gray-400'}`}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8">
+          {step === 'shipping' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
+              <div>
+                <h3 className="font-black text-sm uppercase tracking-widest text-brand-dark mb-4 border-l-4 border-brand-yellow pl-4">Indirizzo di Spedizione</h3>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Conferma dove vuoi ricevere la merce</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Email di Contatto</label>
+                  <input 
+                    type="email" 
+                    value={shippingForm.email}
+                    onChange={e => setShippingForm({...shippingForm, email: e.target.value})}
+                    placeholder="mario.rossi@esempio.it"
+                    className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                  />
+                  <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">L'email dell'account è preimpostata, puoi modificarla per la spedizione</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    value={shippingForm.name}
+                    onChange={e => setShippingForm({...shippingForm, name: e.target.value})}
+                    placeholder="Mario Rossi"
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Indirizzo e Numero Civico</label>
+                  <input 
+                    type="text" 
+                    value={shippingForm.street}
+                    onChange={e => setShippingForm({...shippingForm, street: e.target.value})}
+                    placeholder="Via delle Camelie, 12"
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Città</label>
+                  {!shippingForm.isCustomCity ? (
+                    <select 
+                      value={shippingForm.city}
+                      onChange={e => {
+                        if (e.target.value === "CUSTOM") {
+                          setShippingForm({...shippingForm, isCustomCity: true, city: ""});
+                        } else {
+                          setShippingForm({...shippingForm, city: e.target.value});
+                        }
+                      }}
+                      className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all cursor-pointer"
+                    >
+                      <option value="">Seleziona...</option>
+                      {PREDEFINED_CITIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="CUSTOM">-- Altra città (inserimento manuale) --</option>
+                    </select>
+                  ) : (
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={shippingForm.city}
+                        onChange={e => setShippingForm({...shippingForm, city: e.target.value})}
+                        placeholder="Es. Pomezia"
+                        className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                      />
+                      <button 
+                        onClick={() => setShippingForm({...shippingForm, isCustomCity: false, city: ""})}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase text-brand-blue"
+                      >
+                        Lista
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Provincia</label>
+                  <select 
+                    value={shippingForm.province}
+                    onChange={e => setShippingForm({...shippingForm, province: e.target.value})}
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all cursor-pointer"
+                  >
+                    <option value="">Seleziona...</option>
+                    {ITALIAN_PROVINCES.map(p => (
+                      <option key={p.code} value={p.code}>{p.code} - {p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">CAP</label>
+                  <input 
+                    type="text" 
+                    value={shippingForm.zip}
+                    onChange={e => setShippingForm({...shippingForm, zip: e.target.value})}
+                    placeholder="00100"
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Cellulare / WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    value={shippingForm.phone}
+                    onChange={e => setShippingForm({...shippingForm, phone: e.target.value})}
+                    placeholder="+39 333 1234567"
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Note per il Corriere (Opzionale)</label>
+                  <textarea 
+                    value={shippingForm.notes}
+                    onChange={e => setShippingForm({...shippingForm, notes: e.target.value})}
+                    placeholder="Es: Suonare al campanello Giallo, lasciare al portiere..."
+                    rows={2}
+                    className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-yellow transition-all resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 'methods' && (
+            <div className="space-y-6">
+              <h3 className="font-black text-sm uppercase tracking-widest text-brand-dark mb-4 border-l-4 border-brand-yellow pl-4">Scegli il metodo di pagamento</h3>
+              
+              <div className="grid gap-4">
+                {settings.stripeEnabled && (
+                  <button 
+                    onClick={() => setSelectedMethod('stripe')}
+                    className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between group ${selectedMethod === 'stripe' ? "border-brand-yellow bg-brand-yellow/5" : "border-gray-100 hover:border-gray-300"}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                        <CreditCard className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-black text-brand-dark uppercase tracking-tight">Carta di Credito / GPay</span>
+                        <span className="text-[10px] text-secondary font-bold uppercase tracking-widest">Processato da Stripe</span>
+                      </div>
+                    </div>
+                    {selectedMethod === 'stripe' && <Check className="w-6 h-6 text-brand-yellow" />}
+                  </button>
+                )}
+
+                {settings.paypalEnabled && (
+                  <button 
+                    onClick={() => setSelectedMethod('paypal')}
+                    className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between group ${selectedMethod === 'paypal' ? "border-brand-blue bg-brand-blue/5" : "border-gray-100 hover:border-gray-300"}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                        <ExternalLink className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-black text-brand-dark uppercase tracking-tight">PayPal</span>
+                        <span className="text-[10px] text-secondary font-bold uppercase tracking-widest">Paga in sicurezza con il tuo conto</span>
+                      </div>
+                    </div>
+                    {selectedMethod === 'paypal' && <Check className="w-6 h-6 text-brand-blue" />}
+                  </button>
+                )}
+
+                {settings.bankEnabled && (
+                  <button 
+                    onClick={() => setSelectedMethod('bank')}
+                    className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between group ${selectedMethod === 'bank' ? "border-brand-yellow bg-brand-yellow/5" : "border-gray-100 hover:border-gray-300"}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-600">
+                        <Globe className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-black text-brand-dark uppercase tracking-tight">Bonifico Bancario</span>
+                        <span className="text-[10px] text-secondary font-bold uppercase tracking-widest">L'ordine verrà elaborato alla ricezione</span>
+                      </div>
+                    </div>
+                    {selectedMethod === 'bank' && <Check className="w-6 h-6 text-brand-yellow" />}
+                  </button>
+                )}
+
+                {settings.codEnabled && (
+                  <button 
+                    onClick={() => setSelectedMethod('cod')}
+                    className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between group ${selectedMethod === 'cod' ? "border-orange-500 bg-orange-50/5" : "border-gray-100 hover:border-gray-300"}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600">
+                        <Truck className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-black text-brand-dark uppercase tracking-tight">Contrassegno (COD)</span>
+                        <span className="text-[10px] text-secondary font-bold uppercase tracking-widest">Paga in contanti alla consegna</span>
+                      </div>
+                    </div>
+                    {selectedMethod === 'cod' && <Check className="w-6 h-6 text-orange-500" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 'details' && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-500 pb-6">
+
+              {/* PDF Proforma Document */}
+              <div id="bp-proforma-doc" className="bg-white border border-gray-100 rounded-2xl overflow-hidden p-6 space-y-5">
+                
+                {/* ── HEADER DOCUMENTO ── */}
+                <div className="flex justify-between items-start pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className={companySettings.imageLogo ? "h-10" : "w-10 h-10 bg-brand-yellow rounded-lg flex items-center justify-center flex-shrink-0"}>
+                      {companySettings.imageLogo
+                        ? <img src={companySettings.imageLogo} alt="Logo" className="h-full object-contain" referrerPolicy="no-referrer" />
+                        : <span className="text-brand-dark font-black text-sm italic">{companySettings.logo}</span>}
+                    </div>
+                    <div>
+                      <p className="font-black text-brand-dark text-sm uppercase tracking-tight leading-none">{companySettings.name}</p>
+                      <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{companySettings.legalName}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-black text-brand-dark uppercase tracking-tight leading-none">Proforma</p>
+                    <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest mt-1">ORDINE #{orderId}</p>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{new Date().toLocaleDateString('it-IT')}</p>
+                  </div>
+                </div>
+
+                {/* ── ANAGRAFICA + SPEDIZIONE ── */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <User size={9} className="text-brand-yellow" /> Cliente
+                    </p>
+                    <p className="font-black text-brand-dark text-xs leading-tight">{shippingForm.name}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{shippingForm.email}</p>
+                    <p className="text-[10px] text-brand-blue font-bold">{shippingForm.phone}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <MapPin size={9} className="text-brand-yellow" /> Destinazione
+                    </p>
+                    <p className="font-bold text-brand-dark text-xs leading-snug">{shippingForm.street}</p>
+                    <p className="text-[10px] text-gray-500">{shippingForm.zip} {shippingForm.city} ({shippingForm.province})</p>
+                    {shippingForm.notes && (
+                      <div className="mt-2 p-1.5 bg-yellow-50 rounded border border-yellow-100">
+                        <p className="text-[7px] font-black text-yellow-600 uppercase">Note Corriere</p>
+                        <p className="text-[9px] font-bold text-yellow-800 leading-tight italic">{shippingForm.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── METODO PAGAMENTO ── */}
+                <div className="flex items-center justify-between bg-brand-dark text-white px-4 py-3 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {selectedMethod === 'stripe' && <CreditCard size={14} className="text-brand-yellow" />}
+                      {selectedMethod === 'paypal' && <ExternalLink size={14} className="text-brand-yellow" />}
+                      {selectedMethod === 'bank'   && <Globe size={14} className="text-brand-yellow" />}
+                      {selectedMethod === 'cod'    && <Truck size={14} className="text-brand-yellow" />}
+                    </div>
+                    <div>
+                      <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Pagamento</p>
+                      <p className="text-xs font-black text-brand-yellow uppercase tracking-tight">
+                        {selectedMethod === 'stripe' ? 'Carta / GPay' : selectedMethod === 'paypal' ? 'PayPal' : selectedMethod === 'bank' ? 'Bonifico Bancario' : 'Contrassegno'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[7px] font-black text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 rounded-full uppercase">In attesa</span>
+                </div>
+
+                {/* ── PRODOTTI ── */}
+                <div>
+                  <div className="grid grid-cols-12 text-[7px] font-black text-gray-400 uppercase tracking-widest px-2 pb-1 border-b border-gray-100">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-6 pl-2">Articolo</div>
+                    <div className="col-span-2 text-center">Prezzo</div>
+                    <div className="col-span-1 text-center">Qt</div>
+                    <div className="col-span-2 text-right">Tot.</div>
+                  </div>
+                  {items.map(item => (
+                    <div key={item.id} className="grid grid-cols-12 items-center py-2 px-2 border-b border-gray-50 last:border-0">
+                      <div className="col-span-1">
+                        <div className="w-7 h-7 rounded bg-gray-50 border border-gray-100 overflow-hidden">
+                          {item.image && <img src={item.image} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />}
+                        </div>
+                      </div>
+                      <div className="col-span-6 pl-2">
+                        <p className="text-xs font-black text-brand-dark leading-tight">{item.name}</p>
+                        <p className="text-[7px] text-gray-400 font-bold uppercase">SKU-{item.id.padStart(4,'0')}</p>
+                      </div>
+                      <div className="col-span-2 text-center">
+                        <span className="text-xs font-bold text-brand-dark">€{item.price.toFixed(2)}</span>
+                      </div>
+                      <div className="col-span-1 text-center">
+                        <span className="w-5 h-5 rounded bg-gray-100 inline-flex items-center justify-center text-[10px] font-black text-brand-dark">{item.quantity}</span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <span className="text-xs font-black text-brand-dark">€{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── TOTALI ── */}
+                <div className="flex flex-col items-end gap-1.5 pt-3 border-t border-gray-100">
+                  <div className="flex justify-between w-56 text-[10px] font-bold text-gray-400 uppercase">
+                    <span>Subtotale</span><span className="text-brand-dark">€{total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between w-56 text-[10px] font-bold text-green-600 uppercase">
+                    <span>Spedizione</span><span className="font-black">€0,00</span>
+                  </div>
+                  <div className="flex justify-between items-center w-56 bg-brand-yellow px-4 py-3 rounded-2xl mt-1">
+                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Totale</span>
+                    <span className="text-lg font-black text-brand-dark">€{total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* ── DATI PAGAMENTO (se Bonifico / COD) ── */}
+                {(selectedMethod === 'bank' || selectedMethod === 'cod') && (
+                  <div className={`p-4 rounded-xl border text-xs ${
+                    selectedMethod === 'bank' ? 'border-brand-yellow/30 bg-yellow-50/50' : 'border-orange-200 bg-orange-50'
+                  }`}>
+                    <p className="text-[8px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Shield size={10} /> Dati per il pagamento
+                    </p>
+                    {selectedMethod === 'bank' ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[7px] text-gray-400 uppercase font-black mb-0.5">Beneficiario</p>
+                          <p className="font-black text-brand-dark text-xs uppercase">{settings.bankOwner || 'BESPOINT S.R.L.'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[7px] text-gray-400 uppercase font-black mb-0.5">IBAN</p>
+                          <p className="font-bold text-brand-dark text-[10px] tracking-tight select-all">{settings.bankIban || '—'}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-gray-600 uppercase">{settings.codNote || 'Pagamento in contanti alla consegna.'}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="no-print flex flex-col items-center gap-3 pt-2">
+                <button
+                  onClick={handlePrintProforma}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-brand-dark text-brand-yellow rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all"
+                >
+                  <FileText size={14} />
+                  Stampa / Salva PDF
+                </button>
+                <p className="text-[9px] text-gray-400 font-bold italic text-center max-w-xs">
+                  Proforma generata dal sistema. Fattura elettronica emessa a spedizione avvenuta.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-8 bg-gray-50 border-t border-gray-100 mt-auto">
+          {!currentUser ? (
+              <div className="text-center space-y-4">
+                <p className="text-sm font-bold text-brand-dark uppercase tracking-tighter">🔒 Effettua il login o registrati per completare l'acquisto</p>
+                <button 
+                  onClick={onAuthOpen}
+                  className="w-full h-16 rounded-2xl bg-brand-yellow text-brand-dark font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand-yellow/20 hover:bg-brand-orange"
+                >
+                  Registrati ora
+                </button>
+              </div>
+          ) : step === 'shipping' ? (
+            <button 
+              disabled={!shippingForm.street || !shippingForm.city || !shippingForm.province || !shippingForm.phone}
+              onClick={() => setStep('methods')}
+              className="w-full h-16 rounded-2xl bg-brand-dark text-brand-yellow font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand-dark/20 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              Prosegui al Pagamento
+            </button>
+          ) : (
+            <div className="space-y-4">
+                <button 
+                  onClick={() => setStep('shipping')}
+                  className="w-full text-[10px] font-black uppercase tracking-widest text-secondary hover:text-brand-dark transition-colors"
+                >
+                  Modifica Indirizzo di Spedizione
+                </button>
+                <button 
+                  disabled={!selectedMethod || isProcessing}
+                  onClick={() => {
+                    if (step === 'methods') {
+                      setStep('details');
+                    } else {
+                      handleConfirmOrder();
+                    }
+                  }}
+                  className={`w-full h-16 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${selectedMethod ? "bg-brand-dark text-brand-yellow hover:bg-black active:scale-[0.98] shadow-brand-dark/20" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                >
+                  {isProcessing && <RefreshCw className="w-5 h-5 animate-spin" />}
+                  {step === 'methods' ? "Vedi Riepilogo" : "Conferma Ordine"}
+                </button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </>
+  );
+};
+
+const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove, onCheckout }: { 
   items: CartItem[]; 
   onClose: () => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemove: (id: string) => void;
+  onCheckout: () => void;
   key?: string;
 }) => {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -715,7 +1604,10 @@ const CartDrawer = ({ items, onClose, onUpdateQuantity, onRemove }: {
               <span className="text-gray-500 font-medium">Totale</span>
               <span className="text-2xl font-bold">€{total.toFixed(2)}</span>
             </div>
-            <button className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark h-14 rounded-2xl font-bold text-lg active:scale-95 transition-transform">
+            <button 
+              onClick={onCheckout}
+              className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark h-14 rounded-2xl font-bold text-lg active:scale-95 transition-transform"
+            >
               Procedi al Pagamento
             </button>
           </motion.div>
@@ -945,6 +1837,36 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    const saved = localStorage.getItem('paymentSettings');
+    return saved ? JSON.parse(saved) : {
+      stripeEnabled: true,
+      stripeKey: "",
+      paypalEnabled: true,
+      paypalEmail: "",
+      bankEnabled: true,
+      bankOwner: "BESPOINT S.R.L.",
+      bankIban: "IT00 X 00000 00000 000000000000",
+      bankNote: "L'ordine verrà evaso dopo l'accredito.",
+      codEnabled: true,
+      codNote: "Pagamento in contanti al corriere alla consegna."
+    };
+  });
+  
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem('bespoint_orders');
+    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bespoint_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('paymentSettings', JSON.stringify(paymentSettings));
+  }, [paymentSettings]);
+
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
   const [adminCategoryFilter, setAdminCategoryFilter] = useState("Tutti");
@@ -994,15 +1916,51 @@ export default function App() {
     const saved = localStorage.getItem('bespoint_returns');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [productReviews, setProductReviews] = useState<any[]>(() => {
+    const saved = localStorage.getItem('bespoint_reviews');
+    return saved ? JSON.parse(saved) : [
+      { id: "rev-1", productId: "3", orderId: "BP-2026-879", customerName: "Alessandro V.", rating: 5, comment: "Trapano potente e maneggevole. La batteria dura tantissimo, consigliato!", date: "30 Mar 2026", status: 'approved' },
+      { id: "rev-2", productId: "1", orderId: "BP-2026-881", customerName: "Marco R.", rating: 4, comment: "Ottimo faretto, luce calda e intensa. Un po' difficile da montare ma ne vale la pena.", date: "31 Mar 2026", status: 'approved' },
+      { id: "rev-3", productId: "2", orderId: "BP-2026-872", customerName: "Antonio B.", rating: 5, comment: "Pannello LED di alta qualità. Spedizione rapidissima e imballaggio perfetto.", date: "28 Mar 2026", status: 'approved' }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bespoint_reviews', JSON.stringify(productReviews));
+  }, [productReviews]);
+
+  const [selectedReviewItem, setSelectedReviewItem] = useState<any>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
   const [showAllSeoCategories, setShowAllSeoCategories] = useState(false);
-  const [activeUserView, setActiveUserView] = useState<'profile' | 'returns' | 'return_form'>('profile');
+  const [activeUserView, setActiveUserView] = useState<'profile' | 'returns' | 'return_form' | 'review_form' | 'menu'>('profile');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isAiSuggesting, setIsAiSuggesting] = useState(false);
   const [selectedReturnOrder, setSelectedReturnOrder] = useState<any>(null);
+  const [selectedReturnItem, setSelectedReturnItem] = useState<any>(null);
+  const [selectedReturnDetail, setSelectedReturnDetail] = useState<any>(null);
+  const [userReturnMsg, setUserReturnMsg] = useState('');
+  const [returnReason, setReturnReason] = useState('');
+  const [isReturnSubmitting, setIsReturnSubmitting] = useState(false);
+  const [returnQty, setReturnQty] = useState(1);
+  const [returnPhotos, setReturnPhotos] = useState<string[]>([]);
+
+  const parseOrderDate = (dStr: string) => {
+    const months: any = { jan:0,gen:0,feb:1,mar:2,apr:3,may:4,mag:4,jun:5,giu:5,jul:6,lug:6,aug:7,ago:7,sep:8,set:8,oct:9,ott:9,nov:10,dec:11,dic:11 };
+    const parts = dStr.replace('.', '').split(' ');
+    if (parts.length !== 3) return new Date();
+    return new Date(parseInt(parts[2]), months[parts[1].toLowerCase().substring(0,3)] || 0, parseInt(parts[0]));
+  };
 
   useEffect(() => {
     localStorage.setItem('bespoint_returns', JSON.stringify(returnRequests));
   }, [returnRequests]);
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'company' | 'slides' | 'categories' | 'seo' | 'marketing' | 'analytics' | 'products' | 'marketplaces' | 'orders' | 'couriers'>('dashboard');
+  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'company' | 'slides' | 'categories' | 'seo' | 'marketing' | 'analytics' | 'products' | 'marketplaces' | 'orders' | 'couriers' | 'payments' | 'reviews'>('dashboard');
+  const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
   const [adminProductView, setAdminProductView] = useState<'list' | 'single' | 'mass'>('list');
   const [editingAdminProduct, setEditingAdminProduct] = useState<Product | null>(null);
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
@@ -1023,8 +1981,48 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
-  const [isAiSuggesting, setIsAiSuggesting] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<{ categories: string[], subcategories: Record<string, string[]> } | null>(null);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
+  const handleUserReturnMessage = (requestId: string, text: string) => {
+    if (!text.trim()) return;
+    setReturnRequests(prev => prev.map(req => {
+      if (req.id === requestId) {
+        const updated = {
+          ...req,
+          messages: [...req.messages, { role: 'user', text, date: new Date().toLocaleString('it-IT') }]
+        };
+        if (selectedReturnDetail?.id === requestId) setSelectedReturnDetail(updated);
+        return updated;
+      }
+      return req;
+    }));
+    setUserReturnMsg('');
+  };
+
+  const handleReturnPhotoMessage = (requestId: string, url: string) => {
+    setReturnRequests(prev => prev.map(req => {
+      if (req.id === requestId) {
+        const updated = {
+          ...req,
+          photos: [...(req.photos || []), url],
+          messages: [...req.messages, { role: 'user', text: "Nuova foto caricata per la pratica", date: new Date().toLocaleString('it-IT') }]
+        };
+        if (selectedReturnDetail?.id === requestId) setSelectedReturnDetail(updated);
+        return updated;
+      }
+      return req;
+    }));
+    addToast("Foto aggiunta con successo alla pratica!", "success");
+  };
   
   const [companySettings, setCompanySettings] = useState(() => {
     const saved = localStorage.getItem('companySettings');
@@ -1216,7 +2214,8 @@ export default function App() {
         { id: '4', title: "Illuminazione", subtitle: "Luce perfetta", color: "bg-green-600", seed: "light", category: "Illuminazione", subcategory: "Tutti" },
         { id: '5', title: "Audio Pro", subtitle: "Suono puro", color: "bg-purple-600", seed: "audio", category: "Elettronica", subcategory: "Audio" },
         { id: '6', title: "Smart Home", subtitle: "Casa connessa", color: "bg-orange-500", seed: "smart", category: "Sicurezza", subcategory: "Tutti" },
-      ]
+      ],
+      enabledMarketplaces: ["Amazon", "eBay"]
     };
   });
 
@@ -1234,7 +2233,7 @@ export default function App() {
     } catch (e) {
       console.error("Storage Error (Page):", e);
       if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        alert("Errore di memoria: La foto caricata è troppo grande o lo spazio del browser è esaurito. Riduci la dimensione delle immagini.");
+        addToast("Errore di memoria: La foto caricata è troppo grande o lo spazio del browser è esaurito. Riduci la dimensione delle immagini.", "error");
       }
     }
   }, [pageSettings]);
@@ -1322,7 +2321,7 @@ export default function App() {
       setAiSuggestions(suggestions);
     } catch (error) {
       console.error("AI Suggestion error:", error);
-      alert("Errore durante il suggerimento AI. Riprova.");
+      addToast("Errore durante il suggerimento AI. Riprova.", "error");
     } finally {
       setIsAiSuggesting(false);
     }
@@ -1632,6 +2631,7 @@ export default function App() {
               onClick={() => {
                 if (currentUser) {
                   setAuthStep('profile');
+                  setActiveUserView('profile');
                 } else {
                   setAuthStep('email');
                 }
@@ -1897,6 +2897,7 @@ export default function App() {
                     onClick={() => setSelectedProduct(product)} 
                     onAddToCart={addToCart}
                     index={index}
+                    reviews={productReviews}
                   />
                 ))}
               </div>
@@ -1924,6 +2925,7 @@ export default function App() {
                     onClick={() => setSelectedProduct(product)} 
                     onAddToCart={addToCart}
                     index={index}
+                    reviews={productReviews}
                   />
                 ))}
               </div>
@@ -1935,56 +2937,133 @@ export default function App() {
       {/* Product Grid Section (Ultimi Arrivi) */}
       {pageSettings.isNewArrivalsEnabled && (
         <section className="px-4 relative z-10 mb-16">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3"
-        >
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
-              {selectedCategory === "Tutti" ? "ULTIMI ARRIVI" : `${selectedCategory}`}
-            </h2>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <label htmlFor="sort" className="text-xs font-bold text-gray-500 uppercase tracking-widest">Ordina per:</label>
-            <div className="relative">
-              <select 
-                id="sort"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer"
-              >
-                <option value="newest">Novità</option>
-                <option value="price-asc">Prezzo: dal più basso</option>
-                <option value="price-desc">Prezzo: dal più alto</option>
-                <option value="rating">Valutazione</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                <ChevronRight className="w-4 h-4 rotate-90" />
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3"
+          >
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
+                {selectedCategory === "Tutti" ? "ULTIMI ARRIVI" : `${selectedCategory}`}
+              </h2>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <label htmlFor="sort" className="text-xs font-bold text-gray-500 uppercase tracking-widest">Ordina per:</label>
+              <div className="relative">
+                <select 
+                  id="sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer"
+                >
+                  <option value="newest">Novità</option>
+                  <option value="price-asc">Prezzo: dal più basso</option>
+                  <option value="price-desc">Prezzo: dal più alto</option>
+                  <option value="rating">Valutazione</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <ChevronRight className="w-4 h-4 rotate-90" />
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {filteredProducts.length === 0 ? (
-            <div className="col-span-full py-12 text-center bg-white rounded-xl shadow-sm">
-              <p className="text-gray-400 font-medium">Nessun prodotto trovato</p>
-            </div>
-          ) : (
-            (selectedCategory === "Tutti" ? filteredProducts.slice(0, pageSettings.maxNewArrivals || 15) : filteredProducts).map((product, index) => (
+          </motion.div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {filteredProducts.map((product, index) => (
               <ProductCard 
-                key={`new-${product.id}`}
+                key={product.id} 
                 product={product} 
                 onClick={() => setSelectedProduct(product)} 
                 onAddToCart={addToCart}
                 index={index}
+                reviews={productReviews}
               />
-            ))
-          )}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recensioni Clienti Section */}
+      {selectedCategory === "Tutti" && searchQuery === "" && (
+        <section className="px-4 mb-24 overflow-hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 bg-brand-blue/5 text-brand-blue px-4 py-1.5 rounded-full mb-4">
+              <Star className="w-4 h-4 fill-brand-blue" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Feedback Verificati</span>
+            </div>
+            <h2 className="text-5xl font-black text-brand-dark uppercase tracking-tighter mb-2 italic">Dicono di noi</h2>
+            <p className="text-gray-400 font-bold text-sm">La soddisfazione dei nostri clienti è la nostra priorità assoluta.</p>
+          </motion.div>
+
+          <div className="flex overflow-x-auto no-scrollbar gap-6 pb-8 snap-x">
+            {productReviews.filter(r => r.status === 'approved').length > 0 ? (
+              productReviews.filter(r => r.status === 'approved').slice(-6).reverse().map((rev, idx) => {
+                const product = PRODUCTS.find(p => p.id === rev.productId);
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 50 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    key={rev.id} 
+                    className="flex-shrink-0 w-[320px] bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-xl shadow-brand-dark/5 snap-center relative group"
+                  >
+                    <div className="absolute top-8 right-8 text-6xl font-black text-gray-50 opacity-50 select-none group-hover:text-brand-yellow/30 transition-colors">"</div>
+                    
+                    <div className="flex gap-1 mb-6">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} className={`w-4 h-4 ${s <= rev.rating ? 'fill-brand-yellow text-brand-yellow' : 'text-gray-100'}`} />
+                      ))}
+                    </div>
+
+                    <p className="text-brand-dark font-bold text-sm leading-relaxed mb-8 italic relative z-10">
+                      {rev.comment || "Recensione rilasciata senza commento testuale."}
+                    </p>
+
+                    <div className="flex items-center gap-4 mt-auto">
+                      <div className="w-12 h-12 bg-gray-50 rounded-2xl border border-gray-100 p-1 shrink-0 overflow-hidden">
+                        <img src={product?.image || "https://picsum.photos/seed/product/50/50"} alt="Prod" className="w-full h-full object-contain" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-black text-brand-dark text-xs uppercase tracking-tight truncate">{rev.customerName}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{rev.date}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            ) : (
+                <div className="w-full py-20 text-center bg-white border border-dashed border-gray-200 rounded-[3rem]">
+                  <p className="text-gray-300 font-black uppercase tracking-widest text-xs">Nessuna recensione ancora presente</p>
+                </div>
+            )}
+          </div>
+
+          <div className="mt-8 flex justify-center">
+             <div className="bg-brand-dark text-white px-8 py-4 rounded-2xl flex items-center gap-6 shadow-2xl">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-brand-yellow uppercase tracking-widest">Media Voto</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-black italic">4.9/5.0</span>
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(s => <Star key={s} className="w-3 h-3 fill-brand-yellow text-brand-yellow" />)}
+                    </div>
+                  </div>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                   <span className="text-[10px] font-black text-brand-yellow uppercase tracking-widest">Google Business</span>
+                   <p className="text-xs font-bold leading-tight uppercase tracking-tight">Prossimamente integrato</p>
+                </div>
+             </div>
+          </div>
+        </section>
       )}
 
       {selectedCategory === "Tutti" && <SlideSection slides={bottomSlides} />}
@@ -2043,7 +3122,7 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="bg-brand-dark text-white pt-16 pb-32 px-6">
+      <footer className="bg-brand-dark text-white pt-16 pb-32 px-6 no-print">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Company Info */}
           <div className="space-y-6">
@@ -2133,6 +3212,7 @@ export default function App() {
             onClose={() => setSelectedProduct(null)} 
             onAddToCart={addToCart}
             isDesktop={isDesktop}
+            reviews={productReviews}
           />
         )}
         {isCartOpen && (
@@ -2142,8 +3222,36 @@ export default function App() {
             onClose={() => setIsCartOpen(false)} 
             onUpdateQuantity={updateQuantity}
             onRemove={removeFromCart}
+            onCheckout={() => {
+              setIsCartOpen(false);
+              setIsCheckoutOpen(true);
+            }}
           />
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isCheckoutOpen && (
+          <CheckoutSheet 
+            onClose={() => setIsCheckoutOpen(false)} 
+            items={cart}
+            settings={paymentSettings}
+            currentUser={currentUser}
+            onAuthOpen={() => {
+              setIsCheckoutOpen(false);
+              setAuthStep('register');
+              setIsAuthOpen(true);
+            }}
+            appOrders={orders}
+            setAppOrders={setOrders}
+            setCart={setCart}
+            companySettings={companySettings}
+            addToast={addToast}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         <SideMenu 
           key="side-menu"
           isOpen={isSideMenuOpen} 
@@ -2259,7 +3367,9 @@ export default function App() {
                     { tab: 'seo', label: 'SEO & Google', icon: Globe, color: 'bg-indigo-700 text-white' },
                     { tab: 'analytics', label: 'Analytics', icon: BarChart2, color: 'bg-indigo-600 text-white' },
                     { tab: 'marketplaces', label: 'Marketplace', icon: Globe, color: 'bg-amber-600 text-white' },
-                    { tab: 'marketing', label: 'Marketing', icon: Target, color: 'bg-orange-500 text-white' }
+                    { tab: 'payments', label: 'Pagamenti', icon: CreditCard, color: 'bg-green-600 text-white font-black' },
+                    { tab: 'marketing', label: 'Marketing', icon: Target, color: 'bg-orange-500 text-white' },
+                    { tab: 'reviews', label: 'Recensioni', icon: Star, color: 'bg-brand-yellow text-brand-dark font-black' }
                   ].map((item) => (
                     <div key={item.tab} className="px-3">
                       <button 
@@ -4070,7 +5180,7 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      <div className="lg:col-span-2 bg-brand-dark p-8 rounded-[3rem] text-white space-y-6 relative overflow-hidden">
+                      <div className="bg-brand-dark p-8 rounded-[3rem] text-white space-y-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-yellow rounded-full blur-[100px] opacity-10 -mr-20 -mt-20"></div>
                         <div className="flex justify-between items-center relative z-10">
                           <h3 className="text-xl font-black uppercase tracking-tighter">Traffico Mensile</h3>
@@ -4194,7 +5304,7 @@ export default function App() {
                                             a.setAttribute('download', 'bespoint_catalogo.csv');
                                             a.click();
                                           } else {
-                                            alert(`Simulazione esportazione ${opt.label}...`);
+                                            addToast(`Esportazione ${opt.label} completata correttamente!`, "success");
                                           }
                                           setIsExportMenuOpen(false);
                                         }}
@@ -4494,12 +5604,206 @@ export default function App() {
                 )}
 
                 {adminActiveTab === 'orders' && (
-                  <AdminOrders />
+                  <AdminOrders 
+                    orders={orders} 
+                    setOrders={setOrders} 
+                    pageSettings={pageSettings} 
+                    returnRequests={returnRequests} 
+                    setReturnRequests={setReturnRequests}
+                    onViewReturn={(id) => {
+                      setAdminActiveTab('returns' as any);
+                      setSelectedReturnId(id);
+                    }}
+                  />
                 )}
+                {adminActiveTab === 'reviews' && <AdminReviews reviews={productReviews} setReviews={setProductReviews} />}
 
                 {adminActiveTab === 'couriers' && <AdminCouriers />}
-                {adminActiveTab === ('returns' as any) && <AdminReturns />}
+                {adminActiveTab === ('returns' as any) && <AdminReturns returns={returnRequests} setReturns={setReturnRequests} initialSelectedId={selectedReturnId} />}
                 {adminActiveTab === ('users' as any) && <AdminUsers />}
+
+                {adminActiveTab === 'payments' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Metodi di Pagamento</h2>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Configura come i tuoi clienti possono pagare gli ordini</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Stripe Settings */}
+                      <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6">
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                              <CreditCard className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black uppercase tracking-tighter text-brand-dark">Stripe / Carte</h3>
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Credit Cards, Google Pay, Apple Pay</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={paymentSettings.stripeEnabled}
+                              onChange={() => setPaymentSettings(prev => ({ ...prev, stripeEnabled: !prev.stripeEnabled }))}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                          </label>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Chiave Pubblicabile (PK)</span>
+                            <input 
+                              type="text" 
+                              value={paymentSettings.stripeKey}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, stripeKey: e.target.value }))}
+                              placeholder="pk_live_..." 
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold placeholder:text-gray-300 focus:ring-2 focus:ring-indigo-500 transition-all" 
+                            />
+                          </label>
+                          <p className="text-[10px] text-gray-400 font-medium italic bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                            Stripe accetta automaticamente tutte le principali carte di credito e wallet digitali.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* PayPal Settings */}
+                      <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6">
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                              <ExternalLink className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black uppercase tracking-tighter text-brand-dark">PayPal</h3>
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Pagamenti diretti e in 3 rate</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={paymentSettings.paypalEnabled}
+                              onChange={() => setPaymentSettings(prev => ({ ...prev, paypalEnabled: !prev.paypalEnabled }))}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 relative"></div>
+                          </label>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Email Business PayPal</span>
+                            <input 
+                              type="email" 
+                              value={paymentSettings.paypalEmail}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, paypalEmail: e.target.value }))}
+                              placeholder="info@bespoint.it" 
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold placeholder:text-gray-300 focus:ring-2 focus:ring-blue-500 transition-all" 
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Bank Transfer Settings */}
+                      <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6 lg:col-span-2">
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-600">
+                              <Globe className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black uppercase tracking-tighter text-brand-dark">Bonifico Bancario</h3>
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Pagamento manuale differito</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={paymentSettings.bankEnabled}
+                              onChange={() => setPaymentSettings(prev => ({ ...prev, bankEnabled: !prev.bankEnabled }))}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600 relative"></div>
+                          </label>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Intestatario Conto</span>
+                            <input 
+                              type="text" 
+                              value={paymentSettings.bankOwner}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, bankOwner: e.target.value }))}
+                              placeholder="BESPOINT S.R.L." 
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-gray-400 transition-all" 
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">IBAN</span>
+                            <input 
+                              type="text" 
+                              value={paymentSettings.bankIban}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, bankIban: e.target.value }))}
+                              placeholder="IT00 X 00000 00000 000000000000" 
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-gray-400 transition-all" 
+                            />
+                          </label>
+                          <label className="block md:col-span-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Note per il cliente (Visualizzate al checkout)</span>
+                            <textarea 
+                              value={paymentSettings.bankNote}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, bankNote: e.target.value }))}
+                              rows={2}
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-gray-400 transition-all resize-none" 
+                            ></textarea>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* COD Settings */}
+                      <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6 lg:col-span-2">
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                              <Truck className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black uppercase tracking-tighter text-brand-dark">Contrassegno (COD)</h3>
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Pagamento in contanti alla consegna</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={paymentSettings.codEnabled}
+                              onChange={() => setPaymentSettings(prev => ({ ...prev, codEnabled: !prev.codEnabled }))}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 relative"></div>
+                          </label>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Note Istruzioni per il Cliente</span>
+                            <textarea 
+                              value={paymentSettings.codNote}
+                              onChange={e => setPaymentSettings(prev => ({ ...prev, codNote: e.target.value }))}
+                              placeholder="Es: Assicurati di avere l'importo esatto pronto al momento della consegna." 
+                              rows={2}
+                              className="w-full bg-gray-50 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 transition-all resize-none" 
+                            ></textarea>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {adminActiveTab === 'marketplaces' && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
@@ -4520,7 +5824,16 @@ export default function App() {
                             <h3 className="text-xl font-black uppercase tracking-tighter">Amazon SP-API</h3>
                           </div>
                           <label className="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={pageSettings.enabledMarketplaces?.includes("Amazon")}
+                              onChange={() => {
+                                const current = pageSettings.enabledMarketplaces || [];
+                                const next = current.includes("Amazon") ? current.filter(m => m !== "Amazon") : [...current, "Amazon"];
+                                setPageSettings({ ...pageSettings, enabledMarketplaces: next });
+                              }}
+                            />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 relative"></div>
                           </label>
                         </div>
@@ -4553,7 +5866,16 @@ export default function App() {
                             <h3 className="text-xl font-black uppercase tracking-tighter">eBay Integration</h3>
                           </div>
                           <label className="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" />
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={pageSettings.enabledMarketplaces?.includes("eBay")}
+                              onChange={() => {
+                                const current = pageSettings.enabledMarketplaces || [];
+                                const next = current.includes("eBay") ? current.filter(m => m !== "eBay") : [...current, "eBay"];
+                                setPageSettings({ ...pageSettings, enabledMarketplaces: next });
+                              }}
+                            />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 relative"></div>
                           </label>
                         </div>
@@ -4729,26 +6051,489 @@ export default function App() {
                     <div className="flex-1 order-2 md:order-1">
                       {authStep === 'profile' && (
                         <div className="space-y-6">
-                          <div className="flex items-center gap-4 bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                            <div className="w-16 h-16 bg-brand-blue rounded-full flex items-center justify-center text-white font-black text-2xl shadow-inner uppercase">
-                              {currentUser?.name?.charAt(0) || 'U'}
+                          <>
+                            <div className="flex items-center gap-4 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                              <div className="w-16 h-16 bg-brand-blue rounded-full flex items-center justify-center text-white font-black text-2xl shadow-inner uppercase">
+                                {currentUser?.name?.charAt(0) || 'U'}
+                              </div>
+                              <div className="text-left">
+                                <p className="text-xl font-black text-brand-dark leading-tight">{currentUser?.name}</p>
+                                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">{currentUser?.email}</p>
+                              </div>
                             </div>
-                            <div className="text-left">
-                              <p className="text-xl font-black text-brand-dark leading-tight">{currentUser?.name}</p>
-                              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">{currentUser?.email}</p>
+
+
+                          {activeUserView === 'profile' && (
+                            <div className="space-y-6">
+                              <div className="bg-brand-yellow/10 p-6 rounded-3xl border border-brand-yellow/20 text-center md:text-left">
+                                <p className="text-sm font-bold text-gray-600 leading-relaxed">Da qui puoi gestire le tue informazioni personali, visualizzare i tuoi ordini e contattare l'assistenza. Usa i collegamenti rapidi per navigare ed impostare i tuoi indirizzi di spedizione principali.</p>
+                              </div>
+                              
+                              <button onClick={() => { setIsAuthOpen(false); }} className="w-full bg-brand-dark hover:bg-brand-yellow hover:text-brand-dark text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
+                                Torna allo Shopping
+                              </button>
                             </div>
-                          </div>
-                          
-                        <>
-                          <div className="bg-brand-yellow/10 p-6 rounded-3xl border border-brand-yellow/20 text-center md:text-left">
-                            <h3 className="text-brand-dark font-black text-lg mb-2 uppercase tracking-tighter">Benvenuto nella tua Area</h3>
-                            <p className="text-sm font-bold text-gray-600 leading-relaxed">Da qui puoi gestire le tue informazioni personali, visualizzare i tuoi ordini e contattare l'assistenza. Usa i collegamenti rapidi per navigare ed impostare i tuoi indirizzi di spedizione principali.</p>
-                          </div>
-                          
-                          <button onClick={() => { setIsAuthOpen(false); }} className="w-full bg-brand-dark hover:bg-brand-yellow hover:text-brand-dark text-white p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
-                            Torna allo Shopping
-                          </button>
-                        </>
+                          )}
+
+                          {activeUserView === 'returns' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter italic">Resi in Corso</h3>
+                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Monitora lo stato delle tue pratiche</p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-4 pt-4">
+                                {returnRequests.filter(r => r.customerEmail === currentUser?.email).length > 0 ? (
+                                   returnRequests.filter(r => r.customerEmail === currentUser?.email).map((req: any) => {
+                                     const lastMsg = req.messages?.[req.messages.length - 1];
+                                     const isAdminMsg = lastMsg?.role === 'admin';
+                                     const needsPhoto = req.messages?.some((m: any) => m.role === 'admin' && (m.text.toLowerCase().includes('foto') || m.text.toLowerCase().includes('immagine')));
+                                     
+                                     return (
+                                       <div 
+                                         key={req.id} 
+                                         onClick={() => {
+                                           setSelectedReturnDetail(req);
+                                           setActiveUserView('return_detail' as any);
+                                         }}
+                                         className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-brand-dark/5 flex flex-col md:flex-row items-center gap-6 group cursor-pointer hover:border-brand-yellow hover:scale-[1.02] transition-all relative overflow-hidden"
+                                       >
+                                         {isAdminMsg && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-bl-xl shadow-lg animate-pulse" />}
+                                         
+                                         <div className="w-24 h-24 bg-gray-50 rounded-2xl border border-gray-100 p-2 shrink-0">
+                                           <img src={req.product.image} className="w-full h-full object-contain" />
+                                         </div>
+                                         <div className="flex-1 text-center md:text-left">
+                                           <div className="flex flex-col gap-1.5 items-center md:items-start text-left">
+                                             <div className="flex items-center gap-2">
+                                               <span className="text-[8px] font-black bg-brand-blue/5 text-brand-blue px-2 py-0.5 rounded-md uppercase tracking-widest whitespace-nowrap">REF: {req.id}</span>
+                                               <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border border-gray-50 shadow-sm ${req.status === 'pending' || req.status === 'processing' ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500'}`}>
+                                                 {req.status === 'pending' ? 'RICHIESTA INVIATA' : 
+                                                  req.status === 'processing' ? 'IN LAVORAZIONE' : 
+                                                  req.status === 'approved' ? 'APPROVATA' : 
+                                                  req.status === 'rejected' ? 'RIFIUTATA' : 'COMPLETATA'}
+                                               </span>
+                                               {isAdminMsg && <span className="text-[7px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded-sm uppercase tracking-tighter animate-bounce flex items-center gap-1"><MessageCircle className="w-2 h-2" /> Nuovo Messaggio</span>}
+                                               {needsPhoto && <span className="text-[7px] font-black bg-purple-500 text-white px-1.5 py-0.5 rounded-sm uppercase tracking-tighter flex items-center gap-1"><Camera className="w-2 h-2" /> Azione Richiesta</span>}
+                                             </div>
+                                             <span className="text-[8px] font-black bg-brand-yellow text-brand-dark px-2 py-0.5 rounded-md uppercase tracking-widest whitespace-nowrap">ORDINE: {req.orderId}</span>
+                                             <h4 className="font-black text-brand-dark uppercase tracking-tight text-xs whitespace-nowrap mt-1">{req.product.name}</h4>
+                                           </div>
+                                           <p className="text-xs font-bold text-gray-400 mt-1 italic leading-tight line-clamp-1">
+                                             {isAdminMsg ? `Admin: ${lastMsg.text.substring(0, 50)}...` : `Motivo: ${req.details.substring(0, 50)}...`}
+                                           </p>
+                                         </div>
+                                         <div className="text-right flex flex-col items-end gap-2">
+                                           <div className="text-right">
+                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{req.date}</p>
+                                             <p className="text-lg font-black text-brand-dark italic leading-none">Qtà: {req.product.qty}</p>
+                                           </div>
+                                           <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-yellow transition-colors group-hover:translate-x-1" />
+                                         </div>
+                                       </div>
+                                     );
+                                   })
+                                ) : (
+                                  <div className="py-20 bg-gray-50 rounded-[3rem] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center px-10">
+                                    <RefreshCw className="w-16 h-16 text-gray-200 mb-6 animate-spin-slow" />
+                                    <h4 className="font-black text-brand-dark uppercase tracking-tighter text-xl">Nessun reso attivo</h4>
+                                    <p className="text-gray-400 text-sm font-bold mt-2 max-w-[300px]">Qui appariranno i prodotti per i quali hai chiesto assistenza o reso in fase di lavorazione.</p>
+                                    <button onClick={() => setActiveUserView('return_select')} className="mt-8 bg-brand-dark text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all shadow-xl active:scale-95">Inizia un reso</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                           {activeUserView === ('return_detail' as any) && selectedReturnDetail && (
+                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                               <div className="flex items-center justify-between">
+                                 <button onClick={() => setActiveUserView('returns')} className="flex items-center gap-2 text-xs font-black text-brand-dark uppercase tracking-widest hover:text-brand-blue transition-all">
+                                   <ChevronLeft className="w-4 h-4" />
+                                   Torna ai Resi
+                                 </button>
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-[10px] font-black bg-brand-blue/5 text-brand-blue px-3 py-1 rounded-lg uppercase tracking-widest">Pratica: {selectedReturnDetail.id}</span>
+                                 </div>
+                               </div>
+
+                               <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+                                 {/* Header Info */}
+                                 <div className="p-8 bg-gray-50/50 border-b border-gray-100 flex flex-col md:flex-row items-center gap-6">
+                                   <div className="w-20 h-20 bg-white rounded-2xl p-2 border border-gray-100 shrink-0">
+                                     <img src={selectedReturnDetail.product.image} className="w-full h-full object-contain" />
+                                   </div>
+                                   <div className="flex-1 text-center md:text-left">
+                                     <h4 className="text-xl font-black text-brand-dark uppercase tracking-tighter">{selectedReturnDetail.product.name}</h4>
+                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1 italic">Ordine #{selectedReturnDetail.orderId} &bull; Quantità: {selectedReturnDetail.product.qty}</p>
+                                   </div>
+                                   <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${selectedReturnDetail.status === 'pending' || selectedReturnDetail.status === 'processing' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                                     {selectedReturnDetail.status === 'pending' ? 'Attesa Revisione' : 
+                                      selectedReturnDetail.status === 'processing' ? 'In Gestione' : 
+                                      selectedReturnDetail.status.toUpperCase()}
+                                   </div>
+                                 </div>
+
+                                 {/* Chat area */}
+                                 <div className="p-8 space-y-8">
+                                   <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
+                                     {selectedReturnDetail.messages.map((m: any, i: number) => (
+                                       <div key={i} className={`flex flex-col ${m.role === 'admin' ? 'items-start' : 'items-end'}`}>
+                                         <div className={`max-w-[85%] p-4 rounded-3xl text-sm font-bold ${m.role === 'admin' ? 'bg-gray-100 text-brand-dark rounded-tl-none border border-gray-200' : 'bg-brand-blue text-white rounded-tr-none shadow-lg shadow-brand-blue/10'}`}>
+                                           {m.text}
+                                         </div>
+                                         <span className="text-[8px] font-black uppercase tracking-widest text-gray-300 mt-2 px-2">{m.date}</span>
+                                       </div>
+                                     ))}
+                                   </div>
+
+                                   {/* Photo request specialized field */}
+                                   {(selectedReturnDetail.messages.some((m: any) => m.role === 'admin' && (m.text.toLowerCase().includes('foto') || m.text.toLowerCase().includes('immagine'))) || (selectedReturnDetail.status === 'processing' && !selectedReturnDetail.photos?.length)) && (
+                                     <div className="p-6 bg-brand-yellow/5 rounded-3xl border border-brand-yellow/20 space-y-4 animate-in zoom-in-95 duration-500">
+                                       <div className="flex items-center gap-3">
+                                         <div className="w-10 h-10 bg-brand-yellow rounded-2xl flex items-center justify-center text-brand-dark shadow-sm">
+                                           <Camera className="w-5 h-5" />
+                                         </div>
+                                         <div>
+                                           <p className="text-xs font-black text-brand-dark uppercase tracking-tight">Caricamento Foto Richiesto</p>
+                                           <p className="text-[9px] font-bold text-gray-400 mt-0.5">Aggiungi foto del prodotto per accelerare la pratica</p>
+                                         </div>
+                                       </div>
+                                       <div className="flex flex-wrap gap-2">
+                                         {selectedReturnDetail.photos?.map((p: string, idx: number) => (
+                                           <div key={idx} className="w-16 h-16 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group">
+                                             <img src={p} className="w-full h-full object-cover" />
+                                           </div>
+                                         ))}
+                                         <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-brand-yellow hover:bg-white transition-all text-gray-300 hover:text-brand-yellow">
+                                           <Plus className="w-6 h-6" />
+                                           <input 
+                                             type="file" 
+                                             accept="image/*" 
+                                             className="hidden" 
+                                             onChange={(e) => handleFileChange(e, (url) => handleReturnPhotoMessage(selectedReturnDetail.id, url))} 
+                                           />
+                                         </label>
+                                       </div>
+                                     </div>
+                                   )}
+
+                                   {/* User Response field */}
+                                   <div className="flex gap-4 pt-4 border-t border-gray-100">
+                                     <textarea 
+                                       placeholder="Scrivi qui il tuo messaggio all'assistenza..."
+                                       className="flex-1 bg-gray-50 border-2 border-gray-100 rounded-3xl p-6 text-sm font-bold focus:border-brand-yellow focus:bg-white outline-none transition-all resize-none h-24"
+                                       value={userReturnMsg}
+                                       onChange={(e) => setUserReturnMsg(e.target.value)}
+                                     />
+                                     <button 
+                                       onClick={() => handleUserReturnMessage(selectedReturnDetail.id, userReturnMsg)}
+                                       className="w-16 h-16 self-end mb-1 bg-brand-yellow text-brand-dark rounded-2xl flex items-center justify-center hover:bg-brand-orange transition-all active:scale-95 shadow-lg shadow-brand-yellow/20"
+                                     >
+                                       <ArrowRight className="w-6 h-6" />
+                                     </button>
+                                   </div>
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+
+                          {activeUserView === 'return_select' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Scegli Cosa Rendere</h3>
+                                <button onClick={() => setActiveUserView('returns')} className="text-xs font-black text-brand-blue uppercase tracking-widest border-b-2 border-brand-blue hover:text-brand-dark hover:border-brand-dark transition-all">Indietro</button>
+                              </div>
+                              
+                              <p className="text-sm font-bold text-gray-500 leading-relaxed italic border-l-4 border-brand-yellow pl-4">Seleziona un prodotto dai tuoi ordini consegnati per avviare la procedura. Hai 20 giorni dalla spedizione.</p>
+
+                              <div className="space-y-8 mt-8">
+                                {orders.filter(o => o.status === 'delivered' && (o.email === currentUser?.email || currentUser?.email === 'marco.rossi@example.com')).length > 0 ? (
+                                  orders.filter(o => o.status === 'delivered' && (o.email === currentUser?.email || currentUser?.email === 'marco.rossi@example.com')).map(order => (
+                                    <div key={order.id} className="bg-gray-50 p-8 rounded-[3rem] border border-gray-100 overflow-hidden relative group">
+                                      <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-4">
+                                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-brand-blue shadow-sm border border-gray-50">
+                                            <ShoppingBag className="w-6 h-6" />
+                                          </div>
+                                          <div className="text-left">
+                                            <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Ordine #{order.id}</p>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{order.date}</p>
+                                          </div>
+                                        </div>
+                                        <span className="text-[10px] font-black bg-brand-blue text-white px-4 py-1.5 rounded-full uppercase tracking-widest group-hover:bg-brand-dark transition-colors">Consegnato</span>
+                                      </div>
+                                      
+                                      <div className="space-y-4">
+                                         {order.items.map(item => {
+                                           const isItemReturning = returnRequests.some(r => r.orderId === order.id && r.product.id === item.id);
+                                           return (
+                                             <div key={item.id} className={`bg-white p-6 rounded-[2.5rem] border border-gray-100 flex items-center gap-6 transition-all shadow-sm ${isItemReturning ? 'opacity-80 grayscale' : 'hover:shadow-xl'}`}>
+                                               <div className="w-20 h-20 bg-gray-50 rounded-2xl border border-gray-50 p-2 shrink-0 overflow-hidden">
+                                                 <img src={item.image} className="w-full h-full object-contain" />
+                                               </div>
+                                               <div className="flex-1 text-left overflow-hidden">
+                                                 <h5 className="font-black text-brand-dark truncate uppercase text-sm leading-tight mb-1">{item.name}</h5>
+                                                 <p className="text-xs font-bold text-gray-400 italic">€{item.price.toFixed(2)} — {item.qty} articolo/i</p>
+                                               </div>
+                                               {isItemReturning ? (
+                                                  <div className="bg-gray-50 text-gray-400 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-gray-200 cursor-default flex items-center gap-2">
+                                                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                                    Richiesta Attiva
+                                                  </div>
+                                               ) : (
+                                                  <button 
+                                                    onClick={() => {
+                                                      setSelectedReturnOrder(order);
+                                                      setSelectedReturnItem(item);
+                                                      setActiveUserView('return_form');
+                                                    }}
+                                                    className="bg-brand-yellow hover:bg-brand-orange text-brand-dark px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg shadow-brand-yellow/20"
+                                                  >
+                                                    Seleziona
+                                                  </button>
+                                               )}
+                                             </div>
+                                           );
+                                         })}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="py-12 bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center px-6">
+                                    <RefreshCw className="w-12 h-12 text-gray-300 mb-4 animate-spin-slow" />
+                                    <h4 className="font-black text-brand-dark uppercase tracking-tighter text-lg leading-tight">Nessun ordine rimborsabile</h4>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {activeUserView === 'return_form' && selectedReturnItem && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Dettagli Reso Prodotto</h3>
+                                <button onClick={() => { setActiveUserView('menu'); setSelectedReturnItem(null); }} className="text-xs font-black text-brand-blue uppercase tracking-widest border-b-2 border-brand-blue hover:text-brand-dark hover:border-brand-dark transition-all">Annulla</button>
+                              </div>
+
+                              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 italic">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-20 h-20 bg-white rounded-2xl border border-gray-100 flex-shrink-0 overflow-hidden p-2">
+                                    <img src={selectedReturnItem.image} alt={selectedReturnItem.name} className="w-full h-full object-contain" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ordine #{selectedReturnOrder.id}</p>
+                                    <p className="font-black text-brand-dark leading-tight">{selectedReturnItem.name}</p>
+                                    <p className="text-xs font-bold text-brand-blue mt-1 italic uppercase tracking-tighter">€{selectedReturnItem.price.toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {selectedReturnItem.qty > 1 && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
+                                      <label className="text-[10px] font-black text-brand-blue uppercase tracking-widest block ml-1">Quantità da Rendere</label>
+                                      <div className="flex items-center gap-6">
+                                        <button 
+                                          onClick={() => setReturnQty(Math.max(1, returnQty - 1))}
+                                          className="w-12 h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl flex items-center justify-center font-black text-brand-dark hover:border-brand-yellow hover:bg-white transition-all shadow-sm"
+                                        >
+                                          -
+                                        </button>
+                                        <div className="flex flex-col items-center">
+                                          <span className="text-2xl font-black text-brand-dark">{returnQty}</span>
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Articoli</span>
+                                        </div>
+                                        <button 
+                                          onClick={() => setReturnQty(Math.min(selectedReturnItem.qty, returnQty + 1))}
+                                          className="w-12 h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl flex items-center justify-center font-black text-brand-dark hover:border-brand-yellow hover:bg-white transition-all shadow-sm"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                      <p className="text-[10px] font-bold text-gray-400 italic">Disponibili nell'ordine: {selectedReturnItem.qty}</p>
+                                    </div>
+                                  )}
+
+                                  <div className={`bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4 ${selectedReturnItem.qty <= 1 ? 'col-span-2' : ''}`}>
+                                    <label className="text-[10px] font-black text-brand-blue uppercase tracking-widest block ml-1">Documentazione Fotografica (Opzionale)</label>
+                                    <div className="flex flex-wrap gap-3">
+                                      {returnPhotos.map((photo, i) => (
+                                        <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-100 shadow-sm group">
+                                          <img src={photo} className="w-full h-full object-cover" />
+                                          <button 
+                                            onClick={() => setReturnPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                            className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                      {returnPhotos.length < 3 && (
+                                        <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:border-brand-yellow hover:bg-brand-yellow/5 transition-all text-gray-300 hover:text-brand-yellow">
+                                          <Camera className="w-6 h-6 mb-1" />
+                                          <span className="text-[8px] font-black uppercase">Carica</span>
+                                          <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={(e) => handleFileChange(e, (url) => setReturnPhotos(prev => [...prev, url]))} 
+                                          />
+                                        </label>
+                                      )}
+                                    </div>
+                                    <p className="text-[9px] font-bold text-gray-400 italic">Massimo 3 foto. Utile per segnalare danni o difetti.</p>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <label className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-2 block ml-2">Motivazione del Reso</label>
+                                  <textarea 
+                                    className="w-full bg-white border-2 border-gray-100 rounded-[2.5rem] p-8 text-sm font-bold focus:border-brand-yellow transition-all resize-none shadow-sm focus:shadow-xl focus:shadow-brand-yellow/5 outline-none min-h-[160px]"
+                                    placeholder="Descrivi dettagliatamente il motivo della richiesta..."
+                                    value={returnReason}
+                                    onChange={(e) => setReturnReason(e.target.value)}
+                                  />
+                                </div>
+                                <button 
+                                  onClick={() => {
+                                    if (!returnReason.trim()) { addToast("Indica la motivazione prima di inviare!", "info"); return; }
+                                    setIsReturnSubmitting(true);
+                                    setTimeout(() => {
+                                      // Update order if needed (e.g., add a flag or note), but keep status as is per user request
+                                      setOrders(prev => prev.map(o => o.id === selectedReturnOrder.id 
+                                        ? { ...o, hasReturnRequest: true } : o));
+                                      
+                                      // Create return request
+                                      const newRequest = {
+                                        id: `RET-${Math.floor(1000 + Math.random() * 9000)}`,
+                                        orderId: selectedReturnOrder.id,
+                                        customer: currentUser?.name || 'Cliente',
+                                        customerEmail: currentUser?.email || '',
+                                        date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                        product: { ...selectedReturnItem, qty: returnQty },
+                                        reason: returnReason.length > 30 ? returnReason.substring(0, 27) + '...' : returnReason,
+                                        details: returnReason,
+                                        photos: returnPhotos,
+                                        status: 'pending',
+                                        messages: [{ role: 'user', text: `Richiesta reso per ${returnQty}x ${selectedReturnItem.name}. Motivo: ${returnReason}`, date: new Date().toLocaleString('it-IT') }],
+                                        history: [{ status: "Richiesta Inviata", date: new Date().toLocaleString('it-IT') }]
+                                      };
+                                      setReturnRequests(prev => [newRequest, ...prev]);
+                                      
+                                      setIsReturnSubmitting(false);
+                                      setReturnReason('');
+                                      setReturnQty(1);
+                                      setReturnPhotos([]);
+                                      setSelectedReturnItem(null);
+                                      setActiveUserView('returns');
+                                      addToast("La tua richiesta di reso per questo prodotto è stata inviata con successo.", "success");
+                                    }, 1000);
+                                  }}
+                                  disabled={isReturnSubmitting}
+                                  className="w-full bg-brand-dark text-white p-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+                                >
+                                  {isReturnSubmitting ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                      Inviando...
+                                    </>
+                                  ) : (
+                                    "Invia Richiesta di Rimborso Prodotto"
+                                  )}
+                                </button>
+                              </div>
+                            )}
+
+                          {activeUserView === 'review_form' && selectedReviewItem && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                               <div className="flex items-center justify-between">
+                                 <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Lascia una Recensione</h3>
+                                 <button onClick={() => { setActiveUserView('menu'); setSelectedReviewItem(null); }} className="text-xs font-black text-brand-blue uppercase tracking-widest border-b-2 border-brand-blue hover:text-brand-dark hover:border-brand-dark transition-all">Annulla</button>
+                               </div>
+
+                               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                                 <div className="flex items-center gap-4">
+                                   <div className="w-16 h-16 bg-white rounded-2xl border border-gray-100 flex-shrink-0 overflow-hidden p-2">
+                                     <img src={selectedReviewItem.image} alt={selectedReviewItem.name} className="w-full h-full object-contain" />
+                                   </div>
+                                   <div>
+                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ordine #{selectedReviewItem.orderId}</p>
+                                     <p className="font-black text-brand-dark leading-tight">{selectedReviewItem.name}</p>
+                                   </div>
+                                 </div>
+                               </div>
+
+                               <div className="space-y-8 py-4">
+                                 <div className="flex flex-col items-center gap-4">
+                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valutazione</p>
+                                   <div className="flex gap-2">
+                                     {[1, 2, 3, 4, 5].map(star => (
+                                       <button 
+                                         key={star}
+                                         onClick={() => setReviewRating(star)}
+                                         className="p-1 hover:scale-125 transition-transform"
+                                       >
+                                         <Star className={`w-10 h-10 ${star <= reviewRating ? 'fill-brand-yellow text-brand-yellow' : 'text-gray-200'}`} />
+                                       </button>
+                                     ))}
+                                   </div>
+                                   <p className="text-sm font-black text-brand-dark uppercase">
+                                     {reviewRating === 1 ? 'Scarso' : reviewRating === 2 ? 'Sufficiente' : reviewRating === 3 ? 'Buono' : reviewRating === 4 ? 'Ottimo' : 'Eccellente'}
+                                   </p>
+                                 </div>
+
+                                 <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">Commento (Facoltativo)</label>
+                                   <textarea 
+                                     className="w-full bg-white border-2 border-gray-100 rounded-[2rem] p-6 text-sm font-bold focus:border-brand-yellow transition-all font-mono resize-none h-40"
+                                     placeholder="Cosa ne pensi di questo prodotto? La tua opinione aiuterà altri acquirenti..."
+                                     value={reviewComment}
+                                     onChange={(e) => setReviewComment(e.target.value)}
+                                   />
+                                 </div>
+
+                                 <button 
+                                   onClick={() => {
+                                     setIsReviewSubmitting(true);
+                                     setTimeout(() => {
+                                       const newReview = {
+                                         id: `rev-${Date.now()}`,
+                                         productId: selectedReviewItem.id,
+                                         orderId: selectedReviewItem.orderId,
+                                         customerName: currentUser?.name || 'Cliente',
+                                         rating: reviewRating,
+                                         comment: reviewComment,
+                                         date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                         status: 'pending'
+                                       };
+                                       setProductReviews(prev => [newReview, ...prev]);
+                                       setIsReviewSubmitting(false);
+                                       setReviewRating(0);
+                                       setReviewComment('');
+                                       setSelectedReviewItem(null);
+                                       setActiveUserView('menu');
+                                       addToast("Grazie! La tua recensione è stata inviata e sarà visibile dopo l'approvazione.", "success");
+                                     }, 1000);
+                                   }}
+                                   disabled={isReviewSubmitting || reviewRating === 0}
+                                   className="w-full bg-brand-dark text-white p-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+                                 >
+                                   {isReviewSubmitting ? (
+                                     <>
+                                       <RefreshCw className="w-4 h-4 animate-spin" />
+                                       Inviando...
+                                     </>
+                                   ) : (
+                                     "Invia Recensione"
+                                   )}
+                                 </button>
+                               </div>
+                            </div>
+                          )}
+                          </>
                         </div>
                       )}
 
@@ -4807,15 +6592,147 @@ export default function App() {
                       )}
 
                       {authStep === 'orders' && (
-                        <div className="space-y-4 text-center">
-                          <div className="py-10 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
-                            <Box className="w-12 h-12 text-gray-300 mb-3" />
-                            <p className="text-brand-dark font-black text-xl uppercase tracking-tighter">Nessun ordine</p>
-                            <p className="text-gray-400 text-sm font-bold px-6 mt-1">Non hai ancora effettuato ordini.<br/>Scopri le novità in vetrina!</p>
-                          </div>
-                          <button type="button" onClick={() => { setIsAuthOpen(false); }} className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
-                            Inizia lo Shopping
-                          </button>
+                        <div className="space-y-6 text-left">
+                          {orders.filter(o => o.email === currentUser?.email || currentUser?.email === 'marco.rossi@example.com').length > 0 ? (
+                            <div className="space-y-4">
+                              {orders.filter(o => o.email === currentUser?.email || currentUser?.email === 'marco.rossi@example.com').map(order => (
+                                <div key={order.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
+                                  <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{order.date}</span>
+                                      <h4 className="text-lg font-black text-brand-dark mt-1">Ordine #{order.id}</h4>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                      order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
+                                      order.status === 'shipped' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                      order.status === 'refunded' ? 'bg-pink-50 text-pink-600 border-pink-100' :
+                                      'bg-orange-50 text-orange-600 border-orange-100'
+                                    }`}>
+                                      {order.status === 'delivered' ? 'Consegnato' : order.status === 'shipped' ? 'In Spedizione' : order.status === 'refunded' ? 'Rimborsato' : 'In Elaborazione'}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-3 mb-6">
+                                    {(order.items || []).map((item: any, idx: number) => (
+                                      <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50/50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                                        <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 flex-shrink-0 overflow-hidden p-1">
+                                          <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0 text-left">
+                                          <p className="text-xs font-bold text-brand-dark truncate">{item.name}</p>
+                                          <p className="text-[10px] text-gray-400 font-bold uppercase">Qt. {item.qty} &bull; €{item.price.toFixed(2)}</p>
+                                        </div>
+                                        {order.status === 'delivered' && (
+                                          <div className="flex gap-2">
+                                            {(() => {
+                                              const request = returnRequests.find(r => r.orderId === order.id && r.product?.id === item.id);
+                                              const review = productReviews.find(r => r.orderId === order.id && r.productId === item.id);
+                                              const oDate = parseOrderDate(order.date);
+                                              const n = new Date();
+                                              const diff = n.getTime() - oDate.getTime();
+                                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                              const isExpired = days > 20;
+                                              const isReturnActive = !!request;
+                                              
+                                              let returnLabel = 'Reso';
+                                              if (isExpired) returnLabel = 'Reso Scaduto';
+                                              if (isReturnActive) {
+                                                returnLabel = request.status === 'pending' ? 'Richiesta Inviata' :
+                                                              request.status === 'processing' ? 'In Lavorazione' :
+                                                              request.status === 'approved' ? 'Approvato' :
+                                                              request.status === 'rejected' ? 'Rifiutato' : 'Completato';
+                                              }
+
+                                              return (
+                                                <div className="flex gap-2">
+                                                  {review ? (
+                                                    <div className="flex items-center gap-1 px-3 py-2 bg-gray-50 text-gray-400 rounded-xl font-black uppercase text-[8px] tracking-widest cursor-default">
+                                                      <Star className="w-2.5 h-2.5 fill-gray-400" />
+                                                      Recensito
+                                                    </div>
+                                                  ) : (
+                                                    <button 
+                                                      onClick={() => {
+                                                        setSelectedReviewItem({ ...item, orderId: order.id });
+                                                        setReviewRating(5);
+                                                        setReviewComment('');
+                                                        setActiveUserView('review_form');
+                                                        setAuthStep('profile');
+                                                      }}
+                                                      className="px-3 py-2 bg-brand-blue/10 hover:bg-brand-blue hover:text-white text-brand-blue rounded-xl font-black uppercase text-[8px] tracking-widest transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                                                    >
+                                                      <Star className="w-2.5 h-2.5" />
+                                                      Recensisci
+                                                    </button>
+                                                  )}
+
+                                                  {isReturnActive ? (
+                                                    <div className="flex items-center gap-1.5 px-3 py-2 bg-brand-yellow text-brand-dark rounded-xl font-black uppercase text-[8px] tracking-widest shadow-lg shadow-brand-yellow/10 border border-brand-yellow/50 scale-105 cursor-default">
+                                                      <CheckCircle2 className="w-2.5 h-2.5" />
+                                                      {returnLabel}
+                                                    </div>
+                                                  ) : (
+                                                    <button 
+                                                      disabled={isExpired}
+                                                      onClick={() => {
+                                                        setSelectedReturnOrder(order);
+                                                        setSelectedReturnItem(item);
+                                                        setActiveUserView('return_form');
+                                                        setAuthStep('profile');
+                                                      }}
+                                                      className={`px-3 py-2 rounded-xl font-black uppercase text-[8px] tracking-widest transition-all shrink-0 flex items-center gap-1 ${
+                                                        isExpired 
+                                                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale' 
+                                                          : 'bg-brand-yellow/20 text-brand-dark hover:bg-brand-yellow active:scale-95'
+                                                      }`}
+                                                      title={isExpired ? "Termine massimo superato" : "Richiedi il reso"}
+                                                    >
+                                                      <RefreshCw className="w-2.5 h-2.5" />
+                                                      {returnLabel}
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              );
+                                            })()}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                                    <div className="text-left">
+                                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Totale Dispendio</p>
+                                      <p className="text-lg font-black text-brand-dark">€{order.total.toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      {order.status === 'shipped' && (
+                                        <button 
+                                          onClick={() => {
+                                            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'delivered' } : o));
+                                            addToast("Consegna confermata con successo! Ora puoi recensire i prodotti.", "success");
+                                          }}
+                                          className="px-4 py-2 bg-brand-dark text-brand-yellow hover:bg-black rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-brand-dark/20"
+                                        >
+                                          <CheckCircle2 className="w-4 h-4" />
+                                          Conferma Ricevimento
+                                        </button>
+                                      )}
+                                      <button className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95">
+                                        Dettagli
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="py-10 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+                              <Box className="w-12 h-12 text-gray-300 mb-3" />
+                              <p className="text-brand-dark font-black text-xl uppercase tracking-tighter">Nessun ordine</p>
+                              <p className="text-gray-400 text-sm font-bold px-6 mt-1">Non hai ancora effettuato ordini.<br/>Scopri le novità in vetrina!</p>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -4846,7 +6763,7 @@ export default function App() {
                               <MessageCircle className="w-4 h-4 text-brand-blue" />
                               Messaggio Diretto Dalla Piattaforma
                             </h4>
-                            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); alert('Messaggio inviato con successo! Ti risponderemo a breve.'); setAuthStep('profile'); }}>
+                            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); addToast('Messaggio inviato con successo! Ti risponderemo a breve.', 'success'); setAuthStep('profile'); }}>
                               <textarea required className="w-full bg-white border-gray-200 border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-brand-blue outline-none resize-none h-32" placeholder="Scrivi qui la tua richiesta o problema e il nostro team ti risponderà nel più breve tempo possibile..."></textarea>
                               <button type="submit" className="w-full bg-brand-dark hover:bg-brand-blue text-white p-3.5 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95">
                                 Invia Messaggio
@@ -4861,21 +6778,20 @@ export default function App() {
                     <div className="w-full md:w-80 space-y-4 order-1 md:order-2 md:border-l md:border-gray-100 md:pl-8">
                        <h3 className="hidden md:block text-xs font-black text-gray-300 uppercase tracking-widest ml-1 mb-2">Collegamenti Rapidi</h3>
                       <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
-                        <button onClick={() => setAuthStep('edit_profile')} className={`p-4 bg-white border ${authStep === 'edit_profile' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
-                          <User className={`w-6 h-6 ${authStep === 'edit_profile' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Il mio<br/>profilo</span>
+                        <button 
+                          onClick={() => { setAuthStep('profile'); setActiveUserView('profile'); }}
+                          className={`p-4 bg-white border ${authStep === 'profile' && activeUserView === 'profile' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}
+                        >
+                          <LayoutDashboard className={`w-6 h-6 ${authStep === 'profile' && activeUserView === 'profile' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Dashboard<br/>Account</span>
                         </button>
                         <button onClick={() => setAuthStep('orders')} className={`p-4 bg-white border ${authStep === 'orders' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
                           <Box className={`w-6 h-6 ${authStep === 'orders' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
                           <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I miei<br/>ordini</span>
                         </button>
-                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
-                          <MapPin className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Indirizzi</span>
-                        </button>
-                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
-                          <Heart className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Preferiti</span>
+                        <button onClick={() => setAuthStep('edit_profile')} className={`p-4 bg-white border ${authStep === 'edit_profile' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
+                          <User className={`w-6 h-6 ${authStep === 'edit_profile' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Dati e<br/>Profilo</span>
                         </button>
                         <button 
                           onClick={() => {
@@ -4887,6 +6803,10 @@ export default function App() {
                         >
                           <RefreshCw className={`w-6 h-6 ${activeUserView === 'returns' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
                           <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Resi e<br/>Rimborsi</span>
+                        </button>
+                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
+                          <Heart className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Preferiti</span>
                         </button>
                         <button onClick={() => setAuthStep('support')} className={`p-4 bg-white border ${authStep === 'support' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
                           <MessageCircle className={`w-6 h-6 ${authStep === 'support' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
@@ -5021,6 +6941,9 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
     </div>
   );
 }
+
+

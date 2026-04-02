@@ -15,6 +15,7 @@ export interface Product {
   isFeatured?: boolean;
   sku?: string;
   ean?: string;
+  tags?: string[];
 }
 
 export interface CartItem extends Product {
