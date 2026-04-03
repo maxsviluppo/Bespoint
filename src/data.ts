@@ -4,6 +4,8 @@ export const PRODUCTS: Product[] = [
   {
     id: "1",
     name: "Faretto LED Incasso 10W",
+    brand: "BeS Light",
+    weight: 0.5,
     price: 12.90,
     category: "Illuminazione",
     subcategory: "Interni",
@@ -30,6 +32,8 @@ export const PRODUCTS: Product[] = [
   {
     id: "2",
     name: "Kit Antifurto Wireless Pro",
+    brand: "BeS Security",
+    weight: 2.5,
     price: 249.00,
     category: "Sicurezza",
     subcategory: "Allarmi",

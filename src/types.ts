@@ -1,6 +1,7 @@
 export interface Product {
   id: string;
   name: string;
+  brand?: string;
   price: number;
   category: string;
   subcategory?: string;
@@ -16,6 +17,10 @@ export interface Product {
   sku?: string;
   ean?: string;
   tags?: string[];
+  stock?: number;
+  amazonStock?: number;
+  ebayStock?: number;
+  weight?: number;
 }
 
 export interface CartItem extends Product {

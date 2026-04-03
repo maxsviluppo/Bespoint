@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, MoreHorizontal, Edit2 } from "lucide-react";
+import React, { useState, useRef, useMemo } from "react";
+import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, Edit2, Info, Loader2 } from "lucide-react";
 import { AdminSingleProduct } from "./AdminSingleProduct";
+import { Product } from "./types";
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
@@ -11,34 +12,49 @@ interface FieldMapping {
   fileColumn: string;
 }
 
-export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
+export const AdminMassiveImport = ({ 
+  onBack, 
+  products, 
+  setProducts,
+  pageSettings,
+  setPageSettings
+}: { 
+  onBack: () => void,
+  products: Product[],
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>,
+  pageSettings: any,
+  setPageSettings: React.Dispatch<React.SetStateAction<any>>
+}) => {
   const [step, setStep] = useState<ImportStep>('upload');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<FieldMapping[]>([
-    { internal: 'sku', label: 'Codice SKU Master', required: true, fileColumn: '' },
-    { internal: 'ean', label: 'Codice EAN', required: false, fileColumn: '' },
-    { internal: 'name', label: 'Nome Prodotto', required: true, fileColumn: '' },
-    { internal: 'description', label: 'Descrizione (HTML/Text)', required: false, fileColumn: '' },
-    { internal: 'category', label: 'Categoria (Root)', required: true, fileColumn: '' },
-    { internal: 'subcategory', label: 'Sottocategoria (Sub)', required: false, fileColumn: '' },
-    { internal: 'lvl3', label: 'Livello 3', required: false, fileColumn: '' },
-    { internal: 'lvl4', label: 'Livello 4', required: false, fileColumn: '' },
-    { internal: 'cost', label: 'Costo d\'Acquisto', required: true, fileColumn: '' },
-    { internal: 'price', label: 'Prezzo Vendita (B2C)', required: false, fileColumn: '' },
-    { internal: 'priceB2B', label: 'Prezzo VIP (B2B)', required: false, fileColumn: '' },
-    { internal: 'variants', label: 'Varianti (Colori/Taglie)', required: false, fileColumn: '' },
-    { internal: 'videoUrl', label: 'URL Video Youtube', required: false, fileColumn: '' },
-    { internal: 'has3D', label: 'Abilita 3D/AR (Si/No)', required: false, fileColumn: '' },
-    { internal: 'amazonTitle', label: 'Override Titolo Amazon', required: false, fileColumn: '' },
-    { internal: 'amazonDesc', label: 'Descrizione Amazon', required: false, fileColumn: '' },
-    { internal: 'ebayTitle', label: 'Override Titolo eBay', required: false, fileColumn: '' },
-    { internal: 'ebayDesc', label: 'Descrizione eBay', required: false, fileColumn: '' },
+    { internal: 'sku', label: 'Codice SKU (Master)', required: true, fileColumn: 'v_products_model' },
+    { internal: 'ean', label: 'Codice EAN/Barcode', required: false, fileColumn: 'v_products_model_stock_ean' },
+    { internal: 'brand', label: 'Marca / Produttore', required: false, fileColumn: 'v_manufacturers_name' },
+    { internal: 'name', label: 'Nome Prodotto', required: true, fileColumn: 'v_products_name_4' },
+    { internal: 'description', label: 'Descrizione (HTML/Text)', required: false, fileColumn: 'v_products_description_4' },
+    { internal: 'category', label: 'Categoria (Root)', required: true, fileColumn: 'v_categories_name_1_4' },
+    { internal: 'subcategory', label: 'Sottocategoria (Sub)', required: false, fileColumn: 'v_categories_name_2_4' },
+    { internal: 'price', label: 'Prezzo Vendita (B2C)', required: true, fileColumn: 'v_products_price' },
+    { internal: 'stock', label: 'Giacenza Totale (Master)', required: false, fileColumn: 'v_stock_quantity' },
+    { internal: 'weight', label: 'Peso Prodotto (Kg)', required: false, fileColumn: 'v_products_weight' },
   ]);
   
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [duplicateSkus, setDuplicateSkus] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [importMode, setImportMode] = useState<'integrate' | 'replace'>('integrate');
+  
+  const [savedMappings, setSavedMappings] = useState<Record<string, FieldMapping[]>>(() => {
+    const saved = localStorage.getItem('bespoint_import_presets');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [newMappingName, setNewMappingName] = useState("");
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,10 +63,20 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
 
     setFileName(file.name);
     
-    // Simulo il parsing dell'header (qui andrebbe xlsx o papaparse)
-    // Per ora facciamo mock di una struttura CSV/Excel
+    // Simulate parsing (in real app, use PapaParse or XLSX)
     setTimeout(() => {
-      setFileHeaders(['ID', 'Codice Prodotto', 'Barcode', 'Titolo Prodotto', 'Categoria', 'Prezzo Fornitore', 'Prezzo Shop', 'Note', 'Amazon SEO Title']);
+      setFileHeaders([
+        'v_products_model', 
+        'v_products_model_stock_ean', 
+        'v_manufacturers_name', 
+        'v_products_name_4', 
+        'v_products_description_4', 
+        'v_categories_name_1_4', 
+        'v_categories_name_2_4', 
+        'v_products_price', 
+        'v_stock_quantity', 
+        'v_products_weight'
+      ]);
       setStep('mapping');
     }, 1200);
   };
@@ -59,14 +85,46 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
     setMappings(prev => prev.map(m => m.internal === internal ? { ...m, fileColumn: column } : m));
   };
 
+  const saveMappingPreset = () => {
+    if (!newMappingName.trim()) return;
+    const updated = { ...savedMappings, [newMappingName]: mappings };
+    setSavedMappings(updated);
+    localStorage.setItem('bespoint_import_presets', JSON.stringify(updated));
+    setNewMappingName("");
+  };
+
+  const loadMappingPreset = (name: string) => {
+    if (savedMappings[name]) {
+      setMappings(savedMappings[name]);
+    }
+  };
+
   const startPreview = () => {
-    const mockData = [
-      { id: 1, sku: 'TS-RED-01', name: 'T-Shirt Rossa Cotone', cost: '12.50', category: 'Abbigliamento', status: 'ready' },
-      { id: 2, sku: 'TS-BLU-02', name: 'T-Shirt Blu Cotone', cost: '13.00', category: 'Abbigliamento', status: 'ready' },
-      { id: 3, sku: 'LK-003', name: 'Lampada Kyara Gold', cost: '45.00', category: 'Illuminazione', status: 'incomplete' },
+    // Mock simulation of CSV data processed after mapping
+    // We compare with current 'products' array from props
+    const currentSkus = products.map(p => p.sku?.toUpperCase()).filter(Boolean);
+
+    const importedMock = [
+      { sku: 'BP-NEW-001', name: 'Zaino Tecnico Pro', brand: 'TechGear', category: 'Zaini', subcategory: 'Tech', price: 89.90, stock: 15, weight: '1.2' },
+      { sku: 'BP-NEW-002', name: 'Smartwatch V3', brand: 'Vitel', category: 'Gadgets', subcategory: 'Tech', price: 129.00, stock: 45, weight: '0.2' },
+      { sku: '1001', name: 'Smartphone Pro Max (Update)', brand: 'BrandX', category: 'Elettronica', subcategory: 'Smartphone', price: 999, stock: 10, weight: '0.2' }, // Assume 1001 exists
+      { sku: 'BP-NEW-003', name: 'Cuffie Noise Cancel', brand: 'AudioPro', category: 'Audio', subcategory: 'Tutti', price: 199.90, stock: 8, weight: '0.3' },
     ];
-    setPreviewData(mockData);
-    setSelectedRows(mockData.map((_, i) => i));
+
+    const processed = importedMock.map(item => {
+      const isDuplicate = currentSkus.includes(item.sku.toUpperCase());
+      return { 
+        ...item, 
+        status: isDuplicate ? 'duplicate' : 'ready',
+        isNew: !isDuplicate
+      };
+    });
+
+    setPreviewData(processed);
+    setDuplicateSkus(processed.filter(p => p.status === 'duplicate').map(p => p.sku));
+    
+    // Auto-select only NEW products by default as per request
+    setSelectedRows(processed.map((p, i) => p.isNew ? i : -1).filter(i => i !== -1));
     setStep('preview');
   };
 
@@ -79,7 +137,73 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
   };
 
   const finalizeImport = () => {
-    setStep('success');
+    setIsFinalizing(true);
+    
+    setTimeout(() => {
+      const selectedProducts = previewData.filter((_, i) => selectedRows.includes(i));
+      
+      // 1. Identify New Categories
+      const importedCategories = Array.from(new Set(selectedProducts.map(p => p.category as string)));
+      const newCategories = importedCategories.filter(cat => !pageSettings.categories.includes(cat)) as string[];
+      
+      if (newCategories.length > 0) {
+        setPageSettings((prev: any) => {
+          const nextSub: Record<string, any> = { ...prev.subcategories };
+          const nextBanners: Record<string, any> = { ...prev.categoryBanners };
+          const nextSeo: Record<string, any> = { ...prev.categorySeo };
+
+          newCategories.forEach(cat => {
+            if (cat) {
+              nextSub[cat] = [];
+              nextBanners[cat] = { url: `https://picsum.photos/seed/${cat.toLowerCase()}/1920/600`, alt: cat, title: cat, link: "" };
+              nextSeo[cat] = { metaTitle: `${cat} di Alta Qualità - BesPoint`, metaDescription: `Scopri la nostra selezione esclusiva di ${cat}.` };
+            }
+          });
+
+          return {
+            ...prev,
+            categories: [...prev.categories, ...newCategories],
+            subcategories: nextSub,
+            categoryBanners: nextBanners,
+            categorySeo: nextSeo
+          };
+        });
+      }
+
+      // 2. Map imported data to Product type
+      const newProducts = selectedProducts.map(p => ({
+        id: (products.length + Math.floor(Math.random() * 10000)).toString(),
+        sku: p.sku,
+        ean: p.ean || "",
+        brand: p.brand || "",
+        name: p.name,
+        category: p.category,
+        subcategory: p.subcategory || "Tutti",
+        price: p.price,
+        stock: p.stock || 0,
+        weight: typeof p.weight === 'string' ? parseFloat(p.weight) : (p.weight || 0),
+        image: "https://picsum.photos/seed/" + (p.sku || Math.random()) + "/800/800",
+        description: p.description || "",
+        rating: 4.5,
+        reviews: 0,
+        isFeatured: false,
+        isNew: true,
+        specs: {},
+        gallery: [],
+        galleryIdx: 0,
+        variants: []
+      } as any));
+
+      // 3. Update products state
+      setProducts(prev => {
+        const baseProducts = importMode === 'replace' ? [] : prev;
+        return [...baseProducts, ...newProducts as Product[]];
+      });
+      
+      setIsFinalizing(false);
+      setShowConfirmModal(false);
+      setStep('success');
+    }, 2000);
   };
 
   return (
@@ -89,7 +213,7 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
       <div className="flex justify-between items-center pb-6 border-b border-gray-100">
         <div>
           <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter mb-1">Importazione Massiva</h2>
-          <p className="text-sm font-bold text-gray-400">Aggiorna il catalogo tramite file .csv, .xls, .xlsx o .txt.</p>
+          <p className="text-sm font-bold text-gray-400">Analisi catalogo e sincronizzazione intelligente.</p>
         </div>
         <button onClick={onBack} className="p-3 bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all">
           <X className="w-6 h-6" />
@@ -101,7 +225,7 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
         {[
           { id: 'upload', icon: Upload, label: 'Carica' },
           { id: 'mapping', icon: Layers, label: 'Mappa' },
-          { id: 'preview', icon: Table, label: 'Anteprima' },
+          { id: 'preview', icon: Table, label: 'Verifica' },
           { id: 'success', icon: Check, label: 'Fine' }
         ].map((s, i, arr) => (
           <React.Fragment key={s.id}>
@@ -124,12 +248,11 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
             <div className="w-24 h-24 bg-brand-yellow/20 text-brand-yellow rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
               <FileSpreadsheet className="w-12 h-12" />
             </div>
-            <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter mb-2">Trascina il file o clicca qui</h3>
-            <p className="text-gray-400 font-bold max-w-sm mb-8">Supporta formati Excel (.xlsx), CSV e file di testo delimitati.</p>
+            <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter mb-2">Seleziona Listino CSV</h3>
+            <p className="text-gray-400 font-bold max-w-sm mb-8">Importa il file `listino.csv` per analizzare i nuovi prodotti e aggiornare le giacenze.</p>
             <div className="flex gap-4">
-               <span className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-black uppercase">CSV</span>
-               <span className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-black uppercase">XLS / XLSX</span>
-               <span className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-black uppercase">TXT</span>
+               <span className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-black uppercase tracking-widest">v_products_model</span>
+               <span className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-black uppercase tracking-widest">Mappatura Core</span>
             </div>
           </label>
         </div>
@@ -137,57 +260,73 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
 
       {/* CONTENT: Mapping Phase */}
       {step === 'mapping' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in fade-in zoom-in-95 duration-500">
-           <div className="lg:col-span-5 space-y-6">
-             <div className="bg-brand-dark p-8 rounded-[2rem] text-white space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-yellow text-brand-dark rounded-full text-[10px] font-black uppercase">File Rilevato</div>
-                <h3 className="text-2xl font-black tracking-tighter">{fileName}</h3>
-                <p className="text-sm text-gray-400 font-bold">Abbiamo rilevato <span className="text-white font-black">{fileHeaders.length} colonne</span> nell\'header del tuo file.</p>
-                <div className="pt-4 border-t border-white/10 flex flex-wrap gap-2 text-[8px] font-bold uppercase text-gray-500">
-                  {fileHeaders.map(h => <span key={h} className="bg-white/5 px-2 py-1 rounded border border-white/10">{h}</span>)}
+        <div className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
+          <div className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm space-y-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-gray-50">
+              <div className="border-l-4 border-brand-yellow pl-4">
+                <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter">Associa Colonne del File</h3>
+                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Collega i campi del tuo file CSV alle proprietà del catalogo</p>
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="space-y-1">
+                   <span className="text-[8px] font-black uppercase text-gray-400 ml-1">Carica Preset Fornitore</span>
+                   <select 
+                     onChange={e => loadMappingPreset(e.target.value)}
+                     className="bg-gray-100 border-none rounded-xl px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-brand-blue"
+                   >
+                     <option value="">Seleziona Mappatura...</option>
+                     {Object.keys(savedMappings).map(name => <option key={name} value={name}>{name}</option>)}
+                   </select>
                 </div>
-             </div>
-             
-             <div className="bg-orange-50 border border-orange-200 p-6 rounded-2xl flex items-start gap-4">
-                <AlertCircle className="w-6 h-6 text-orange-500 flex-shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">Assicurati che le colonne obbligatorie (SKU, Nome, Categoria, Costo) siano associate correttamente per evitare errori durante l\'importazione.</p>
-             </div>
-           </div>
-
-           <div className="lg:col-span-7">
-              <div className="bg-gray-50 rounded-[2rem] p-8 border border-gray-100 space-y-6">
-                <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter border-b border-gray-200 pb-4">Associazione Colonne</h3>
-                <div className="space-y-4">
-                  {mappings.map((m) => (
-                    <div key={m.internal} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${m.required ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-gray-300'}`} />
-                        <span className="text-xs font-black text-brand-dark uppercase tracking-widest">{m.label}</span>
-                        {m.required && <span className="text-[8px] text-red-500 font-black uppercase">(Req)</span>}
-                      </div>
-                      <select 
-                        value={m.fileColumn}
-                        onChange={(e) => handleMappingChange(m.internal, e.target.value)}
-                        className={`w-full bg-white rounded-xl border px-4 py-3 text-sm font-bold transition-all focus:ring-4 focus:ring-brand-yellow/20 ${m.fileColumn ? 'border-brand-yellow text-brand-dark' : 'border-gray-200 text-gray-400'}`}
-                      >
-                        <option value="">-- Seleziona Colonna --</option>
-                        {fileHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="pt-8 flex justify-end">
-                  <button 
-                    disabled={mappings.filter(m => m.required && !m.fileColumn).length > 0}
-                    onClick={startPreview}
-                    className="group bg-brand-yellow text-brand-dark px-10 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl hover:bg-yellow-400 transition-all flex items-center gap-4 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed hover:scale-[1.05]"
-                  >
-                    Genera Anteprima <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-                  </button>
+                <div className="flex gap-2">
+                   <input 
+                     type="text" 
+                     value={newMappingName}
+                     onChange={e => setNewMappingName(e.target.value)}
+                     placeholder="Nome Mappatura (es. Esprinet)" 
+                     className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-medium focus:bg-white" 
+                   />
+                   <button 
+                     onClick={saveMappingPreset}
+                     disabled={!newMappingName}
+                     className="bg-brand-blue text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark disabled:opacity-30 transition-all"
+                   >
+                     Salva Preset
+                   </button>
                 </div>
               </div>
-           </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              {mappings.map((m) => (
+                <div key={m.internal} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${m.required ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-gray-300'}`} />
+                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest leading-none">{m.label}</span>
+                  </div>
+                  <select 
+                    value={m.fileColumn}
+                    onChange={(e) => handleMappingChange(m.internal, e.target.value)}
+                    className={`w-full bg-white rounded-xl border px-4 py-3 text-xs font-black uppercase tracking-tight transition-all focus:ring-4 focus:ring-brand-yellow/20 ${m.fileColumn ? 'border-brand-yellow text-brand-dark' : 'border-gray-100 text-gray-400'}`}
+                  >
+                    <option value="">-- Ignora Campo --</option>
+                    {fileHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            
+            <div className="pt-8 flex justify-end border-t border-gray-50">
+              <button 
+                disabled={mappings.filter(m => m.required && !m.fileColumn).length > 0}
+                onClick={startPreview}
+                className="group bg-brand-dark text-brand-yellow px-10 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl hover:bg-black transition-all flex items-center gap-4 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.05]"
+              >
+                Avvia Analisi Catalogo <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -195,89 +334,195 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
       {step === 'preview' && (
         <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
            {editingIndex !== null ? (
-              <div className="animate-in zoom-in-95 duration-300 ring-4 ring-brand-yellow/30 rounded-[3rem] overflow-hidden shadow-2xl">
-                <div className="bg-brand-dark p-4 flex justify-between items-center">
-                   <h4 className="text-white font-black uppercase text-xs tracking-widest px-4">Rifinitura Prodotto: {previewData[editingIndex].sku}</h4>
-                   <button onClick={() => setEditingIndex(null)} className="text-brand-yellow hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black uppercase"><X className="w-4 h-4"/> Chiudi Editor</button>
+              <div className="animate-in zoom-in-95 duration-300 ring-4 ring-brand-yellow/30 rounded-[3rem] overflow-hidden shadow-2xl relative">
+                <div className="bg-brand-dark p-6 flex justify-between items-center sticky top-0 z-50">
+                   <h4 className="text-white font-black uppercase text-xs tracking-widest px-4">Modifica manuale riga: {previewData[editingIndex].sku}</h4>
+                   <button onClick={() => setEditingIndex(null)} className="bg-white/10 hover:bg-white/20 text-brand-yellow px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase border border-brand-yellow/20"><X className="w-4 h-4"/> Esci e Salva</button>
                 </div>
-                <AdminSingleProduct onBack={() => setEditingIndex(null)} initialData={previewData[editingIndex]} />
+                <div className="p-8 bg-white max-h-[70vh] overflow-y-auto">
+                   <AdminSingleProduct onBack={() => setEditingIndex(null)} initialData={previewData[editingIndex]} />
+                </div>
               </div>
            ) : (
             <>
               <div className="flex items-center justify-between">
-                  <button onClick={() => setStep('mapping')} className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase hover:text-brand-dark transition-colors">
-                    <ChevronLeft className="w-4 h-4" /> Torna alla mappatura
+                  <button onClick={() => setStep('mapping')} className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase hover:text-brand-dark transition-colors bg-gray-100 px-4 py-2 rounded-xl">
+                    <ChevronLeft className="w-4 h-4" /> Torna a Mappatura
                   </button>
-                  <div className="flex gap-4 text-right items-center">
-                    <div className="px-4 py-2 bg-yellow-50 rounded-xl border border-yellow-100 flex flex-col">
-                       <span className="text-[8px] font-black uppercase text-brand-orange">Selezionati</span>
-                       <span className="text-sm font-black text-brand-dark">{selectedRows.length} / {previewData.length}</span>
+                  <div className="flex gap-4 items-center">
+                    <div className="px-5 py-3 bg-brand-yellow/10 rounded-2xl border border-brand-yellow/20 flex flex-col items-center">
+                       <span className="text-[8px] font-black uppercase text-brand-orange tracking-widest">Prodotti Nuovi</span>
+                       <span className="text-xl font-black text-brand-dark">{previewData.filter(p => p.isNew).length}</span>
+                    </div>
+                    <div className="px-5 py-3 bg-gray-100 rounded-2xl border border-gray-200 flex flex-col items-center opacity-60">
+                       <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Duplicati Rilevati</span>
+                       <span className="text-xl font-black text-gray-500">{duplicateSkus.length}</span>
                     </div>
                   </div>
               </div>
 
-              <div className="overflow-x-auto border border-gray-100 rounded-3xl shadow-sm">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="p-5 w-10">
-                          <input type="checkbox" checked={selectedRows.length === previewData.length} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-brand-yellow focus:ring-brand-yellow" />
-                        </th>
-                        {mappings.slice(0, 5).map(m => (
-                          <th key={m.internal} className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">{m.label}</th>
-                        ))}
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Stato</th>
-                        <th className="p-5"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {previewData.map((row, i) => (
-                        <tr key={i} className={`hover:bg-gray-50/50 transition-colors ${selectedRows.includes(i) ? 'bg-brand-yellow/5' : ''}`}>
-                          <td className="p-5">
-                            <input type="checkbox" checked={selectedRows.includes(i)} onChange={() => toggleSelect(i)} className="w-4 h-4 rounded border-gray-300 text-brand-yellow focus:ring-brand-yellow" />
-                          </td>
-                          <td className="p-5 text-sm font-bold text-brand-dark">{row.sku}</td>
-                          <td className="p-5 text-sm font-bold text-brand-dark">{row.name.substring(0, 20)}...</td>
-                          <td className="p-5 text-sm font-bold text-brand-dark">{row.category}</td>
-                          <td className="p-5 text-sm font-bold text-brand-dark">€{row.cost}</td>
-                          <td className="p-5">
-                            {row.status === 'ready' ? (
-                              <span className="px-2 py-1 bg-green-100 text-green-600 rounded text-[9px] font-black uppercase">Verificato</span>
-                            ) : (
-                              <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-[9px] font-black uppercase">Dati Mancanti</span>
-                            )}
-                          </td>
-                          <td className="p-5 text-right">
-                             <div className="flex justify-end gap-2">
+              <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden shadow-xl">
+                <div className="p-6 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                   <h3 className="text-sm font-black text-brand-dark uppercase tracking-widest flex items-center gap-2">
+                     <AlertCircle className="w-4 h-4 text-brand-blue" />
+                     Report Analisi Importazione
+                   </h3>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Seleziona i prodotti da aggiungere al catalogo</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-white border-b border-gray-100 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                          <th className="p-6 w-10">
+                            <input type="checkbox" checked={selectedRows.length === previewData.length} onChange={toggleSelectAll} className="w-4 h-4 rounded-lg border-gray-300 text-brand-yellow focus:ring-brand-yellow" />
+                          </th>
+                          <th className="p-6">Prodotto / Marca</th>
+                          <th className="p-6">Categoria</th>
+                          <th className="p-6">Prezzo / Peso</th>
+                          <th className="p-6">Stock</th>
+                          <th className="p-6 text-center">Stato</th>
+                          <th className="p-6 text-right">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {previewData.map((row, i) => (
+                          <tr key={i} className={`hover:bg-brand-yellow/5 transition-all group ${selectedRows.includes(i) ? 'bg-brand-yellow/10' : ''}`}>
+                            <td className="p-6">
+                              <input type="checkbox" checked={selectedRows.includes(i)} onChange={() => toggleSelect(i)} className="w-4 h-4 rounded-lg border-gray-300 text-brand-yellow focus:ring-brand-yellow" />
+                            </td>
+                            <td className="p-6">
+                               <div className="flex flex-col">
+                                 <span className="text-[9px] font-black uppercase text-brand-blue tracking-widest">{row.brand || '---'}</span>
+                                 <span className="text-sm font-black text-brand-dark tracking-tight leading-tight">{row.name}</span>
+                                 <span className="text-[9px] font-bold text-gray-400 mt-0.5">SKU: {row.sku}</span>
+                               </div>
+                            </td>
+                            <td className="p-6">
+                               <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase">{row.category}</span>
+                            </td>
+                            <td className="p-6">
+                               <div className="flex flex-col">
+                                 <span className="text-sm font-black text-brand-dark">€{row.price}</span>
+                                 <span className="text-[9px] font-bold text-gray-400">{row.weight} Kg</span>
+                               </div>
+                            </td>
+                            <td className="p-6 font-bold text-sm">{row.stock} <span className="text-[10px] text-gray-400 ml-1">pz</span></td>
+                            <td className="p-6 text-center">
+                              {row.isNew ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-green-200">
+                                  <Check className="w-2.5 h-2.5" /> Nuovo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-400 rounded-full text-[8px] font-black uppercase tracking-widest border border-red-100">
+                                  <AlertCircle className="w-2.5 h-2.5" /> Esistente
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-6 text-right">
                                <button 
                                  onClick={() => setEditingIndex(i)}
-                                 className="p-2 bg-white text-gray-400 hover:text-brand-orange hover:shadow-md rounded-lg transition-all"
-                                 title="Rifinisci Prodotto"
+                                 className="p-3 bg-white text-gray-400 hover:text-brand-dark hover:shadow-xl rounded-2xl transition-all border border-gray-100 opacity-0 group-hover:opacity-100"
                                >
                                  <Edit2 className="w-4 h-4" />
                                </button>
-                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                </table>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between bg-brand-dark p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-64 h-64 bg-brand-yellow rounded-full blur-[120px] opacity-10"></div>
-                <div className="relative z-10">
-                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Pronto per il lancio?</h3>
-                  <p className="text-gray-400 font-bold">Verranno importati solo i <span className="text-brand-yellow underline decoration-brand-yellow/30">{selectedRows.length} prodotti selezionati</span>.</p>
+              <div className="flex items-center justify-between bg-brand-dark p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+                <div className="absolute right-0 top-0 w-80 h-80 bg-brand-yellow rounded-full blur-[150px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                <div className="relative z-10 space-y-2">
+                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Sincronizzazione Pronta</h3>
+                  <p className="text-gray-400 font-bold max-w-lg">Verranno importati <span className="text-brand-yellow underline decoration-brand-yellow/30 font-black">{selectedRows.length} prodotti</span>. Il sistema creerà automaticamente le nuove categorie se necessario.</p>
                 </div>
                 <button 
                   disabled={selectedRows.length === 0}
-                  onClick={finalizeImport} 
-                  className="relative z-10 bg-brand-yellow text-brand-dark px-12 py-6 rounded-[2rem] font-black uppercase text-lg tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
+                  onClick={() => setShowConfirmModal(true)} 
+                  className="relative z-10 bg-brand-yellow text-brand-dark px-12 py-6 rounded-[2rem] font-black uppercase text-lg tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100 cursor-pointer"
                 >
-                    Conferma e Sincronizza
+                    Sincronizza Ora
                 </button>
               </div>
+
+              {/* Confirmation Modal */}
+              {showConfirmModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md animate-in fade-in duration-300">
+                   <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl text-center space-y-8 animate-in zoom-in-95 duration-300">
+                      <div className="w-24 h-24 bg-brand-yellow/20 text-brand-yellow rounded-[2rem] flex items-center justify-center mx-auto rotate-12">
+                         <Layers className="w-12 h-12" />
+                      </div>
+                      <div className="space-y-4">
+                        <h4 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">Conferma Azione</h4>
+                        <p className="text-gray-500 font-bold leading-relaxed">Stai per aggiungere <span className="text-brand-dark font-black underline">{selectedRows.length} prodotti</span> al tuo catalogo live. Questa operazione modificherà le categorie e il database prodotti.</p>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="flex flex-col gap-4">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center mb-1">Seleziona Strategia di Importazione:</p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <button 
+                              onClick={() => setImportMode('integrate')}
+                              className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 ${importMode === 'integrate' ? 'border-brand-yellow bg-brand-yellow/5' : 'border-gray-50 bg-gray-50'}`}
+                            >
+                              <Layers className={`w-8 h-8 ${importMode === 'integrate' ? 'text-brand-yellow' : 'text-gray-300'}`} />
+                              <div className="text-center">
+                                <p className="font-black uppercase text-[10px] tracking-tighter">Integra Nuovi</p>
+                                <p className="text-[9px] text-gray-400 font-bold">Mantieni catalogo attuale</p>
+                              </div>
+                            </button>
+                            <button 
+                              onClick={() => setImportMode('replace')}
+                              className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 ${importMode === 'replace' ? 'border-red-500 bg-red-50' : 'border-gray-50 bg-gray-50'}`}
+                            >
+                              <AlertCircle className={`w-8 h-8 ${importMode === 'replace' ? 'text-red-500' : 'text-gray-300'}`} />
+                              <div className="text-center">
+                                <p className="font-black uppercase text-[10px] tracking-tighter">Sostituisci Tutto</p>
+                                <p className="text-[9px] text-red-400 font-bold">Elimina tutto e importa</p>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+
+                        {importMode === 'replace' && (
+                          <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                            <p className="text-[9px] font-black text-red-500 uppercase leading-snug">ATTENZIONE! Questa azione eliminerà permanentemente tutti i prodotti esistenti.</p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-4 pt-4">
+                          <button 
+                            onClick={() => setShowConfirmModal(false)}
+                            disabled={isFinalizing}
+                            className="flex-1 px-8 py-5 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                          >
+                            Annulla
+                          </button>
+                          <button 
+                            onClick={finalizeImport}
+                            disabled={isFinalizing}
+                            className={`flex-[2] px-8 py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-3 ${importMode === 'replace' ? 'bg-red-500 text-white' : 'bg-brand-dark text-brand-yellow'}`}
+                          >
+                            {isFinalizing ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                In Corso...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4" />
+                                Conferma
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                   </div>
+                </div>
+              )}
             </>
            )}
         </div>
@@ -285,15 +530,16 @@ export const AdminMassiveImport = ({ onBack }: { onBack: () => void }) => {
 
       {/* CONTENT: Success Phase */}
       {step === 'success' && (
-        <div className="flex flex-col items-center justify-center h-[500px] text-center animate-in zoom-in-95 duration-500">
-          <div className="w-32 h-32 bg-green-500 text-white rounded-full flex items-center justify-center mb-8 shadow-[0_20px_50px_rgba(34,197,94,0.3)] bounce-in">
+        <div className="flex flex-col items-center justify-center h-[500px] text-center animate-in zoom-in-95 duration-500 relative">
+          <div className="absolute inset-0 bg-brand-yellow/5 rounded-full blur-3xl"></div>
+          <div className="relative z-10 w-32 h-32 bg-green-500 text-white rounded-[2rem] flex items-center justify-center mb-10 shadow-[0_30px_60px_rgba(34,197,94,0.4)] rotate-12">
             <Check className="w-16 h-16 stroke-[4]" />
           </div>
-          <h2 className="text-5xl font-black text-brand-dark uppercase tracking-tighter mb-4">Importazione Completata!</h2>
-          <p className="text-xl text-gray-400 font-bold max-w-md mb-12">Il catalogo è stato aggiornato correttamente. 3.450 prodotti sono ora attivi nei tuoi canali.</p>
-          <div className="flex gap-4">
-             <button onClick={() => setStep('upload')} className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all">Nuovo Import</button>
-             <button onClick={onBack} className="px-10 py-5 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-sm tracking-widest hover:scale-105 transition-all shadow-xl">Torna alla Lista</button>
+          <h2 className="text-5xl font-black text-brand-dark uppercase tracking-tighter mb-4">Mmissione Compiuta!</h2>
+          <p className="text-xl text-gray-500 font-bold max-w-md mb-12">Il catalogo è stato aggiornato con successo. <span className="text-brand-blue">{previewData.filter(p => p.isNew && selectedRows.includes(previewData.indexOf(p))).length} prodotti</span> sono stati importati.</p>
+          <div className="flex gap-4 relative z-10">
+             <button onClick={() => setStep('upload')} className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all border border-gray-200">Nuovo Import</button>
+             <button onClick={onBack} className="px-10 py-5 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-sm tracking-widest hover:scale-105 transition-all shadow-2xl active:scale-95">Torna alla Lista</button>
           </div>
         </div>
       )}

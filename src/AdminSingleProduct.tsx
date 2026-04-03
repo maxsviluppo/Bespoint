@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info } from "lucide-react";
+import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 
-export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void, initialData?: any }) => {
+export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {} }: { onBack: () => void, onSave: (p: any) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]> }) => {
   const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
   const [b2cMarkup, setB2cMarkup] = useState<number>(Number(initialData?.markup) || 30);
   const [b2bMarkup, setB2bMarkup] = useState<number>(10);
@@ -21,7 +21,43 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
   const [title, setTitle] = useState<string>(initialData?.name || "");
   const [sku, setSku] = useState<string>(initialData?.sku || "");
   const [ean, setEan] = useState<string>(initialData?.ean || "");
+  const [brand, setBrand] = useState<string>(initialData?.brand || "");
   const [productDescription, setProductDescription] = useState<string>(initialData?.description || "");
+  const [weight, setWeight] = useState<number>(Number(initialData?.weight) || 0);
+
+  const [category, setCategory] = useState<string>(initialData?.category || existingCategories[0] || "");
+  const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || "Tutti");
+   
+  const [isAddingNewBrand, setIsAddingNewBrand] = useState<boolean>(false);
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState<boolean>(false);
+  const [isAddingNewSubcategory, setIsAddingNewSubcategory] = useState<boolean>(false);
+
+  const [newBrand, setNewBrand] = useState<string>("");
+  const [newCategory, setNewCategory] = useState<string>("");
+  const [newSubcategory, setNewSubcategory] = useState<string>("");
+
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGallery(prev => [...prev, reader.result as string].slice(0, 6));
+        setIsImageModalOpen(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addImageUrl = () => {
+    if (imageUrlInput.trim()) {
+      setGallery(prev => [...prev, imageUrlInput.trim()].slice(0, 6));
+      setImageUrlInput("");
+      setIsImageModalOpen(false);
+    }
+  };
 
   // Sync isFeatured if initialData changes Externally
   React.useEffect(() => {
@@ -40,12 +76,19 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
   const b2cPrice = manualB2c ? parseFloat(manualB2c) : baseCost * (1 + b2cMarkup / 100);
   const b2bPrice = manualB2b ? parseFloat(manualB2b) : baseCost * (1 + b2bMarkup / 100);
 
-  const [gallery, setGallery] = useState<string[]>([]);
-  const [specs, setSpecs] = useState<{key: string, value: string}[]>([{key: "", value: ""}]);
+  const [gallery, setGallery] = useState<string[]>(initialData?.gallery || (initialData?.image ? [initialData.image] : []));
+  const [specs, setSpecs] = useState<{key: string, value: string}[]>(
+    initialData?.specs 
+      ? Object.entries(initialData.specs).map(([key, value]) => ({ key, value: String(value) }))
+      : [{ key: "", value: "" }]
+  );
   
   // NEW: State for Master Stock (Simple Product)
-  const [masterStock, setMasterStock] = useState<number>(initialData?.stock || 0);
-  const [masterAllocations, setMasterAllocations] = useState({ amazon: 0, ebay: 0 });
+  const [masterStock, setMasterStock] = useState<number>(initialData?.stock || initialData?.amazonStock || initialData?.ebayStock ? (Number(initialData?.stock || 0) + Number(initialData?.amazonStock || 0) + Number(initialData?.ebayStock || 0)) : 0);
+  const [masterAllocations, setMasterAllocations] = useState({ 
+    amazon: Number(initialData?.amazonStock || 0), 
+    ebay: Number(initialData?.ebayStock || 0) 
+  });
 
   // UPDATED: Variants State with detailed inventory
   const [variants, setVariants] = useState<{
@@ -55,7 +98,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
     sku: string, 
     totalStock: number,
     allocations: { amazon: number, ebay: number }
-  }[]>([]);
+  }[]>(initialData?.variants || []);
 
   const [amazonMarkup, setAmazonMarkup] = useState<number>(Number(initialData?.amazonMarkup) || 15);
   const [amazonManualPrice, setAmazonManualPrice] = useState<string>(initialData?.amazonPrice || "");
@@ -77,7 +120,44 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
     if (type === 'ebay') setEbayManualPrice(val);
   };
 
+  const handleSave = () => {
+    const finalProduct = {
+      ...initialData,
+      id: initialData?.id || (Math.random() * 1000).toString(),
+      sku,
+      ean,
+      brand: isAddingNewBrand ? newBrand : brand,
+      name: title,
+      description: productDescription,
+      price: manualB2c ? parseFloat(manualB2c) : parseFloat(b2cPrice.toFixed(2)),
+      stock: variants.length > 0 
+        ? variants.reduce((sum, v) => sum + Math.max(0, v.totalStock - (isAmazonActive ? v.allocations.amazon : 0) - (isEbayActive ? v.allocations.ebay : 0)), 0)
+        : Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0)),
+      amazonStock: variants.length > 0 
+        ? variants.reduce((sum, v) => sum + (isAmazonActive ? v.allocations.amazon : 0), 0)
+        : (isAmazonActive ? masterAllocations.amazon : 0),
+      ebayStock: variants.length > 0 
+        ? variants.reduce((sum, v) => sum + (isEbayActive ? v.allocations.ebay : 0), 0)
+        : (isEbayActive ? masterAllocations.ebay : 0),
+      weight,
+      category: isAddingNewCategory ? newCategory : category,
+      subcategory: isAddingNewSubcategory ? newSubcategory : subcategory,
+      isFeatured,
+      amazonPrice: amazonManualPrice ? parseFloat(amazonManualPrice) : parseFloat(amazonPrice.toFixed(2)),
+      ebayPrice: ebayManualPrice ? parseFloat(ebayManualPrice) : parseFloat(ebayPrice.toFixed(2)),
+      amazonActive: isAmazonActive,
+      ebayActive: isEbayActive,
+      courier: selectedCourier,
+      specs: specs.reduce((acc, s) => { if (s.key) acc[s.key] = s.value; return acc; }, {} as any),
+      variants,
+      image: gallery[0] || initialData?.image || "https://picsum.photos/seed/default/800/800",
+      gallery: gallery
+    };
+    onSave(finalProduct);
+  };
+
   return (
+    <>
     <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 border border-gray-100 shadow-xl space-y-10 animate-in slide-in-from-bottom-8 duration-500 relative">
       <button onClick={onBack} className="absolute top-8 right-8 p-3 bg-gray-50 text-gray-500 hover:bg-brand-yellow hover:text-brand-dark rounded-xl transition-all">
         <X className="w-6 h-6" />
@@ -185,6 +265,48 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                   className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue" 
                 />
               </label>
+              <label className="lg:col-span-1">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Marca / Brand</span>
+                 {isAddingNewBrand ? (
+                   <div className="flex gap-1">
+                     <input 
+                        type="text" 
+                        value={newBrand}
+                        onChange={e => setNewBrand(e.target.value)}
+                        placeholder="Nuova Marca..." 
+                        className="w-full bg-yellow-50 border-brand-yellow rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-yellow" 
+                     />
+                     <button onClick={() => setIsAddingNewBrand(false)} className="px-2 text-red-500 hover:bg-red-50 rounded-lg">×</button>
+                   </div>
+                 ) : (
+                   <select 
+                     value={brand}
+                     onChange={e => {
+                       if (e.target.value === "ADD_NEW") {
+                         setIsAddingNewBrand(true);
+                       } else {
+                         setBrand(e.target.value);
+                       }
+                     }}
+                     className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-yellow"
+                   >
+                     <option value="">Seleziona...</option>
+                     {existingBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                     <option value="ADD_NEW" className="text-brand-blue font-black">+ NUOVA MARCA</option>
+                   </select>
+                 )}
+               </label>
+              <label className="lg:col-span-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Peso (Kg)</span>
+                <input 
+                   type="number" 
+                   value={weight}
+                   onChange={e => setWeight(Number(e.target.value))}
+                   placeholder="0.0" 
+                   step="0.1"
+                   className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-yellow" 
+                />
+              </label>
               
               {/* Quantità Principale (per prodotti semplici) */}
               {variants.length === 0 && (
@@ -287,7 +409,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                          )}
                          <div className="flex flex-col gap-1">
                             <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest text-center leading-none">Web Shop</span>
-                            <div className="w-full h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[11px] font-black shadow-sm">
+                            <div className="w-full h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[11px] font-black">
                               {webStock}
                             </div>
                          </div>
@@ -316,29 +438,77 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
               </div>
             </div>
           </div>
-          
-          <div className="space-y-4">
+            <div className="space-y-4">
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><Layers className="w-5 h-5 text-gray-400"/> Tassonomia Avanzata</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <label className="block">
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 1 (Root)</span>
-                <select className="w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue">
-                  {CATEGORIES.filter(c => c !== "Tutti").map(c => <option key={c}>{c}</option>)}
-                </select>
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 1 (Categoria)</span>
+                {isAddingNewCategory ? (
+                   <div className="flex gap-1">
+                     <input 
+                        type="text" 
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        placeholder="Nuova Categoria..." 
+                        className="w-full bg-yellow-50 border-brand-yellow rounded-xl px-3 py-2 text-xs font-bold" 
+                     />
+                     <button onClick={() => setIsAddingNewCategory(false)} className="px-1 text-red-400 hover:text-red-500 rounded-lg">×</button>
+                   </div>
+                 ) : (
+                  <select 
+                    value={category}
+                    onChange={e => {
+                      if (e.target.value === "ADD_NEW") {
+                        setIsAddingNewCategory(true);
+                      } else {
+                        setCategory(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue"
+                  >
+                    {existingCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="ADD_NEW" className="text-brand-blue font-black">+ NUOVA</option>
+                  </select>
+                )}
               </label>
               <label className="block">
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 2 (Sub)</span>
-                <select className="w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue">
-                  {SUBCATEGORIES["Illuminazione"]?.map((s: string) => <option key={s}>{s}</option>)}
-                </select>
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 2 (Sottocategoria)</span>
+                {isAddingNewSubcategory ? (
+                   <div className="flex gap-1">
+                     <input 
+                        type="text" 
+                        value={newSubcategory}
+                        onChange={e => setNewSubcategory(e.target.value)}
+                        placeholder="Nuova Sotto..." 
+                        className="w-full bg-yellow-50 border-brand-yellow rounded-xl px-3 py-2 text-xs font-bold" 
+                     />
+                     <button onClick={() => setIsAddingNewSubcategory(false)} className="px-1 text-red-400 hover:text-red-500 rounded-lg">×</button>
+                   </div>
+                 ) : (
+                  <select 
+                    value={subcategory}
+                    onChange={e => {
+                      if (e.target.value === "ADD_NEW") {
+                        setIsAddingNewSubcategory(true);
+                      } else {
+                        setSubcategory(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue focus:border-brand-blue"
+                  >
+                    <option value="Tutti">Tutte</option>
+                    {(existingSubcategories[category] || []).map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="ADD_NEW" className="text-brand-blue font-black">+ NUOVA</option>
+                  </select>
+                )}
               </label>
               <label className="block">
                 <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 3 (Optional)</span>
-                <input type="text" placeholder="es. Led Integrato" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold placeholder:text-gray-300" />
+                <input type="text" placeholder="es. Led Integrato" className="w-full bg-white border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold placeholder:text-gray-300" />
               </label>
               <label className="block">
                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Livello 4 (Deep)</span>
-                 <input type="text" placeholder="N/A" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold placeholder:text-gray-300" />
+                 <input type="text" placeholder="N/A" className="w-full bg-white border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold placeholder:text-gray-300" />
               </label>
             </div>
           </div>
@@ -348,16 +518,16 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Amazon Block */}
-              <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-6 border border-orange-100 shadow-sm relative overflow-hidden group hover:border-orange-300 transition-all flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-6 border border-orange-100 relative overflow-hidden group hover:border-orange-300 transition-all flex flex-col justify-between">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-3xl opacity-10 -mr-10 -mt-10"></div>
                 <div className="flex items-center justify-between mb-4 relative z-10">
                   <div className="flex items-center gap-3">
-                    <div className="bg-white p-2 text-orange-500 shadow flex items-center justify-center rounded-xl"><Globe className="w-5 h-5" /></div>
+                    <div className="bg-white p-2 text-orange-500 flex items-center justify-center rounded-xl"><Globe className="w-5 h-5" /></div>
                     <span className="font-black text-brand-dark uppercase tracking-tight">Amazon.it</span>
                   </div>
                   <label className="inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={isAmazonActive} onChange={e => setIsAmazonActive(e.target.checked)} />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 relative shadow-inner"></div>
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 relative"></div>
                   </label>
                 </div>
                 <div className="space-y-4 relative z-10">
@@ -398,16 +568,16 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
               </div>
 
               {/* eBay Block */}
-              <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 border border-blue-100 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 border border-blue-100 relative overflow-hidden group hover:border-blue-300 transition-all flex flex-col justify-between">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-3xl opacity-10 -mr-10 -mt-10"></div>
                 <div className="flex items-center justify-between mb-4 relative z-10">
                   <div className="flex items-center gap-3">
-                    <div className="bg-white p-2 text-blue-500 shadow flex items-center justify-center rounded-xl"><ExternalLink className="w-5 h-5" /></div>
+                    <div className="bg-white p-2 text-blue-500 flex items-center justify-center rounded-xl"><ExternalLink className="w-5 h-5" /></div>
                     <span className="font-black text-brand-dark uppercase tracking-tight">eBay</span>
                   </div>
                   <label className="inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={isEbayActive} onChange={e => setIsEbayActive(e.target.checked)} />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 relative shadow-inner"></div>
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 relative"></div>
                   </label>
                 </div>
                 <div className="space-y-4 relative z-10">
@@ -506,9 +676,9 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
           </div>
 
           {/* Sezione Logistica - FULL WIDTH BLOCK spostata alla fine */}
-          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-sm space-y-8 mt-10">
+          <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8 mt-10">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-[1.5rem] bg-indigo-500 flex items-center justify-center shadow-xl shadow-indigo-500/20">
+              <div className="w-14 h-14 rounded-[1.5rem] bg-indigo-500 flex items-center justify-center">
                 <Truck className="w-7 h-7 text-white" />
               </div>
               <div>
@@ -527,13 +697,13 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                   className="relative cursor-pointer"
                   onClick={() => setIsCourierDropdownOpen(!isCourierDropdownOpen)}
                 >
-                  <div className="w-full pl-8 pr-16 py-6 bg-gray-50 border-2 border-transparent rounded-[2rem] text-base font-medium focus:border-indigo-500 bg-white shadow-inner flex items-center">
+                  <div className="w-full pl-8 pr-16 py-6 bg-gray-50 border-2 border-transparent rounded-[2rem] text-base font-medium focus:border-indigo-500 flex items-center">
                     <span className="font-extrabold mr-2 tracking-tighter uppercase">{selectedCourier}</span>
                     <span className="text-gray-400 text-sm italic font-normal">
                       — {COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details.split(' — ')[1] || COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details}
                     </span>
                   </div>
-                  <div className="absolute right-8 top-1/2 -translate-y-1/2 p-3 bg-indigo-500 rounded-2xl shadow-lg border border-indigo-400 transition-transform group-hover:scale-110">
+                  <div className="absolute right-8 top-1/2 -translate-y-1/2 p-3 bg-indigo-500 rounded-2xl transition-transform group-hover:scale-110">
                     <ChevronDown className={`w-5 h-5 text-white transition-transform duration-300 ${isCourierDropdownOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
@@ -544,7 +714,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute left-0 right-0 bottom-[calc(100%+12px)] bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl p-4 z-50 space-y-2 origin-bottom"
+                      className="absolute left-0 right-0 bottom-[calc(100%+12px)] bg-white border border-gray-100 rounded-[2.5rem] p-4 z-50 space-y-2 origin-bottom"
                     >
                       {COURIER_OPTIONS.map((option) => (
                         <button
@@ -553,7 +723,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                             setSelectedCourier(option.name);
                             setIsCourierDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-6 py-4 rounded-[1.5rem] transition-all flex items-center ${selectedCourier === option.name ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'hover:bg-gray-50 text-gray-700'}`}
+                          className={`w-full text-left px-6 py-4 rounded-[1.5rem] transition-all flex items-center ${selectedCourier === option.name ? 'bg-indigo-600 text-white' : 'hover:bg-gray-50 text-gray-700'}`}
                         >
                           <span className={`${selectedCourier === option.name ? 'font-black' : 'font-extrabold'} text-sm tracking-tighter uppercase mr-3`}>
                             {option.name}
@@ -573,7 +743,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                 className="flex items-center gap-6 bg-indigo-50/30 p-8 rounded-[2.5rem] border border-indigo-100/50"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
-                <div className="w-14 h-14 rounded-[1.2rem] bg-white flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-14 h-14 rounded-[1.2rem] bg-white flex items-center justify-center shrink-0">
                   <Info className="w-8 h-8 text-indigo-500" />
                 </div>
                 <div className="text-[13px] font-medium text-indigo-700/80 italic leading-relaxed tracking-tight">
@@ -583,7 +753,6 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
               </div>
             </div>
           </div>
-          
         </div>
 
         {/* Colonna DX: Media & Pricing Engine */}
@@ -608,7 +777,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                  ))}
                  {gallery.length < 6 && (
                    <button 
-                     onClick={() => setGallery([...gallery, `https://picsum.photos/seed/${Math.round(Math.random()*1000)}/500/500`])}
+                     onClick={() => setIsImageModalOpen(true)}
                      className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-gray-400 hover:text-brand-blue group cursor-pointer"
                    >
                      <Plus className="w-6 h-6 group-hover:scale-110 transition-transform mb-1" />
@@ -619,7 +788,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
             </div>
 
             {/* Pricing Engine */}
-            <div className="bg-brand-dark rounded-2xl p-6 shadow-2xl relative overflow-hidden ring-4 ring-brand-yellow/20">
+            <div className="bg-brand-dark rounded-2xl p-6 relative overflow-hidden ring-4 ring-brand-yellow/20">
                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-yellow rounded-full blur-3xl opacity-10"></div>
                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2 relative z-10"><RefreshCw className="w-4 h-4 text-brand-yellow"/> Motore Prezzi Dinamico</h3>
                
@@ -644,7 +813,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                           </div>
                           <div className="relative w-2/3">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-brand-dark/50">€</span>
-                            <input type="number" value={manualB2c || b2cPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2c')} placeholder={b2cPrice.toFixed(2)} className={`w-full bg-brand-yellow text-brand-dark border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right shadow-inner focus:ring-2 focus:ring-white transition-all ${manualB2c ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
+                            <input type="number" value={manualB2c || b2cPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2c')} placeholder={b2cPrice.toFixed(2)} className={`w-full bg-brand-yellow text-brand-dark border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2c ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
                             {manualB2c && <button onClick={() => setManualB2c("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
                           </div>
                        </div>
@@ -661,7 +830,7 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                           </div>
                           <div className="relative w-2/3">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-white/50">€</span>
-                            <input type="number" value={manualB2b || b2bPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2b')} placeholder={b2bPrice.toFixed(2)} className={`w-full bg-blue-500 text-white border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right shadow-inner focus:ring-2 focus:ring-white transition-all ${manualB2b ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
+                            <input type="number" value={manualB2b || b2bPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2b')} placeholder={b2bPrice.toFixed(2)} className={`w-full bg-blue-500 text-white border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2b ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
                             {manualB2b && <button onClick={() => setManualB2b("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
                           </div>
                        </div>
@@ -670,14 +839,95 @@ export const AdminSingleProduct = ({ onBack, initialData }: { onBack: () => void
                </div>
             </div>
 
-            <button className="w-full bg-brand-yellow text-brand-dark px-8 py-5 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-yellow-400 hover:scale-[1.02] shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95">
+            <button 
+              onClick={handleSave}
+              className="w-full bg-brand-yellow text-brand-dark px-8 py-5 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-yellow-400 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-95"
+            >
               <Check className="w-6 h-6" />
               Salva e Pubblica
             </button>
             
-          </div>
         </div>
       </div>
     </div>
+  </div>
+
+    {/* Modal Importazione Immagine */}
+    <AnimatePresence>
+      {isImageModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-brand-dark/60 backdrop-blur-md"
+            onClick={() => setIsImageModalOpen(false)}
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative bg-white w-full max-w-lg rounded-[2.5rem] p-10 overflow-hidden"
+          >
+            <button onClick={() => setIsImageModalOpen(false)} className="absolute top-6 right-6 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all">
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="mb-8 text-center md:text-left">
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Importa Media</h3>
+              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Scegli come caricare la tua immagine prodotto</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Opzione 1: Local Upload */}
+              <label className="block group cursor-pointer">
+                <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-gray-200 rounded-[2rem] bg-gray-50 group-hover:bg-brand-blue/5 group-hover:border-brand-blue transition-all">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-7 h-7 text-brand-blue" />
+                  </div>
+                  <span className="text-xs font-black uppercase text-gray-700">Carica dal Dispositivo</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">JPG, PNG, WEBP (MAX 5MB)</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                </div>
+              </label>
+
+              <div className="flex items-center gap-4 py-2">
+                <div className="h-px bg-gray-100 flex-1"></div>
+                <span className="text-[10px] font-black text-gray-300 uppercase">Oppure tramite Link</span>
+                <div className="h-px bg-gray-100 flex-1"></div>
+              </div>
+
+              {/* Opzione 2: URL Input */}
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-indigo-50 text-indigo-500 rounded-lg">
+                    <LinkIcon className="w-4 h-4" />
+                  </div>
+                  <input 
+                    type="url" 
+                    value={imageUrlInput}
+                    onChange={e => setImageUrlInput(e.target.value)}
+                    placeholder="Incolla URL immagine (es. https://...)" 
+                    className="w-full pl-16 pr-4 py-4 bg-gray-50 border-gray-100 rounded-2xl text-sm font-bold focus:ring-brand-yellow focus:bg-white placeholder:text-gray-300 transition-all border-none outline-none"
+                  />
+                </div>
+                <button 
+                  onClick={addImageUrl}
+                  disabled={!imageUrlInput.trim()}
+                  className="w-full py-4 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Importa Media da Link
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[9px] text-gray-400 font-bold text-center mt-8 italic">
+              * La prima immagine della galleria sarà quella principale.
+            </p>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+    </>
   );
 };
