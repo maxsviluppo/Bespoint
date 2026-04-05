@@ -72,7 +72,8 @@ import {
   UserPlus,
   CheckCircle2,
   XCircle,
-  LayoutDashboard
+  LayoutDashboard,
+  AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -222,7 +223,7 @@ const ToastContainer = ({ toasts, onClose }: { toasts: { id: string; message: st
   );
 };
 
-function ProductCard({ product, onClick, onAddToCart, index, reviews = [] }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; reviews?: any[]; key?: any }) {
+function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFavorite = false, onToggleFavorite, onShare }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; reviews?: any[]; isFavorite?: boolean; onToggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; key?: any }) {
   const productReviews = reviews.filter(r => r.productId === product.id && r.status === 'approved');
   const avgRating = productReviews.length > 0 
     ? productReviews.reduce((s, r) => s + r.rating, 0) / productReviews.length 
@@ -243,19 +244,27 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [] }: { p
       }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       layoutId={`product-${product.id}`}
-      className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full hover:shadow-xl transition-shadow duration-300"
+      className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full hover:shadow-xl transition-shadow duration-300 relative group"
     >
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: index * 0.05 + 0.2 }}
-        onClick={onClick}
-        className="aspect-square mb-3 cursor-pointer overflow-hidden rounded-lg bg-gray-50"
-      >
         {product.image && (
           <img src={product.image} alt={product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
         )}
-      </motion.div>
+        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 transition-opacity">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(product.id); }}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${isFavorite ? "bg-red-500 text-white" : "bg-white/40 text-white hover:bg-white/60"}`}
+            title="Aggiungi ai preferiti"
+          >
+            <Heart className={`w-3.5 h-3.5 ${isFavorite ? "fill-white" : ""}`} />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onShare?.(product); }}
+            className="w-7 h-7 rounded-lg bg-sky-400 backdrop-blur-md text-white flex items-center justify-center hover:bg-sky-500 transition-all shadow-lg shadow-sky-500/20"
+            title="Condividi prodotto"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       {product.brand && (
         <motion.p 
           initial={{ opacity: 0 }}
@@ -312,10 +321,47 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [] }: { p
   );
 }
 
-const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [] }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; key?: any }) => {
+function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false }: { product: Product; onClick: () => void; onRemove: (id: string) => void; index: number; isCarousel?: boolean; key?: any }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ delay: index * 0.05, type: "spring", damping: 15 }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      className={`bg-white p-2.5 rounded-[1.5rem] border border-gray-100 flex flex-col h-full shadow-sm group relative hover:shadow-xl transition-all ${isCarousel ? 'w-42 flex-shrink-0' : 'w-full'}`}
+    >
+      <button 
+        onClick={(e) => { e.stopPropagation(); onRemove(product.id); }}
+        className="absolute top-2 right-2 w-7 h-7 bg-white/90 backdrop-blur-md text-red-500 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 shadow-lg border border-red-50 hover:bg-red-500 hover:text-white"
+      >
+        <Heart className="w-3.5 h-3.5 fill-current" />
+      </button>
+      <div 
+        onClick={onClick}
+        className="aspect-square mb-3 cursor-pointer overflow-hidden rounded-[1.2rem] bg-gray-50 border border-gray-50/50"
+      >
+        {product.image && (
+          <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
+        )}
+      </div>
+      <div className="px-1 mb-2">
+        <h4 className="text-[10px] font-black text-brand-dark line-clamp-2 leading-tight uppercase tracking-tight mb-1 cursor-pointer hover:text-brand-yellow transition-colors" onClick={onClick}>{product.name}</h4>
+        <p className="text-sm font-black text-brand-blue italic">€{product.price.toFixed(2)}</p>
+      </div>
+      <button 
+        onClick={onClick}
+        className="mt-auto w-full py-2 bg-gray-50 hover:bg-brand-yellow rounded-xl text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-brand-dark transition-all"
+      >
+        Scopri
+      </button>
+    </motion.div>
+  );
+}
+
+const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], favorites = [], toggleFavorite, onShare }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; favorites?: string[]; toggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; key?: any }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const isFavorite = favorites.includes(product.id);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
@@ -398,12 +444,15 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [] }
                 
                 <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
                   <button 
-                    onClick={(e) => { e.stopPropagation(); setIsFavorite(!isFavorite); }}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all ${isFavorite ? "bg-red-500 text-white" : "bg-white/80 text-gray-400"}`}
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite?.(product.id); }}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all ${isFavorite ? "bg-red-500 text-white animate-pulse" : "bg-white/40 text-white hover:text-red-500"}`}
                   >
                     <Heart className={`w-5 h-5 ${isFavorite ? "fill-white" : ""}`} />
                   </button>
-                  <button onClick={(e) => e.stopPropagation()} className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md text-gray-400 flex items-center justify-center shadow-lg">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onShare?.(product); }}
+                    className="w-10 h-10 rounded-full bg-sky-400 backdrop-blur-md text-white flex items-center justify-center shadow-lg hover:bg-sky-500 transition-all"
+                  >
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -1977,7 +2026,24 @@ export default function App() {
   const [reviewComment, setReviewComment] = useState('');
   const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
   const [showAllSeoCategories, setShowAllSeoCategories] = useState(false);
-  const [activeUserView, setActiveUserView] = useState<'profile' | 'returns' | 'return_form' | 'review_form' | 'menu'>('profile');
+  const [activeUserView, setActiveUserView] = useState<'profile' | 'returns' | 'return_form' | 'review_form' | 'menu' | 'favorites'>('profile');
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    const saved = localStorage.getItem('bespoint_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [favoritesViewMode, setFavoritesViewMode] = useState<'carousel' | 'grid'>('grid');
+
+  useEffect(() => {
+    localStorage.setItem('bespoint_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (productId: string) => {
+    setFavorites(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId) 
+        : [...prev, productId]
+    );
+  };
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
   const [selectedReturnOrder, setSelectedReturnOrder] = useState<any>(null);
@@ -2091,6 +2157,26 @@ export default function App() {
     addToast("Foto aggiunta con successo alla pratica!", "success");
   };
   
+  const handleShare = async (product: Product) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: `Guarda questo prodotto su BesPoint: ${product.name}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error("Errore durante la condivisione", err);
+        }
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        addToast("L'indirizzo del sito è stato copiato negli appunti!", "success");
+      });
+    }
+  };
+
   const [companySettings, setCompanySettings] = useState(() => {
     const saved = localStorage.getItem('companySettings');
     return saved ? JSON.parse(saved) : {
@@ -2259,6 +2345,13 @@ export default function App() {
       if (parsed.isQuickLinksEnabled === undefined) parsed.isQuickLinksEnabled = true;
       if (parsed.isQuickLinksEnabled === undefined) parsed.isQuickLinksEnabled = true;
       if (!parsed.linkRapidi) parsed.linkRapidi = [];
+      
+      if (parsed.topBarMode === undefined) parsed.topBarMode = 'static';
+      if (!parsed.topBarLeftText) parsed.topBarLeftText = "Consegna a Massimo - Roma";
+      if (!parsed.topBarRightText) parsed.topBarRightText = "Aiuto Resi e Ordini";
+      if (!parsed.topBarImage) parsed.topBarImage = "";
+      if (!parsed.topBarMarqueeText) parsed.topBarMarqueeText = "Consegna rapida in tutta Italia | Resi facili entro 30 giorni | Supporto clienti 24/7";
+      if (parsed.topBarMarqueeSpeed === undefined) parsed.topBarMarqueeSpeed = 30;
 
       return parsed;
     }
@@ -2287,7 +2380,13 @@ export default function App() {
         { id: '5', title: "Audio Pro", subtitle: "Suono puro", color: "bg-purple-600", seed: "audio", category: "Elettronica", subcategory: "Audio" },
         { id: '6', title: "Smart Home", subtitle: "Casa connessa", color: "bg-orange-500", seed: "smart", category: "Sicurezza", subcategory: "Tutti" },
       ],
-      enabledMarketplaces: ["Amazon", "eBay"]
+      enabledMarketplaces: ["Amazon", "eBay"],
+      topBarMode: 'static',
+      topBarLeftText: "Consegna a Massimo - Roma",
+      topBarRightText: "Aiuto Resi e Ordini",
+      topBarImage: "",
+      topBarMarqueeText: "Consegna rapida in tutta Italia | Resi facili entro 30 giorni | Supporto clienti 24/7",
+      topBarMarqueeSpeed: 30
     };
   });
 
@@ -2651,15 +2750,30 @@ export default function App() {
 
   return (
     <div className="min-h-screen pb-24 bg-gray-100">
-      {/* Top Bar (Amazon Style) */}
-      <div className="bg-gradient-to-r from-neutral-900 via-black to-neutral-900 border-b border-gray-800 text-white px-4 py-2 flex items-center justify-between text-xs font-medium">
-        <div className="flex items-center gap-2">
-          <span>Consegna a Massimo - {companySettings.legalAddress.split(',').pop()?.trim()}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>Aiuto</span>
-          <span>Resi e Ordini</span>
-        </div>
+      {/* Top Bar */}
+      <div className="bg-gradient-to-r from-neutral-900 via-black to-neutral-900 border-b border-gray-800 text-white overflow-hidden relative" style={{ height: '36px' }}>
+        {pageSettings.topBarMode === 'image' && pageSettings.topBarImage ? (
+          <img src={pageSettings.topBarImage} className="w-full h-full object-cover" />
+        ) : pageSettings.topBarMode === 'marquee' ? (
+          <div className="h-full flex items-center">
+            <motion.div
+              animate={{ x: ["100%", "-100%"] }}
+              transition={{ duration: pageSettings.topBarMarqueeSpeed || 20, repeat: Infinity, ease: "linear" }}
+              className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] px-4"
+            >
+              {pageSettings.topBarMarqueeText || "Consegna rapida in tutta Italia | Resi facili entro 30 giorni | Supporto clienti 24/7"}
+            </motion.div>
+          </div>
+        ) : (
+          <div className="px-4 h-full flex items-center justify-between text-[10px] font-black uppercase tracking-widest w-full">
+            <div className="flex items-center gap-2">
+              <span className="opacity-70">{pageSettings.topBarLeftText || `Consegna a Massimo - Roma`}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="opacity-70">{pageSettings.topBarRightText || `Aiuto Resi e Ordine`}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Header */}
@@ -2805,45 +2919,39 @@ export default function App() {
 
       {/* Hero Banner (Amazon Style) */}
       {selectedCategory === "Tutti" ? (
-        <motion.section 
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          style={{ opacity: heroOpacity, y: heroY }}
-          className="relative w-full overflow-hidden mb-8 origin-top"
+        <section 
+          className="relative w-full overflow-hidden mb-8 origin-top h-[460px] sm:h-[550px]"
         >
-          <div className="h-[460px] sm:h-[550px] w-full relative">
+          <div className="h-full w-full relative">
             <div className="absolute inset-0 bg-gradient-to-b from-brand-blue/40 to-transparent z-10" />
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={heroIndex}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1 }}
-                className="w-full h-full"
-              >
-                {topSlides[heroIndex]?.link ? (
-                  <a href={topSlides[heroIndex].link} className="block w-full h-full">
+            <div className="w-full h-full relative">
+              {topSlides.map((slide, idx) => (
+                <div 
+                  key={idx}
+                  className={`absolute inset-0 w-full h-full ${heroIndex === idx ? 'block z-10' : 'hidden z-0'}`}
+                >
+                  {slide.link ? (
+                    <a href={slide.link} className="block w-full h-full">
+                      <img 
+                        src={slide.url || "https://picsum.photos/seed/hero/1920/1080"} 
+                        alt={slide.alt || "Hero Context"} 
+                        title={slide.title || ""}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </a>
+                  ) : (
                     <img 
-                      src={topSlides[heroIndex]?.url || "https://picsum.photos/seed/hero/1920/1080"} 
-                      alt={topSlides[heroIndex]?.alt || "Hero Context"} 
-                      title={topSlides[heroIndex]?.title || ""}
+                      src={slide.url || "https://picsum.photos/seed/hero/1920/1080"} 
+                      alt={slide.alt || "Hero Context"} 
+                      title={slide.title || ""}
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                  </a>
-                ) : (
-                  <img 
-                    src={topSlides[heroIndex]?.url || "https://picsum.photos/seed/hero/1920/1080"} 
-                    alt={topSlides[heroIndex]?.alt || "Hero Context"} 
-                    title={topSlides[heroIndex]?.title || ""}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+                  )}
+                </div>
+              ))}
+            </div>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-12 px-6 z-20">
               <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter drop-shadow-lg">
                 {topSlides[heroIndex]?.title || "Le scelte migliori per te"}
@@ -2853,7 +2961,7 @@ export default function App() {
               </p>
             </div>
           </div>
-        </motion.section>
+        </section>
       ) : (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -3319,6 +3427,8 @@ export default function App() {
             onAddToCart={addToCart}
             isDesktop={isDesktop}
             reviews={productReviews}
+            toggleFavorite={toggleFavorite}
+            onShare={handleShare}
           />
         )}
         {isCartOpen && (
@@ -4009,6 +4119,121 @@ export default function App() {
                 {adminActiveTab === 'slides' && (
                   <div className="w-full">
                     <div className="space-y-8">
+                    
+                    {/* Top Bar Configurator */}
+                    <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 space-y-8 mb-12">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                          <h3 className="text-xl font-black text-brand-dark uppercase tracking-tighter flex items-center gap-3">
+                            <Monitor className="w-6 h-6 text-brand-blue" /> Configurazione Top Bar (1920x40px)
+                          </h3>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Personalizza il testo e l'immagine della barra superiore</p>
+                        </div>
+                        <div className="flex bg-gray-100 p-1.5 rounded-2xl gap-1 self-start">
+                          {(['static', 'marquee', 'image'] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => setPageSettings({ ...pageSettings, topBarMode: mode })}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${pageSettings.topBarMode === mode ? 'bg-white text-brand-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                              {mode === 'static' ? 'Testo Fisso' : mode === 'marquee' ? 'Scorrimento' : 'Immagine'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {pageSettings.topBarMode === 'static' && (
+                          <>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Testo Sinistra</label>
+                               <input 
+                                 type="text" 
+                                 value={pageSettings.topBarLeftText}
+                                 onChange={(e) => setPageSettings({ ...pageSettings, topBarLeftText: e.target.value })}
+                                 className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all"
+                                 placeholder="Es: Consegna a Massimo - Roma"
+                               />
+                            </div>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Testo Destra</label>
+                               <input 
+                                 type="text" 
+                                 value={pageSettings.topBarRightText}
+                                 onChange={(e) => setPageSettings({ ...pageSettings, topBarRightText: e.target.value })}
+                                 className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all"
+                                 placeholder="Es: Aiuto Resi e Ordini"
+                               />
+                            </div>
+                          </>
+                        )}
+
+                        {pageSettings.topBarMode === 'marquee' && (
+                          <div className="col-span-2 space-y-6">
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Testo a Scorrimento</label>
+                               <textarea 
+                                 value={pageSettings.topBarMarqueeText}
+                                 onChange={(e) => setPageSettings({ ...pageSettings, topBarMarqueeText: e.target.value })}
+                                 className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all whitespace-pre-wrap"
+                                 rows={2}
+                                 placeholder="Inserisci il testo che scorrerà..."
+                               />
+                            </div>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black uppercase text-gray-400 ml-1 text-center block">Velocità Scorrimento (Lento - Veloce)</label>
+                               <div className="flex items-center gap-4">
+                                 <span className="text-[10px] font-black text-gray-400">Lento</span>
+                                 <input 
+                                   type="range" 
+                                   min="5" 
+                                   max="60" 
+                                   step="1"
+                                   value={70 - pageSettings.topBarMarqueeSpeed} 
+                                   onChange={(e) => setPageSettings({ ...pageSettings, topBarMarqueeSpeed: 70 - parseInt(e.target.value) })}
+                                   className="flex-1 accent-brand-yellow" 
+                                 />
+                                 <span className="text-[10px] font-black text-gray-400">Veloce</span>
+                                 <span className="bg-brand-blue text-white px-3 py-1 rounded-lg text-[10px] font-black">{Math.round(100 / (pageSettings.topBarMarqueeSpeed / 10))}%</span>
+                               </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {pageSettings.topBarMode === 'image' && (
+                          <div className="col-span-2 space-y-4">
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Immagine Top Bar (Dimensioni: 1920x40px)</label>
+                               <div className="flex gap-4">
+                                  <input 
+                                    type="text" 
+                                    value={pageSettings.topBarImage}
+                                    onChange={(e) => setPageSettings({ ...pageSettings, topBarImage: e.target.value })}
+                                    className="flex-1 bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 font-bold text-brand-dark focus:border-brand-yellow focus:bg-white transition-all"
+                                    placeholder="https://..."
+                                  />
+                                  <label className="cursor-pointer bg-brand-yellow text-brand-dark px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-orange transition-all flex items-center gap-2">
+                                    <Upload className="w-5 h-5" />
+                                    <span>Carica</span>
+                                    <input 
+                                      type="file" 
+                                      className="hidden" 
+                                      accept="image/*"
+                                      onChange={(e) => handleFileChange(e, (url) => setPageSettings({ ...pageSettings, topBarImage: url }))}
+                                    />
+                                  </label>
+                               </div>
+                            </div>
+                            {pageSettings.topBarImage && (
+                              <div className="w-full h-10 rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <img src={pageSettings.topBarImage} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex justify-between items-center">
                       <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">GESTIONE SLIDE</h2>
                       <button 
@@ -7117,6 +7342,69 @@ export default function App() {
                         </div>
                       )}
 
+                      {activeUserView === 'favorites' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 text-left">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter italic">I Miei Preferiti</h3>
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Prodotti che hai salvato</p>
+                            </div>
+                            <div className="flex bg-gray-100 p-1 rounded-[1.2rem] gap-1">
+                               <button 
+                                 onClick={() => setFavoritesViewMode('grid')}
+                                 className={`p-2.5 rounded-xl transition-all ${favoritesViewMode === 'grid' ? 'bg-white text-brand-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                               >
+                                 <LayoutGrid className="w-4 h-4" />
+                               </button>
+                               <button 
+                                 onClick={() => setFavoritesViewMode('carousel')}
+                                 className={`p-2.5 rounded-xl transition-all ${favoritesViewMode === 'carousel' ? 'bg-white text-brand-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                               >
+                                 <Grid className="w-4 h-4 rotate-45" />
+                               </button>
+                            </div>
+                          </div>
+                          
+                          {favorites.length > 0 ? (
+                             favoritesViewMode === 'grid' ? (
+                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                 {products.filter(p => favorites.includes(p.id)).map((p, idx) => (
+                                   <MiniProductCard 
+                                     key={p.id} 
+                                     product={p} 
+                                     onClick={() => { setSelectedProduct(p); setIsAuthOpen(false); }}
+                                     onRemove={toggleFavorite}
+                                     index={idx}
+                                   />
+                                 ))}
+                               </div>
+                             ) : (
+                               <div className="relative overflow-hidden p-2 -m-2">
+                                 <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4 snap-x snap-mandatory scroll-smooth">
+                                   {products.filter(p => favorites.includes(p.id)).map((p, idx) => (
+                                     <MiniProductCard 
+                                       key={p.id} 
+                                       product={p} 
+                                       onClick={() => { setSelectedProduct(p); setIsAuthOpen(false); }}
+                                       onRemove={toggleFavorite}
+                                       index={idx}
+                                       isCarousel={true}
+                                     />
+                                   ))}
+                                 </div>
+                               </div>
+                             )
+                          ) : (
+                            <div className="py-20 bg-gray-50 rounded-[3rem] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center px-10">
+                              <Heart className="w-16 h-16 text-gray-200 mb-6" />
+                              <h4 className="font-black text-brand-dark uppercase tracking-tighter text-xl">Nessun preferito</h4>
+                              <p className="text-gray-400 text-sm font-bold mt-2 max-w-[300px]">Inizia ad aggiungere i prodotti che ami cliccando sull'icona a cuore!</p>
+                              <button onClick={() => { setIsAuthOpen(false); }} className="mt-8 bg-brand-dark text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-yellow hover:text-brand-dark transition-all shadow-xl active:scale-95">Esplora Catalogo</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {authStep === 'support' && (
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -7185,8 +7473,11 @@ export default function App() {
                           <RefreshCw className={`w-6 h-6 ${activeUserView === 'returns' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
                           <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">Resi e<br/>Rimborsi</span>
                         </button>
-                        <button className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95">
-                          <Heart className="w-6 h-6 text-brand-blue group-hover:text-brand-dark transition-colors" />
+                        <button 
+                          onClick={() => { setAuthStep('profile'); setActiveUserView('favorites'); }}
+                          className={`p-4 bg-white border ${activeUserView === 'favorites' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}
+                        >
+                          <Heart className={`w-6 h-6 ${activeUserView === 'favorites' ? 'text-brand-dark' : 'text-brand-blue'} group-hover:text-brand-dark transition-colors`} />
                           <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark text-center leading-tight">I Miei<br/>Preferiti</span>
                         </button>
                         <button onClick={() => setAuthStep('support')} className={`p-4 bg-white border ${authStep === 'support' ? 'border-brand-yellow ring-2 ring-brand-yellow/20' : 'border-gray-100'} rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-brand-yellow/10 hover:border-brand-yellow transition-all group shadow-sm active:scale-95`}>
@@ -7325,7 +7616,7 @@ export default function App() {
       <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <AnimatePresence>
         {adminConfirmAction && adminConfirmAction.active && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -7357,9 +7648,9 @@ export default function App() {
                     adminConfirmAction.onConfirm();
                     setAdminConfirmAction(null);
                   }}
-                  className={`py-4 ${adminConfirmAction.color} text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:brightness-110 active:scale-95 transition-all`}
+                  className={`py-4 ${adminConfirmAction.color} text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg active:shadow-none`}
                 >
-                  Confirm
+                  Conferma
                 </button>
               </div>
             </motion.div>
