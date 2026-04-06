@@ -21,6 +21,8 @@ export interface Product {
   amazonStock?: number;
   ebayStock?: number;
   weight?: number;
+  relatedProductIds?: string[];
+  isSpecialPromotion?: boolean;
 }
 
 export interface CartItem extends Product {

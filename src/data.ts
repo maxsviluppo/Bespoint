@@ -78,7 +78,8 @@ export const PRODUCTS: Product[] = [
       "https://picsum.photos/seed/drill1-3/800/800"
     ],
     has3D: true,
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    isSpecialPromotion: true
   },
   {
     id: "4",
@@ -103,7 +104,8 @@ export const PRODUCTS: Product[] = [
     ],
     has3D: true,
     videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    isFeatured: true
+    isFeatured: true,
+    isSpecialPromotion: true
   },
   {
     id: "5",

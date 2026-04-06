@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon } from "lucide-react";
+import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 
-export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {} }: { onBack: () => void, onSave: (p: any) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]> }) => {
+export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {}, allProducts = [], availableVariants = ['Colore', 'Taglia'], setAvailableVariants }: { onBack: () => void, onSave: (p: any) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]>, allProducts?: any[], availableVariants?: string[], setAvailableVariants?: (v: string[]) => void }) => {
   const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
   const [b2cMarkup, setB2cMarkup] = useState<number>(Number(initialData?.markup) || 30);
   const [b2bMarkup, setB2bMarkup] = useState<number>(10);
@@ -16,6 +16,7 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   const [selectedCourier, setSelectedCourier] = useState<string>("GLS Italy");
   const [isCourierDropdownOpen, setIsCourierDropdownOpen] = useState<boolean>(false);
   const [isFeatured, setIsFeatured] = useState<boolean>(initialData?.isFeatured || false);
+  const [isSpecialPromotion, setIsSpecialPromotion] = useState<boolean>(initialData?.isSpecialPromotion || false);
 
   // Core Data States
   const [title, setTitle] = useState<string>(initialData?.name || "");
@@ -28,9 +29,20 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   const [category, setCategory] = useState<string>(initialData?.category || existingCategories[0] || "");
   const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || "Tutti");
    
+  // Related Products States
+  const [relatedProductIds, setRelatedProductIds] = useState<string[]>(initialData?.relatedProductIds || []);
+  const [relatedSearchTerm, setRelatedSearchTerm] = useState("");
+  const [isSearchingRelated, setIsSearchingRelated] = useState(false);
+
   const [isAddingNewBrand, setIsAddingNewBrand] = useState<boolean>(false);
   const [isAddingNewCategory, setIsAddingNewCategory] = useState<boolean>(false);
   const [isAddingNewSubcategory, setIsAddingNewSubcategory] = useState<boolean>(false);
+  const [isSaveSuccess, setIsSaveSuccess] = useState<boolean>(false);
+
+  const [isAddingVariantType, setIsAddingVariantType] = useState(false);
+  const [newVariantTypeName, setNewVariantTypeName] = useState("");
+  const [editingVariantType, setEditingVariantType] = useState<string | null>(null);
+  const [editingVariantValue, setEditingVariantValue] = useState("");
 
   const [newBrand, setNewBrand] = useState<string>("");
   const [newCategory, setNewCategory] = useState<string>("");
@@ -38,14 +50,24 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
+  const [replacingImageIndex, setReplacingImageIndex] = useState<number | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setGallery(prev => [...prev, reader.result as string].slice(0, 6));
+        const newImage = reader.result as string;
+        setGallery(prev => {
+          if (replacingImageIndex !== null) {
+             const newGallery = [...prev];
+             newGallery[replacingImageIndex] = newImage;
+             return newGallery.slice(0, 6);
+          }
+          return [...prev, newImage].slice(0, 6);
+        });
         setIsImageModalOpen(false);
+        setReplacingImageIndex(null);
       };
       reader.readAsDataURL(file);
     }
@@ -53,9 +75,18 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
 
   const addImageUrl = () => {
     if (imageUrlInput.trim()) {
-      setGallery(prev => [...prev, imageUrlInput.trim()].slice(0, 6));
+      const newImage = imageUrlInput.trim();
+      setGallery(prev => {
+        if (replacingImageIndex !== null) {
+           const newGallery = [...prev];
+           newGallery[replacingImageIndex] = newImage;
+           return newGallery.slice(0, 6);
+        }
+        return [...prev, newImage].slice(0, 6);
+      });
       setImageUrlInput("");
       setIsImageModalOpen(false);
+      setReplacingImageIndex(null);
     }
   };
 
@@ -63,8 +94,10 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   React.useEffect(() => {
     if (initialData) {
       setIsFeatured(initialData.isFeatured || false);
+      setIsSpecialPromotion(initialData.isSpecialPromotion || false);
+      setVariants(initialData.variants || []);
     }
-  }, [initialData?.isFeatured]);
+  }, [initialData?.isFeatured, initialData?.isSpecialPromotion]);
 
   const COURIER_OPTIONS = [
     { name: "GLS Italy", details: "Nazionale Standard — Arrivo 24/48h" },
@@ -93,7 +126,7 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   // UPDATED: Variants State with detailed inventory
   const [variants, setVariants] = useState<{
     id: string, 
-    type: 'Colore' | 'Taglia', 
+    type: string, 
     value: string, 
     sku: string, 
     totalStock: number,
@@ -143,6 +176,7 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
       category: isAddingNewCategory ? newCategory : category,
       subcategory: isAddingNewSubcategory ? newSubcategory : subcategory,
       isFeatured,
+      isSpecialPromotion,
       amazonPrice: amazonManualPrice ? parseFloat(amazonManualPrice) : parseFloat(amazonPrice.toFixed(2)),
       ebayPrice: ebayManualPrice ? parseFloat(ebayManualPrice) : parseFloat(ebayPrice.toFixed(2)),
       amazonActive: isAmazonActive,
@@ -151,9 +185,11 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
       specs: specs.reduce((acc, s) => { if (s.key) acc[s.key] = s.value; return acc; }, {} as any),
       variants,
       image: gallery[0] || initialData?.image || "https://picsum.photos/seed/default/800/800",
-      gallery: gallery
+      gallery: gallery,
+      relatedProductIds: relatedProductIds
     };
     onSave(finalProduct);
+    setIsSaveSuccess(true);
   };
 
   return (
@@ -196,33 +232,48 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             </label>
             
             {/* Frontend Specs: 3D, Video, Specifiche */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
                <label className="block">
                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">URL Video Youtube (Opzionale)</span>
                  <input type="text" placeholder="https://youtube.com/..." className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-yellow focus:border-brand-yellow" />
                </label>
-                 <div className="flex items-center gap-3 pt-6">
-                   <label className="inline-flex items-center cursor-pointer">
-                     <input 
-                       type="checkbox" 
-                       className="sr-only peer" 
-                       checked={isFeatured} 
-                       onChange={e => {
-                         setIsFeatured(e.target.checked);
-                         if (initialData) initialData.isFeatured = e.target.checked;
-                       }} 
-                     />
-                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
+
+               <div className="flex flex-col gap-4">
+                 <div className="flex items-center gap-3">
+                   <label className="relative inline-flex items-center cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={isFeatured} 
+                        onChange={e => setIsFeatured(e.target.checked)} 
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
                    </label>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark">Metti in Vetrina (Home)</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark">In Vetrina (Home)</span>
                  </div>
-                 <div className="flex items-center gap-3 pt-6">
-                   <label className="inline-flex items-center cursor-pointer">
-                     <input type="checkbox" className="sr-only peer" />
-                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 relative"></div>
+
+                 <div className="flex items-center gap-3">
+                   <label className="relative inline-flex items-center cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={isSpecialPromotion} 
+                        onChange={e => setIsSpecialPromotion(e.target.checked)} 
+                      />
+                      <div className="w-11 h-6 bg-gray-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-200 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                      {isSpecialPromotion && <Star className="absolute left-[3px] top-[4px] w-3 h-3 text-white pointer-events-none z-10 fill-current" />}
                    </label>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Modello Vista 3D / AR</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Scelti Per Te</span>
                  </div>
+               </div>
+
+               <div className="flex items-center gap-3 pt-4">
+                 <label className="inline-flex items-center cursor-pointer">
+                   <input type="checkbox" className="sr-only peer" />
+                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 relative"></div>
+                 </label>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Modello Vista 3D / AR</span>
+               </div>
             </div>
             
             <div className="space-y-3 pt-4">
@@ -342,8 +393,113 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2">
               <Plus className="w-5 h-5 text-gray-400"/> Varianti & Stock Canali
             </h3>
-            <div className="space-y-4">
-              {variants.map((v, i) => {
+             <div className="space-y-4">
+               {/* Global Variants Management */}
+               <div className="bg-brand-blue/5 rounded-2xl p-6 border border-brand-blue/10 mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                     <h4 className="text-[11px] font-black uppercase tracking-widest text-brand-blue flex items-center gap-2">
+                       <Layers className="w-4 h-4" /> Configurazione Tipi Varianti (Tabella Master)
+                     </h4>
+                     {!isAddingVariantType && (
+                       <button 
+                         onClick={() => setIsAddingVariantType(true)}
+                         className="px-4 py-2 bg-brand-blue text-white rounded-xl text-[10px] font-black uppercase hover:bg-brand-dark transition-all shadow-md active:scale-95"
+                       >
+                         + Nuovo Parametro
+                       </button>
+                     )}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-3">
+                     {availableVariants.map(type => (
+                       <div key={type} className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm group">
+                          {editingVariantType === type ? (
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="text" 
+                                value={editingVariantValue} 
+                                onChange={e => setEditingVariantValue(e.target.value)}
+                                className="w-24 bg-gray-50 border-none rounded-lg px-2 py-1 text-[10px] font-bold focus:ring-1 focus:ring-brand-blue"
+                                autoFocus
+                              />
+                              <button 
+                                onClick={() => {
+                                  if (editingVariantValue && setAvailableVariants) {
+                                    setAvailableVariants(availableVariants.map(v => v === type ? editingVariantValue : v));
+                                    setEditingVariantType(null);
+                                  }
+                                }}
+                                className="text-green-500 hover:scale-110"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-[10px] font-black uppercase text-brand-dark tracking-tight">{type}</span>
+                              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button 
+                                   onClick={() => {
+                                     setEditingVariantType(type);
+                                     setEditingVariantValue(type);
+                                   }}
+                                   className="text-gray-300 hover:text-brand-blue transition-colors"
+                                 >
+                                   <RefreshCw className="w-3 h-3" />
+                                 </button>
+                                 <button 
+                                   onClick={() => setAvailableVariants?.(availableVariants.filter(v => v !== type))}
+                                   className="text-gray-300 hover:text-red-500 transition-colors"
+                                 >
+                                   <X className="w-3 h-3" />
+                                 </button>
+                              </div>
+                            </>
+                          )}
+                       </div>
+                     ))}
+                     
+                     {isAddingVariantType && (
+                       <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-dashed border-brand-blue/30 shadow-sm">
+                          <input 
+                            type="text" 
+                            placeholder="Nome parametro..."
+                            value={newVariantTypeName}
+                            onChange={e => setNewVariantTypeName(e.target.value)}
+                            className="w-32 bg-gray-50 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold focus:ring-1 focus:ring-brand-blue"
+                            autoFocus
+                          />
+                          <button 
+                            onClick={() => {
+                               if (newVariantTypeName && setAvailableVariants) {
+                                 setAvailableVariants([...availableVariants, newVariantTypeName]);
+                                 setNewVariantTypeName("");
+                                 setIsAddingVariantType(false);
+                               }
+                            }}
+                            className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setIsAddingVariantType(false);
+                              setNewVariantTypeName("");
+                            }}
+                            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                       </div>
+                     )}
+                  </div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-4 flex items-center gap-2 opacity-60">
+                    <Info className="w-3 h-3" /> Questi parametri saranno disponibili per tutti i prodotti dello store.
+                  </p>
+               </div>
+
+               <div className="space-y-4">
+                 {variants.map((v, i) => {
                 const amazonQuota = isAmazonActive ? v.allocations.amazon : 0;
                 const ebayQuota = isEbayActive ? v.allocations.ebay : 0;
                 const webStock = Math.max(0, v.totalStock - (amazonQuota + ebayQuota));
@@ -359,12 +515,13 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                       <select 
                         value={v.type}
                         onChange={e => {
-                          const newV = [...variants]; newV[i].type = e.target.value as 'Colore' | 'Taglia'; setVariants(newV);
+                          const newV = [...variants]; newV[i].type = e.target.value; setVariants(newV);
                         }}
                         className="w-28 bg-white border-gray-200 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-tighter"
                       >
-                        <option>Colore</option>
-                        <option>Taglia</option>
+                        {availableVariants.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
                       </select>
                       <input 
                         type="text" 
@@ -372,7 +529,7 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                         onChange={e => {
                           const newV = [...variants]; newV[i].value = e.target.value; setVariants(newV);
                         }}
-                        placeholder={v.type === 'Colore' ? "Colore" : "Taglia"} 
+                        placeholder="Valore" 
                         className="w-32 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-black uppercase" 
                       />
                       <input 
@@ -424,7 +581,7 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                 <button 
                   onClick={() => setVariants([...variants, {
                     id: Math.random().toString(36).substr(2, 9),
-                    type: 'Colore', 
+                    type: availableVariants[0] || 'Colore', 
                     value: "", 
                     sku: "", 
                     totalStock: 0,
@@ -770,14 +927,26 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                     <div key={i} className={`aspect-square bg-gray-200 rounded-xl relative group overflow-hidden border-2 ${i===0 ? 'border-brand-yellow':'border-transparent'}`}>
                       <img src={img} className="w-full h-full object-cover" alt="" />
                       {i === 0 && <div className="absolute bottom-0 inset-x-0 bg-brand-yellow text-brand-dark text-[8px] font-black uppercase text-center py-0.5">Focus</div>}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                         <button 
+                           onClick={() => {
+                             setReplacingImageIndex(i);
+                             setIsImageModalOpen(true);
+                           }}
+                           className="p-1.5 bg-brand-yellow text-brand-dark rounded-full hover:scale-110 transition-transform"
+                         >
+                           <RefreshCw className="w-3 h-3" />
+                         </button>
                          <button onClick={() => setGallery(g => g.filter((_, idx) => idx !== i))} className="p-1.5 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
                  ))}
                  {gallery.length < 6 && (
                    <button 
-                     onClick={() => setIsImageModalOpen(true)}
+                     onClick={() => {
+                       setReplacingImageIndex(null);
+                       setIsImageModalOpen(true);
+                     }}
                      className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-gray-400 hover:text-brand-blue group cursor-pointer"
                    >
                      <Plus className="w-6 h-6 group-hover:scale-110 transition-transform mb-1" />
@@ -846,11 +1015,14 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
               <Check className="w-6 h-6" />
               Salva e Pubblica
             </button>
-            
-        </div>
-      </div>
-    </div>
-  </div>
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
+
+
+
 
     {/* Modal Importazione Immagine */}
     <AnimatePresence>
@@ -861,7 +1033,10 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-brand-dark/60 backdrop-blur-md"
-            onClick={() => setIsImageModalOpen(false)}
+            onClick={() => {
+              setIsImageModalOpen(false);
+              setReplacingImageIndex(null);
+            }}
           />
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -869,13 +1044,20 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="relative bg-white w-full max-w-lg rounded-[2.5rem] p-10 overflow-hidden"
           >
-            <button onClick={() => setIsImageModalOpen(false)} className="absolute top-6 right-6 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all">
+            <button onClick={() => {
+              setIsImageModalOpen(false);
+              setReplacingImageIndex(null);
+            }} className="absolute top-6 right-6 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all">
               <X className="w-6 h-6" />
             </button>
 
             <div className="mb-8 text-center md:text-left">
-              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Importa Media</h3>
-              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Scegli come caricare la tua immagine prodotto</p>
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">
+                {replacingImageIndex !== null ? 'Sostituisci Immagine' : 'Importa Media'}
+              </h3>
+              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">
+                {replacingImageIndex !== null ? `Stai sostituendo l'immagine posizione #${replacingImageIndex + 1}` : 'Scegli come caricare la tua immagine prodotto'}
+              </p>
             </div>
 
             <div className="space-y-6">
@@ -928,6 +1110,54 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
         </div>
       )}
     </AnimatePresence>
+    {/* Modal Successo Salvataggio */}
+     <AnimatePresence>
+       {isSaveSuccess && (
+         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+           <motion.div 
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             className="absolute inset-0 bg-brand-dark/80 backdrop-blur-xl"
+             onClick={() => setIsSaveSuccess(false)}
+           />
+           <motion.div 
+             initial={{ opacity: 0, scale: 0.9, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             exit={{ opacity: 0, scale: 0.9, y: 20 }}
+             className="relative bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border border-gray-100 overflow-hidden"
+           >
+             <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-green-400 to-emerald-500"></div>
+             
+             <div className="w-20 h-20 bg-green-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-green-500" />
+             </div>
+             
+             <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter mb-2">Modifiche Salvate</h3>
+             <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-8 leading-relaxed">
+               I dati del prodotto sono stati aggiornati con successo nel database centrale di BesPoint.
+             </p>
+             
+             <button 
+               onClick={() => setIsSaveSuccess(false)}
+               className="w-full py-4 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+             >
+               Continua a Modificare
+             </button>
+             
+             <button 
+               onClick={() => {
+                 setIsSaveSuccess(false);
+                 onBack();
+               }}
+               className="w-full mt-3 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+             >
+               Torna al Pannello Admin
+             </button>
+           </motion.div>
+         </div>
+       )}
+     </AnimatePresence>
     </>
   );
 };

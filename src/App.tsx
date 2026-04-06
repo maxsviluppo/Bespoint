@@ -73,12 +73,15 @@ import {
   CheckCircle2,
   XCircle,
   LayoutDashboard,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from "lucide-react";
+
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
 import { PRODUCTS, CATEGORIES, SUBCATEGORIES } from "./data";
 import { Product, CartItem } from "./types";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { AdminMassiveImport } from "./AdminMassiveImport";
 import { AdminOrders, INITIAL_ORDERS } from "./AdminOrders";
@@ -244,26 +247,29 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFav
       }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       layoutId={`product-${product.id}`}
-      className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full hover:shadow-xl transition-shadow duration-300 relative group"
+      onClick={onClick}
+      className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full hover:shadow-xl transition-shadow duration-300 relative group cursor-pointer"
     >
-        {product.image && (
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
-        )}
-        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 transition-opacity">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(product.id); }}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${isFavorite ? "bg-red-500 text-white" : "bg-white/40 text-white hover:bg-white/60"}`}
-            title="Aggiungi ai preferiti"
-          >
-            <Heart className={`w-3.5 h-3.5 ${isFavorite ? "fill-white" : ""}`} />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); onShare?.(product); }}
-            className="w-7 h-7 rounded-lg bg-sky-400 backdrop-blur-md text-white flex items-center justify-center hover:bg-sky-500 transition-all shadow-lg shadow-sky-500/20"
-            title="Condividi prodotto"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-          </button>
+        <div className="relative w-full aspect-square mb-3 overflow-hidden rounded-xl bg-gray-50 border border-gray-100 flex-shrink-0">
+          {product.image && (
+            <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
+          )}
+          <div className="absolute top-2 left-2 flex flex-col gap-2 z-10">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(product.id); }}
+              className={`transition-all hover:scale-110 active:scale-90 ${isFavorite ? "text-red-500 drop-shadow-sm" : "text-white/60 hover:text-red-500 drop-shadow-sm"}`}
+              title="Aggiungi ai preferiti"
+            >
+              <Heart className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onShare?.(product); }}
+              className="text-white/60 hover:text-sky-400 transition-all hover:scale-110 active:scale-90 drop-shadow-sm"
+              title="Condividi prodotto"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       {product.brand && (
         <motion.p 
@@ -278,7 +284,6 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFav
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: index * 0.05 + 0.3 }}
-        onClick={onClick}
         className="text-sm font-medium text-brand-dark line-clamp-2 mb-1 cursor-pointer hover:text-brand-yellow"
       >
         {product.name}
@@ -311,7 +316,7 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFav
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 + 0.6 }}
-          onClick={() => onAddToCart(product)}
+          onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
           className="w-full bg-brand-yellow hover:bg-brand-orange text-brand-dark py-2 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-all"
         >
           Aggiungi al carrello
@@ -328,7 +333,8 @@ function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ delay: index * 0.05, type: "spring", damping: 15 }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className={`bg-white p-2.5 rounded-[1.5rem] border border-gray-100 flex flex-col h-full shadow-sm group relative hover:shadow-xl transition-all ${isCarousel ? 'w-42 flex-shrink-0' : 'w-full'}`}
+      onClick={onClick}
+      className={`bg-white p-2.5 rounded-[1.5rem] border border-gray-100 flex flex-col h-full shadow-sm group relative hover:shadow-xl transition-all cursor-pointer ${isCarousel ? 'w-42 flex-shrink-0' : 'w-full'}`}
     >
       <button 
         onClick={(e) => { e.stopPropagation(); onRemove(product.id); }}
@@ -338,7 +344,7 @@ function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false
       </button>
       <div 
         onClick={onClick}
-        className="aspect-square mb-3 cursor-pointer overflow-hidden rounded-[1.2rem] bg-gray-50 border border-gray-50/50"
+        className="w-full aspect-square mb-3 cursor-pointer overflow-hidden rounded-[1.2rem] bg-gray-50 border border-gray-50/50 flex-shrink-0"
       >
         {product.image && (
           <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
@@ -358,7 +364,7 @@ function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false
   );
 }
 
-const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], favorites = [], toggleFavorite, onShare }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; favorites?: string[]; toggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; key?: any }) => {
+const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], favorites = [], toggleFavorite, onShare, onSelectProduct, allProducts = [] }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; favorites?: string[]; toggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; onSelectProduct?: (p: Product) => void; allProducts?: Product[]; key?: any }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
   const isFavorite = favorites.includes(product.id);
@@ -381,8 +387,14 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
   };
 
   const relatedProducts = useMemo(() => {
-    return PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 8);
-  }, [product]);
+    // If we have manual related products, show them
+    if (product.relatedProductIds && product.relatedProductIds.length > 0) {
+      return allProducts.filter(p => product.relatedProductIds?.includes(p.id));
+    }
+    // Default fallback: items from the same category
+    const pool = allProducts.length > 0 ? allProducts : PRODUCTS;
+    return pool.filter(p => p.category === product.category && p.id !== product.id).slice(0, 8);
+  }, [product, allProducts]);
 
   return (
     <>
@@ -405,12 +417,21 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
         }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 30, stiffness: 250 }}
-        className="fixed inset-x-0 lg:inset-auto bg-white rounded-t-[32px] lg:rounded-[40px] z-50 shadow-2xl flex flex-col lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl overflow-hidden"
+        className="fixed inset-x-0 lg:inset-auto bg-white rounded-t-[32px] lg:rounded-[40px] z-[100] shadow-2xl flex flex-col lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl overflow-hidden"
       >
         <div 
           onClick={onClose}
           className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto my-3 flex-shrink-0 cursor-pointer hover:bg-gray-300 transition-colors lg:hidden" 
         />
+
+        {/* Mobile Close Button */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="absolute top-4 right-4 p-2 bg-gray-100 hover:bg-gray-200 rounded-full z-[110] lg:hidden"
+          type="button"
+        >
+          <X className="w-5 h-5 text-gray-500" />
+        </button>
         
         <div className="overflow-y-auto pb-32 px-6 lg:p-10 flex-1">
           <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-start">
@@ -442,16 +463,16 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   </div>
                 </div>
                 
-                <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+                <div className="absolute top-4 left-4 flex flex-col gap-3 z-10">
                   <button 
                     onClick={(e) => { e.stopPropagation(); toggleFavorite?.(product.id); }}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md transition-all ${isFavorite ? "bg-red-500 text-white animate-pulse" : "bg-white/40 text-white hover:text-red-500"}`}
+                    className={`transition-all hover:scale-110 active:scale-90 ${isFavorite ? "text-red-500 drop-shadow-md" : "text-white/70 hover:text-red-500 drop-shadow-md"}`}
                   >
-                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-white" : ""}`} />
+                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); onShare?.(product); }}
-                    className="w-10 h-10 rounded-full bg-sky-400 backdrop-blur-md text-white flex items-center justify-center shadow-lg hover:bg-sky-500 transition-all"
+                    className="text-white/70 hover:text-sky-400 transition-all hover:scale-110 active:scale-90 drop-shadow-md"
                   >
                     <Share2 className="w-5 h-5" />
                   </button>
@@ -654,7 +675,8 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   transition={{ delay: idx * 0.05 }}
                   viewport={{ once: true }}
                   key={p.id} 
-                  className="flex-shrink-0 w-44 lg:w-56 snap-start bg-white border border-gray-100 rounded-2xl p-4 shadow-sm group cursor-pointer"
+                  onClick={() => onSelectProduct?.(p)}
+                  className="flex-shrink-0 w-44 lg:w-56 snap-start bg-white border border-gray-100 rounded-2xl p-4 shadow-sm group cursor-pointer hover:shadow-md transition-all active:scale-95"
                 >
                   <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-gray-50">
                     {p.image && (
@@ -711,8 +733,9 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
             </button>
             
             <button 
-              onClick={onClose}
-              className="hidden lg:flex w-14 h-14 lg:w-16 lg:h-16 bg-gray-100 hover:bg-gray-200 text-brand-dark rounded-2xl items-center justify-center transition-colors"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="hidden lg:flex w-14 h-14 lg:w-16 lg:h-16 bg-gray-100 hover:bg-gray-200 text-brand-dark rounded-2xl items-center justify-center transition-all active:scale-90 z-10"
             >
               <X className="w-6 h-6" />
             </button>
@@ -1909,6 +1932,9 @@ const SlideSection = ({ slides }: { slides: any[] }) => {
 };
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('bespoint_products');
     return saved ? JSON.parse(saved) : PRODUCTS;
@@ -1923,6 +1949,44 @@ export default function App() {
   const [selectedBrand, setSelectedBrand] = useState("Tutti");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // --- Sincronizzazione URL -> Stato ---
+  useEffect(() => {
+    const path = location.pathname;
+    const parts = path.split('/').filter(Boolean);
+
+    if (parts[0] === 'category') {
+      const cat = decodeURIComponent(parts[1]);
+      if (cat !== selectedCategory) setSelectedCategory(cat);
+      if (selectedProduct) setSelectedProduct(null);
+    } else if (parts[0] === 'product') {
+      const productId = parts[1];
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        if (!selectedProduct || selectedProduct.id !== productId) {
+          setSelectedProduct(product);
+        }
+      }
+    } else if (path === '/') {
+      if (selectedCategory !== "Tutti") setSelectedCategory("Tutti");
+      if (selectedProduct) setSelectedProduct(null);
+    }
+  }, [location.pathname, products]);
+
+  const handleCategorySelect = (cat: string) => {
+    if (cat === "Tutti") navigate("/");
+    else navigate(`/category/${encodeURIComponent(cat)}`);
+    setSelectedSubcategory("Tutti");
+  };
+
+  const handleProductSelect = (p: Product | null) => {
+    if (p) navigate(`/product/${p.id}`);
+    else {
+      setSelectedProduct(null);
+      if (selectedCategory && selectedCategory !== "Tutti") navigate(`/category/${encodeURIComponent(selectedCategory)}`);
+      else navigate("/");
+    }
+  };
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -1957,6 +2021,8 @@ export default function App() {
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
+  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
+  const [showSpecialOnly, setShowSpecialOnly] = useState(false);
   const [adminCategoryFilter, setAdminCategoryFilter] = useState("Tutti");
   const [adminBrandFilter, setAdminBrandFilter] = useState("Tutti");
   const [adminChannelFilter, setAdminChannelFilter] = useState("Tutti"); // Tutti, Web, Amazon, Ebay
@@ -2067,11 +2133,12 @@ export default function App() {
   }, [returnRequests]);
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'company' | 'slides' | 'categories' | 'seo' | 'marketing' | 'analytics' | 'products' | 'marketplaces' | 'orders' | 'couriers' | 'payments' | 'reviews'>('dashboard');
+  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'categories' | 'users' | 'seo' | 'analytics' | 'company' | 'slides' | 'link_rapidi' | 'couriers' | 'returns' | 'marketplaces' | 'payments' | 'marketing' | 'reviews'>('dashboard');
+  const [isGeneralSaveSuccess, setIsGeneralSaveSuccess] = useState(false);
+  const [availableVariants, setAvailableVariants] = useState<string[]>(['Colore', 'Taglia']);
   const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
   const [adminProductView, setAdminProductView] = useState<'list' | 'single' | 'mass'>('list');
   const [editingAdminProduct, setEditingAdminProduct] = useState<Product | null>(null);
-  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [adminTopIdx, setAdminTopIdx] = useState(0);
   const [adminMidIdx, setAdminMidIdx] = useState(0);
@@ -2366,8 +2433,8 @@ export default function App() {
       maxNewArrivals: 15,
       isFeaturedEnabled: false,
       isNewArrivalsEnabled: true,
-      isSpecialCategoryEnabled: false,
-      specialCategoryTitle: "Speciale Natale",
+      isSpecialCategoryEnabled: true,
+      specialCategoryTitle: "SCELTI PER TE",
       specialCategoryValue: "",
       specialSubcategoryValue: "Tutti",
       specialCategoryMax: 4,
@@ -2551,16 +2618,10 @@ export default function App() {
   }, [products, cartTrigger, pageSettings.maxFeatured]);
 
   const specialCategoryProducts = useMemo(() => {
-    if (!pageSettings.isSpecialCategoryEnabled || !pageSettings.specialCategoryValue) return [];
-    const filtered = products.filter(p => {
-      const matchesCategory = p.category === pageSettings.specialCategoryValue;
-      const matchesSubcategory = pageSettings.specialSubcategoryValue === "Tutti" || p.subcategory === pageSettings.specialSubcategoryValue;
-      const isAvailable = p.stock === undefined || p.stock > 0;
-      return matchesCategory && matchesSubcategory && isAvailable;
-    });
-    // Simple shuffle for rotation
-    return [...filtered].sort(() => Math.random() - 0.5).slice(0, pageSettings.specialCategoryMax || 4);
-  }, [products, pageSettings.isSpecialCategoryEnabled, pageSettings.specialCategoryValue, pageSettings.specialSubcategoryValue, pageSettings.specialCategoryMax, cartTrigger]);
+    if (!pageSettings.isSpecialCategoryEnabled) return [];
+    return products.filter(p => p.isSpecialPromotion && (p.stock === undefined || p.stock > 0))
+      .slice(0, pageSettings.specialCategoryMax || 8);
+  }, [products, pageSettings.isSpecialCategoryEnabled, pageSettings.specialCategoryMax, cartTrigger]);
 
   const filteredProducts = useMemo(() => {
     const filtered = products.filter(p => {
@@ -2569,7 +2630,9 @@ export default function App() {
       const matchesBrand = selectedBrand === "Tutti" || p.brand === selectedBrand;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
       const isAvailable = p.stock === undefined || p.stock > 0;
-      return matchesCategory && matchesSubcategory && matchesBrand && matchesSearch && isAvailable;
+      const matchesFeatured = !showFeaturedOnly || p.isFeatured;
+      const matchesSpecial = !showSpecialOnly || p.isSpecialPromotion;
+      return matchesCategory && matchesSubcategory && matchesBrand && matchesSearch && isAvailable && matchesFeatured && matchesSpecial;
     });
 
     return [...filtered].sort((a, b) => {
@@ -2871,7 +2934,7 @@ export default function App() {
           {selectedCategory !== "Tutti" && (
             <div className="flex-shrink-0 bg-brand-blue pr-4 z-20 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.3)] relative">
               <button 
-                onClick={() => setSelectedCategory("Tutti")}
+                onClick={() => handleCategorySelect("Tutti")}
                 className="text-brand-yellow uppercase tracking-widest flex items-center gap-1"
               >
                 <ArrowLeft className="w-3 h-3" />
@@ -2887,7 +2950,7 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
                 key={`${selectedCategory}-${cat}-${idx}`}
-                onClick={() => selectedCategory === "Tutti" ? setSelectedCategory(cat) : setSelectedSubcategory(cat)}
+                onClick={() => selectedCategory === "Tutti" ? handleCategorySelect(cat) : setSelectedSubcategory(cat)}
                 className={`whitespace-nowrap pb-1 border-b-2 transition-all ${
                   (selectedCategory === "Tutti" ? selectedCategory === cat : selectedSubcategory === cat)
                     ? "border-brand-yellow text-white" 
@@ -3081,15 +3144,18 @@ export default function App() {
               >
                 <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{pageSettings.specialCategoryTitle}</h2>
               </motion.div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 {specialCategoryProducts.map((product, index) => (
                   <ProductCard 
                     key={`special-${product.id}`}
                     product={product} 
-                    onClick={() => setSelectedProduct(product)} 
+                    onClick={() => handleProductSelect(product)} 
                     onAddToCart={addToCart}
                     index={index}
                     reviews={productReviews}
+                    isFavorite={favorites.includes(product.id)}
+                    onToggleFavorite={toggleFavorite}
+                    onShare={handleShare}
                   />
                 ))}
               </div>
@@ -3107,9 +3173,9 @@ export default function App() {
                 viewport={{ once: true }}
                 className="mb-3"
               >
-                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">VETRINA</h2>
+                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{pageSettings.featuredTitle}</h2>
               </motion.div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 {featuredProducts.map((product, index) => (
                   <ProductCard 
                     key={`featured-${product.id}`}
@@ -3118,6 +3184,9 @@ export default function App() {
                     onAddToCart={addToCart}
                     index={index}
                     reviews={productReviews}
+                    isFavorite={favorites.includes(product.id)}
+                    onToggleFavorite={toggleFavorite}
+                    onShare={handleShare}
                   />
                 ))}
               </div>
@@ -3126,8 +3195,8 @@ export default function App() {
         </>
       )}
 
-      {/* Product Grid Section (Ultimi Arrivi) */}
-      {pageSettings.isNewArrivalsEnabled && (
+      {/* Product Grid Section (Ultimi Arrivi / Categoria / Ricerca) */}
+      {(pageSettings.isNewArrivalsEnabled || selectedCategory !== "Tutti" || searchQuery !== "") && (
         <section className="px-4 relative z-10 mb-16">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
@@ -3136,8 +3205,8 @@ export default function App() {
             className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3"
           >
             <div className="flex items-baseline gap-2">
-              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
-                {selectedCategory === "Tutti" ? "ULTIMI ARRIVI" : `${selectedCategory}`}
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter leading-none">
+                {selectedCategory === "Tutti" ? (pageSettings.newArrivalsTitle || "NUOVI ARRIVI") : selectedCategory}
               </h2>
             </div>
             
@@ -3160,6 +3229,31 @@ export default function App() {
                     <ChevronRight className="w-4 h-4 rotate-90" />
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    const newVal = !showFeaturedOnly;
+                    setShowFeaturedOnly(newVal);
+                    if (newVal) setShowSpecialOnly(false);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 shadow-sm ${showFeaturedOnly ? 'bg-brand-yellow text-brand-dark border-brand-yellow' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${showFeaturedOnly ? 'fill-current' : ''}`} />
+                  {showFeaturedOnly ? 'Solo Vetrina' : 'Vetrina'}
+                </button>
+                <button 
+                  onClick={() => {
+                    const newVal = !showSpecialOnly;
+                    setShowSpecialOnly(newVal);
+                    if (newVal) setShowFeaturedOnly(false);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 shadow-sm ${showSpecialOnly ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${showSpecialOnly ? 'fill-current' : ''}`} />
+                  {showSpecialOnly ? 'Solo Scelti' : 'Scelti'}
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
@@ -3192,6 +3286,9 @@ export default function App() {
                 onAddToCart={addToCart}
                 index={index}
                 reviews={productReviews}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={toggleFavorite}
+                onShare={handleShare}
               />
             ))}
           </div>
@@ -3421,12 +3518,13 @@ export default function App() {
       <AnimatePresence>
         {selectedProduct && (
           <ProductSheet 
-            key="product-sheet"
+            key={`product-sheet-${selectedProduct.id}`}
             product={selectedProduct} 
-            onClose={() => setSelectedProduct(null)} 
+            onClose={() => handleProductSelect(null)} 
             onAddToCart={addToCart}
             isDesktop={isDesktop}
             reviews={productReviews}
+            favorites={favorites}
             toggleFavorite={toggleFavorite}
             onShare={handleShare}
           />
@@ -5699,13 +5797,6 @@ export default function App() {
                       </h2>
                       {adminProductView === 'list' && (
                           <div className="flex gap-4 items-center">
-                            <button 
-                              onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}
-                              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase text-xs tracking-widest transition-all border ${showFeaturedOnly ? 'bg-brand-yellow text-brand-dark border-brand-yellow' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
-                            >
-                              <Sparkles className={`w-4 h-4 ${showFeaturedOnly ? 'fill-brand-dark' : ''}`} />
-                              {showFeaturedOnly ? 'Solo Vetrina Attiva' : 'Filtra Vetrina'}
-                            </button>
                             <div className="relative">
                               <button 
                                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -5798,99 +5889,104 @@ export default function App() {
                               </div>
                               
                               <div className="flex flex-wrap items-center gap-4">
-                                  {/* Featured Toggle */}
-                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
-                                     <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                          type="checkbox" 
-                                          className="sr-only peer" 
-                                          checked={pageSettings.isFeaturedEnabled} 
-                                          onChange={() => setPageSettings(prev => ({ ...prev, isFeaturedEnabled: !prev.isFeaturedEnabled }))}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
-                                     </label>
-                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase text-brand-dark">Vetrina</span>
-                                        <input 
-                                          type="number" 
-                                          value={pageSettings.maxFeatured}
-                                          onChange={e => setPageSettings(prev => ({ ...prev, maxFeatured: Number(e.target.value) }))}
-                                          className="w-12 bg-transparent text-[11px] font-black text-gray-500 focus:outline-none border-b border-gray-200"
-                                        />
-                                     </div>
-                                  </div>
+                                   {/* Vetrina Toggle */}
+                                   <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                      <label className="relative inline-flex items-center cursor-pointer">
+                                         <input 
+                                           type="checkbox" 
+                                           className="sr-only peer" 
+                                           checked={pageSettings.isFeaturedEnabled} 
+                                           onChange={() => setPageSettings(prev => ({ ...prev, isFeaturedEnabled: !prev.isFeaturedEnabled }))}
+                                         />
+                                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
+                                      </label>
+                                      <div className="flex flex-col gap-1">
+                                         <div className="flex items-center gap-2">
+                                           <input 
+                                             type="text" 
+                                             value={pageSettings.featuredTitle}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, featuredTitle: e.target.value }))}
+                                             placeholder="Titolo Vetrina"
+                                             className="bg-transparent text-[10px] font-black uppercase text-brand-dark focus:outline-none border-b border-brand-yellow/30 w-24"
+                                           />
+                                         </div>
+                                         <div className="flex items-center gap-0.5">
+                                           <span className="text-[8px] text-gray-400 font-black uppercase">Max:</span>
+                                           <input 
+                                             type="number" 
+                                             value={pageSettings.maxFeatured}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, maxFeatured: Number(e.target.value) }))}
+                                             className="w-10 bg-transparent text-[10px] font-black text-gray-500 focus:outline-none border-b border-gray-200 p-0"
+                                           />
+                                         </div>
+                                      </div>
+                                   </div>
 
-                                  {/* New Arrivals Toggle */}
-                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
-                                     <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                          type="checkbox" 
-                                          className="sr-only peer" 
-                                          checked={pageSettings.isNewArrivalsEnabled} 
-                                          onChange={() => setPageSettings(prev => ({ ...prev, isNewArrivalsEnabled: !prev.isNewArrivalsEnabled }))}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
-                                     </label>
-                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase text-brand-dark">Ultimi Arrivi</span>
-                                        <input 
-                                          type="number" 
-                                          value={pageSettings.maxNewArrivals}
-                                          onChange={e => setPageSettings(prev => ({ ...prev, maxNewArrivals: Number(e.target.value) }))}
-                                          className="w-12 bg-transparent text-[11px] font-black text-gray-500 focus:outline-none border-b border-gray-200"
-                                        />
-                                     </div>
-                                  </div>
-                                  {/* Special Category Toggle */}
-                                  <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
-                                     <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                          type="checkbox" 
-                                          className="sr-only peer" 
-                                          checked={pageSettings.isSpecialCategoryEnabled} 
-                                          onChange={() => setPageSettings(prev => ({ ...prev, isSpecialCategoryEnabled: !prev.isSpecialCategoryEnabled }))}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow relative"></div>
-                                     </label>
-                                     <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2">
-                                          <input 
-                                            type="text" 
-                                            value={pageSettings.specialCategoryTitle}
-                                            onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryTitle: e.target.value }))}
-                                            placeholder="Titolo Sezione (es. Speciale Natale)"
-                                            className="bg-transparent text-[10px] font-black uppercase text-brand-dark focus:outline-none border-b border-brand-yellow/30 w-32"
-                                          />
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <select 
-                                            value={pageSettings.specialCategoryValue}
-                                            onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryValue: e.target.value, specialSubcategoryValue: "Tutti" }))}
-                                            className="bg-gray-100 text-[9px] font-black uppercase p-1 rounded-md border-none focus:ring-1 focus:ring-brand-yellow max-w-[80px]"
-                                          >
-                                            <option value="">Seleziona...</option>
-                                            {CATEGORIES.filter(c => c !== "Tutti").map(c => <option key={c} value={c}>{c}</option>)}
-                                          </select>
-                                          <select 
-                                            value={pageSettings.specialSubcategoryValue}
-                                            onChange={e => setPageSettings(prev => ({ ...prev, specialSubcategoryValue: e.target.value }))}
-                                            className="bg-gray-100 text-[9px] font-black uppercase p-1 rounded-md border-none focus:ring-1 focus:ring-brand-yellow max-w-[80px]"
-                                          >
-                                            <option value="Tutti">Tutti (Sub)</option>
-                                            {pageSettings.specialCategoryValue && SUBCATEGORIES[pageSettings.specialCategoryValue]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                                          </select>
-                                          <div className="flex items-center gap-0.5 ml-1">
-                                            <span className="text-[8px] text-gray-400 font-black uppercase">Qty:</span>
-                                            <input 
-                                              type="number" 
-                                              value={pageSettings.specialCategoryMax}
-                                              onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryMax: Number(e.target.value) }))}
-                                              className="w-6 bg-transparent text-[10px] font-black text-gray-500 focus:outline-none border-none p-0"
-                                            />
-                                          </div>
-                                        </div>
-                                     </div>
-                                  </div>
+                                   {/* Special Category Toggle */}
+                                   <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                      <label className="relative inline-flex items-center cursor-pointer">
+                                         <input 
+                                           type="checkbox" 
+                                           className="sr-only peer" 
+                                           checked={pageSettings.isSpecialCategoryEnabled} 
+                                           onChange={() => setPageSettings(prev => ({ ...prev, isSpecialCategoryEnabled: !prev.isSpecialCategoryEnabled }))}
+                                         />
+                                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                                      </label>
+                                      <div className="flex flex-col gap-1">
+                                         <div className="flex items-center gap-2">
+                                           <input 
+                                             type="text" 
+                                             value={pageSettings.specialCategoryTitle}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryTitle: e.target.value }))}
+                                             placeholder="Titolo Scelti"
+                                             className="bg-transparent text-[10px] font-black uppercase text-brand-dark focus:outline-none border-b border-indigo-600/30 w-24"
+                                           />
+                                         </div>
+                                         <div className="flex items-center gap-0.5">
+                                           <span className="text-[8px] text-gray-400 font-black uppercase">Max:</span>
+                                           <input 
+                                             type="number" 
+                                             value={pageSettings.specialCategoryMax}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, specialCategoryMax: Number(e.target.value) }))}
+                                             className="w-10 bg-transparent text-[10px] font-black text-gray-500 focus:outline-none border-b border-gray-200 p-0"
+                                           />
+                                         </div>
+                                      </div>
+                                   </div>
+
+                                   {/* New Arrivals Toggle */}
+                                   <div className="bg-gray-50 pr-4 pl-2 py-2 rounded-xl border border-gray-100 flex items-center gap-3 group">
+                                      <label className="relative inline-flex items-center cursor-pointer">
+                                         <input 
+                                           type="checkbox" 
+                                           className="sr-only peer" 
+                                           checked={pageSettings.isNewArrivalsEnabled} 
+                                           onChange={() => setPageSettings(prev => ({ ...prev, isNewArrivalsEnabled: !prev.isNewArrivalsEnabled }))}
+                                         />
+                                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500 relative"></div>
+                                      </label>
+                                      <div className="flex flex-col gap-1">
+                                         <div className="flex items-center gap-2">
+                                           <input 
+                                             type="text" 
+                                             value={pageSettings.newArrivalsTitle || "NUOVI ARRIVI"}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, newArrivalsTitle: e.target.value }))}
+                                             placeholder="Titolo Novità"
+                                             className="bg-transparent text-[10px] font-black uppercase text-brand-dark focus:outline-none border-b border-green-500/30 w-24"
+                                           />
+                                         </div>
+                                         <div className="flex items-center gap-0.5">
+                                           <span className="text-[8px] text-gray-400 font-black uppercase">Max:</span>
+                                           <input 
+                                             type="number" 
+                                             value={pageSettings.maxNewArrivals}
+                                             onChange={e => setPageSettings(prev => ({ ...prev, maxNewArrivals: Number(e.target.value) }))}
+                                             className="w-10 bg-transparent text-[10px] font-black text-gray-500 focus:outline-none border-b border-gray-200 p-0"
+                                           />
+                                         </div>
+                                      </div>
+                                   </div>
                                </div>
                            </div>
 
@@ -5911,8 +6007,30 @@ export default function App() {
                                   className="flex-1 bg-white border border-gray-100 hover:border-brand-yellow text-brand-dark px-4 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 group"
                                 >
                                   <Layers className="w-4 h-4 text-brand-yellow group-hover:rotate-12 transition-transform" />
-                                  Filtri Avanzati {(adminCategoryFilter !== 'Tutti' || adminBrandFilter !== 'Tutti' || adminChannelFilter !== 'Tutti') && <span className="bg-brand-yellow text-brand-dark w-4 h-4 rounded-full flex items-center justify-center text-[8px] animate-pulse">!</span>}
+                                  Filtri Avanzati
                                 </button>
+                                 <button 
+                                   onClick={() => {
+                                     const newVal = !showFeaturedOnly;
+                                     setShowFeaturedOnly(newVal);
+                                     if (newVal) setShowSpecialOnly(false);
+                                   }}
+                                   className={`px-4 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 ${showFeaturedOnly ? 'bg-brand-yellow text-brand-dark border-brand-yellow shadow-lg' : 'bg-white text-gray-500 border-gray-100'}`}
+                                 >
+                                   <Sparkles className={`w-4 h-4 ${showFeaturedOnly ? 'fill-current' : ''}`} />
+                                   {showFeaturedOnly ? 'Solo Vetrina' : 'Filtra Vetrina'}
+                                 </button>
+                                 <button 
+                                   onClick={() => {
+                                     const newVal = !showSpecialOnly;
+                                     setShowSpecialOnly(newVal);
+                                     if (newVal) setShowFeaturedOnly(false);
+                                   }}
+                                   className={`px-4 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 ${showSpecialOnly ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white text-gray-500 border-gray-100'}`}
+                                 >
+                                   <Star className={`w-4 h-4 ${showSpecialOnly ? 'fill-current' : ''}`} />
+                                   {showSpecialOnly ? 'Solo Scelti' : 'Filtra Scelti'}
+                                 </button>
                                 <button 
                                   onClick={() => {
                                     setAdminSearchQuery("");
@@ -5920,6 +6038,7 @@ export default function App() {
                                     setAdminBrandFilter("Tutti");
                                     setAdminChannelFilter("Tutti");
                                     setShowFeaturedOnly(false);
+                                    setShowSpecialOnly(false);
                                   }}
                                   className="bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl p-3 transition-all"
                                   title="Reset Filtri"
@@ -6047,6 +6166,7 @@ export default function App() {
                                 <th className="p-4">Prodotto</th>
                                 <th className="p-4">Marca</th>
                                 <th className="p-4 text-center">In Vetrina</th>
+                                <th className="p-4 text-center">Scelti Per Te</th>
                                 <th className="p-4">Categoria / Variante</th>
                                 <th className="p-4">Prezzo Base</th>
                                 <th className="p-4 text-center">Canali Attivi</th>
@@ -6070,8 +6190,9 @@ export default function App() {
                                 if (adminChannelFilter === "Ebay") matchesChannel = (p.ebayStock || 0) > 0;
 
                                 const matchesFeatured = !showFeaturedOnly || p.isFeatured;
+                                const matchesSpecial = !showSpecialOnly || p.isSpecialPromotion;
                                 
-                                return matchesSearch && matchesCategory && matchesBrand && matchesChannel && matchesFeatured;
+                                return matchesSearch && matchesCategory && matchesBrand && matchesChannel && matchesFeatured && matchesSpecial;
                               }).map(p => (
                                 <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                                   <td className="p-4">
@@ -6094,7 +6215,8 @@ export default function App() {
                                               className="sr-only peer" 
                                               checked={p.isFeatured} 
                                               onChange={() => {
-                                                p.isFeatured = !p.isFeatured;
+                                                const newFeatured = !p.isFeatured;
+                                                setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, isFeatured: newFeatured } : prod));
                                                 setCartTrigger(c => c + 1); 
                                               }} 
                                             />
@@ -6102,6 +6224,24 @@ export default function App() {
                                          </label>
                                       </div>
                                   </td>
+                                  <td className="p-4">
+                                     <div className="flex justify-center">
+                                        <label className="relative inline-flex items-center cursor-pointer group">
+                                           <input 
+                                             type="checkbox" 
+                                             className="sr-only peer" 
+                                             checked={p.isSpecialPromotion} 
+                                             onChange={() => {
+                                               const newSpecial = !p.isSpecialPromotion;
+                                               setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, isSpecialPromotion: newSpecial } : prod));
+                                               setCartTrigger(c => c + 1); 
+                                             }} 
+                                           />
+                                           <div className="w-11 h-6 bg-gray-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-200 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                                           {p.isSpecialPromotion && <Star className="absolute left-[3px] top-[4px] w-3 h-3 text-white pointer-events-none z-10 fill-current" />}
+                                        </label>
+                                     </div>
+                                 </td>
                                   <td className="p-4">
                                     <div className="flex flex-col gap-1">
                                       <span className="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md w-fit">{p.category}</span>
@@ -6155,9 +6295,12 @@ export default function App() {
                     {adminProductView === 'single' && (
                       <AdminSingleProduct 
                         initialData={editingAdminProduct}
+                        allProducts={products}
                         existingBrands={Array.from(new Set(products.map(p => p.brand).filter(Boolean)))}
                         existingCategories={pageSettings.categories}
                         existingSubcategories={pageSettings.subcategories}
+                        availableVariants={availableVariants}
+                        setAvailableVariants={setAvailableVariants}
                         onBack={() => {
                           setEditingAdminProduct(null);
                           setAdminProductView('list');
@@ -6189,8 +6332,6 @@ export default function App() {
                               return [newProduct, ...prev];
                             }
                           });
-                          setEditingAdminProduct(null);
-                          setAdminProductView('list');
                           setCartTrigger(c => c + 1);
                           addToast("Prodotto salvato con successo!", "success");
                         }}
@@ -6517,12 +6658,63 @@ export default function App() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                   <button 
-                    onClick={() => setIsAdminOpen(false)}
-                    className="bg-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-brand-orange transition-all shadow-lg hover:-translate-y-1 active:translate-y-0"
+                    onClick={() => setIsGeneralSaveSuccess(true)}
+                    className="bg-brand-yellow text-brand-dark px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-orange transition-all shadow-lg hover:-translate-y-1 active:translate-y-0"
                   >
                     Salva Modifiche
                   </button>
                 </div>
+
+                {/* Success Modal for General Admin Saves */}
+                <AnimatePresence>
+                  {isGeneralSaveSuccess && (
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-brand-dark/80 backdrop-blur-xl"
+                        onClick={() => setIsGeneralSaveSuccess(false)}
+                      />
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="relative bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border border-gray-100 overflow-hidden"
+                      >
+                        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+                        
+                        <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                           <Check className="w-10 h-10 text-blue-500" />
+                        </div>
+                        
+                        <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter mb-2">Impostazioni Salvate</h3>
+                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-8 leading-relaxed">
+                          Le modifiche alle configurazioni admin sono state applicate correttamente al sistema.
+                        </p>
+                        
+                        <div className="space-y-3">
+                          <button 
+                            onClick={() => setIsGeneralSaveSuccess(false)}
+                            className="w-full py-4 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                          >
+                            Rimani qui
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              setIsGeneralSaveSuccess(false);
+                              setIsAdminOpen(false);
+                            }}
+                            className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                          >
+                            Esci dall'Admin
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
 
                 {/* Delete Confirmation Modal */}
                 <AnimatePresence>
@@ -7372,7 +7564,7 @@ export default function App() {
                                    <MiniProductCard 
                                      key={p.id} 
                                      product={p} 
-                                     onClick={() => { setSelectedProduct(p); setIsAuthOpen(false); }}
+                                     onClick={() => { handleProductSelect(p); setIsAuthOpen(false); }}
                                      onRemove={toggleFavorite}
                                      index={idx}
                                    />
@@ -7385,7 +7577,7 @@ export default function App() {
                                      <MiniProductCard 
                                        key={p.id} 
                                        product={p} 
-                                       onClick={() => { setSelectedProduct(p); setIsAuthOpen(false); }}
+                                       onClick={() => { handleProductSelect(p); setIsAuthOpen(false); }}
                                        onRemove={toggleFavorite}
                                        index={idx}
                                        isCarousel={true}
