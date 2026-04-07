@@ -3,7 +3,7 @@ import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, R
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 
-export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {}, allProducts = [], availableVariants = ['Colore', 'Taglia'], setAvailableVariants }: { onBack: () => void, onSave: (p: any) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]>, allProducts?: any[], availableVariants?: string[], setAvailableVariants?: (v: string[]) => void }) => {
+export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {}, allProducts = [], availableVariants = ['Colore', 'Taglia'], setAvailableVariants }: { onBack: () => void, onSave: (p: any) => void, onDelete?: (id: string) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]>, allProducts?: any[], availableVariants?: string[], setAvailableVariants?: (v: string[]) => void }) => {
   const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
   const [b2cMarkup, setB2cMarkup] = useState<number>(Number(initialData?.markup) || 30);
   const [b2bMarkup, setB2bMarkup] = useState<number>(10);
@@ -1119,11 +1119,21 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
 
             <button 
               onClick={handleSave}
-              className="w-full bg-brand-yellow text-brand-dark px-8 py-5 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-yellow-400 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-95"
+              className="w-full bg-brand-yellow text-brand-dark px-8 py-5 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-yellow-400 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-95 mb-4"
             >
               <Check className="w-6 h-6" />
               Salva e Pubblica
             </button>
+
+            {initialData?.id && (
+              <button 
+                onClick={() => onDelete?.(initialData.id)}
+                className="w-full bg-red-50 text-red-500 border border-red-100 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-3 active:scale-95 group"
+              >
+                <Trash2 className="w-4 h-4 group-hover:animate-bounce" />
+                Elimina Prodotto
+              </button>
+            )}
            </div>
          </div>
        </div>

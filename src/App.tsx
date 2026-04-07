@@ -6335,6 +6335,24 @@ export default function App() {
                                     >
                                       <Edit2 className="w-5 h-5" />
                                     </button>
+                                    <button 
+                                      onClick={() => {
+                                        setAdminConfirmAction({
+                                          active: true,
+                                          title: "Elimina Prodotto",
+                                          message: `Sei sicuro di voler eliminare definitivamente "${p.name}"? Questa operazione non può essere annullata.`,
+                                          color: "bg-red-500",
+                                          onConfirm: () => {
+                                            setProducts(prev => prev.filter(prod => prod.id !== p.id));
+                                            addToast("Prodotto eliminato con successo!", "success");
+                                          }
+                                        });
+                                      }}
+                                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-block"
+                                      title="Elimina Prodotto"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -6354,6 +6372,22 @@ export default function App() {
                         existingSubcategories={pageSettings.subcategories}
                         availableVariants={availableVariants}
                         setAvailableVariants={setAvailableVariants}
+                        onDelete={(id) => {
+                          const p = products.find(prod => prod.id === id);
+                          if (!p) return;
+                          setAdminConfirmAction({
+                            active: true,
+                            title: "Elimina Prodotto",
+                            message: `Sei sicuro di voler eliminare definitivamente "${p.name}"? Questa operazione non può essere annullata.`,
+                            color: "bg-red-500",
+                            onConfirm: () => {
+                              setProducts(prev => prev.filter(prod => prod.id !== id));
+                              setEditingAdminProduct(null);
+                              setAdminProductView('list');
+                              addToast("Prodotto eliminato con successo!", "success");
+                            }
+                          });
+                        }}
                         onBack={() => {
                           setEditingAdminProduct(null);
                           setAdminProductView('list');
