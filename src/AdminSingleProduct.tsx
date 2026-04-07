@@ -11,9 +11,9 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   const [manualB2c, setManualB2c] = useState<string>(initialData?.price || "");
   const [manualB2b, setManualB2b] = useState<string>("");
 
-  const [isAmazonActive, setIsAmazonActive] = useState<boolean>(true);
-  const [isEbayActive, setIsEbayActive] = useState<boolean>(false);
-  const [selectedCourier, setSelectedCourier] = useState<string>("GLS Italy");
+  const [isAmazonActive, setIsAmazonActive] = useState<boolean>(initialData?.amazonActive ?? true);
+  const [isEbayActive, setIsEbayActive] = useState<boolean>(initialData?.ebayActive ?? false);
+  const [selectedCourier, setSelectedCourier] = useState<string>(initialData?.courier || "GLS Italy");
   const [isCourierDropdownOpen, setIsCourierDropdownOpen] = useState<boolean>(false);
   const [isFeatured, setIsFeatured] = useState<boolean>(initialData?.isFeatured || false);
   const [isSpecialPromotion, setIsSpecialPromotion] = useState<boolean>(initialData?.isSpecialPromotion || false);
@@ -28,6 +28,9 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
 
   const [category, setCategory] = useState<string>(initialData?.category || existingCategories[0] || "");
   const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || "Tutti");
+  
+  const [metaTitle, setMetaTitle] = useState<string>(initialData?.metaTitle || "");
+  const [metaDescription, setMetaDescription] = useState<string>(initialData?.metaDescription || "");
    
   // Related Products States
   const [relatedProductIds, setRelatedProductIds] = useState<string[]>(initialData?.relatedProductIds || []);
@@ -57,17 +60,44 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const newImage = reader.result as string;
-        setGallery(prev => {
-          if (replacingImageIndex !== null) {
-             const newGallery = [...prev];
-             newGallery[replacingImageIndex] = newImage;
-             return newGallery.slice(0, 6);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
           }
-          return [...prev, newImage].slice(0, 6);
-        });
-        setIsImageModalOpen(false);
-        setReplacingImageIndex(null);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const newImage = canvas.toDataURL('image/jpeg', 0.8);
+          
+          setGallery(prev => {
+            if (replacingImageIndex !== null) {
+               const newGallery = [...prev];
+               newGallery[replacingImageIndex] = newImage;
+               return newGallery.slice(0, 6);
+            }
+            return [...prev, newImage].slice(0, 6);
+          });
+          setIsImageModalOpen(false);
+          setReplacingImageIndex(null);
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -154,6 +184,8 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
   };
 
   const handleSave = () => {
+    const isSimpleProduct = variants.length === 0;
+    
     const finalProduct = {
       ...initialData,
       id: initialData?.id || (Math.random() * 1000).toString(),
@@ -163,15 +195,12 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
       name: title,
       description: productDescription,
       price: manualB2c ? parseFloat(manualB2c) : parseFloat(b2cPrice.toFixed(2)),
-      stock: variants.length > 0 
-        ? variants.reduce((sum, v) => sum + Math.max(0, v.totalStock - (isAmazonActive ? v.allocations.amazon : 0) - (isEbayActive ? v.allocations.ebay : 0)), 0)
-        : Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0)),
-      amazonStock: variants.length > 0 
-        ? variants.reduce((sum, v) => sum + (isAmazonActive ? v.allocations.amazon : 0), 0)
-        : (isAmazonActive ? masterAllocations.amazon : 0),
-      ebayStock: variants.length > 0 
-        ? variants.reduce((sum, v) => sum + (isEbayActive ? v.allocations.ebay : 0), 0)
-        : (isEbayActive ? masterAllocations.ebay : 0),
+      // STOCK LOGIC:
+      // If simple: stock is Web Shop (master - amazon - ebay)
+      // If variants: sum of web shop stock of each variant
+      stock: Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0)),
+      amazonStock: isAmazonActive ? masterAllocations.amazon : 0,
+      ebayStock: isEbayActive ? masterAllocations.ebay : 0,
       weight,
       category: isAddingNewCategory ? newCategory : category,
       subcategory: isAddingNewSubcategory ? newSubcategory : subcategory,
@@ -186,7 +215,9 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
       variants,
       image: gallery[0] || initialData?.image || "https://picsum.photos/seed/default/800/800",
       gallery: gallery,
-      relatedProductIds: relatedProductIds
+      relatedProductIds: relatedProductIds,
+      metaTitle,
+      metaDescription
     };
     onSave(finalProduct);
     setIsSaveSuccess(true);
@@ -358,36 +389,33 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                    className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-yellow" 
                 />
               </label>
-              
-              {/* Quantità Principale (per prodotti semplici) */}
-              {variants.length === 0 && (
-                <div className={`lg:col-span-2 grid gap-2 ${isAmazonActive && isEbayActive ? 'grid-cols-4' : (isAmazonActive || isEbayActive ? 'grid-cols-3' : 'grid-cols-2')}`}>
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale</span>
-                    <input type="number" value={masterStock} onChange={e => setMasterStock(Number(e.target.value))} className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700" />
-                  </label>
-                  {isAmazonActive && (
-                    <label className="block">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
-                      <input type="number" value={masterAllocations.amazon} onChange={e => setMasterAllocations({...masterAllocations, amazon: Number(e.target.value)})} className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" />
-                    </label>
-                  )}
-                  {isEbayActive && (
-                    <label className="block">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
-                      <input type="number" value={masterAllocations.ebay} onChange={e => setMasterAllocations({...masterAllocations, ebay: Number(e.target.value)})} className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" />
-                    </label>
-                  )}
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
-                    <div className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700">
-                      {Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0))}
-                    </div>
-                  </label>
-                </div>
+
+              {/* Quantità Principale (Sempre visibile) */}
+              <label className="lg:col-span-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale</span>
+                <input type="number" value={masterStock} onChange={e => setMasterStock(Number(e.target.value))} className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700" />
+              </label>
+              {isAmazonActive && (
+                <label className="lg:col-span-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
+                  <input type="number" value={masterAllocations.amazon} onChange={e => setMasterAllocations({...masterAllocations, amazon: Number(e.target.value)})} className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" />
+                </label>
               )}
+              {isEbayActive && (
+                <label className="lg:col-span-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
+                  <input type="number" value={masterAllocations.ebay} onChange={e => setMasterAllocations({...masterAllocations, ebay: Number(e.target.value)})} className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" />
+                </label>
+              )}
+              <label className="lg:col-span-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
+                <div className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700 flex items-center h-[46px]">
+                  {Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0))}
+                </div>
+              </label>
             </div>
           </div>
+
           
           <div className="space-y-4">
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2">
@@ -782,6 +810,78 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             </div>
           </div>
 
+          {/* Prodotti Correlati */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><LinkIcon className="w-5 h-5 text-gray-400"/> Upsell & Cross-sell (Correlati)</h3>
+            <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-200">
+               <label className="block relative">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark mb-2 block">Imposta Prodotti Correlati Manualmente</span>
+                 <div className="relative">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                   <input
+                     type="text"
+                     value={relatedSearchTerm}
+                     onChange={e => {
+                       setRelatedSearchTerm(e.target.value);
+                       setIsSearchingRelated(e.target.value.length > 0);
+                     }}
+                     onFocus={() => setIsSearchingRelated(relatedSearchTerm.length > 0)}
+                     placeholder="Cerca prodotto da collegare..."
+                     className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm font-bold focus:ring-brand-blue"
+                   />
+                 </div>
+                 {isSearchingRelated && (
+                   <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                     {allProducts?.filter(p => p.id !== initialData?.id && p.name.toLowerCase().includes(relatedSearchTerm.toLowerCase())).map(p => (
+                       <div
+                         key={`search-${p.id}`}
+                         className="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                         onClick={() => {
+                           if (!relatedProductIds.includes(p.id)) {
+                             setRelatedProductIds([...relatedProductIds, p.id]);
+                           }
+                           setRelatedSearchTerm("");
+                           setIsSearchingRelated(false);
+                         }}
+                       >
+                         <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+                             <img src={p.image} className="w-full h-full object-cover" />
+                           </div>
+                           <div>
+                             <p className="text-xs font-bold text-brand-dark line-clamp-1">{p.name}</p>
+                             <p className="text-[9px] font-black uppercase text-gray-400">{p.sku || p.id}</p>
+                           </div>
+                         </div>
+                         <Plus className="w-4 h-4 text-brand-blue" />
+                       </div>
+                     ))}
+                   </div>
+                 )}
+               </label>
+               
+               {relatedProductIds.length > 0 && (
+                 <div className="mt-6 flex flex-col gap-2">
+                   <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Prodotti Collegati ({relatedProductIds.length})</span>
+                   {relatedProductIds.map(id => {
+                     const p = allProducts?.find((x: any) => x.id === id);
+                     return p ? (
+                       <div key={`rel-${id}`} className="flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
+                         <div className="flex items-center gap-3">
+                           <img src={p.image} className="w-8 h-8 rounded-md object-cover" />
+                           <span className="text-xs font-bold text-brand-dark">{p.name}</span>
+                         </div>
+                         <button onClick={() => setRelatedProductIds(relatedProductIds.filter(x => x !== id))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                           <X className="w-4 h-4" />
+                         </button>
+                       </div>
+                     ) : null;
+                   })}
+                 </div>
+               )}
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3 mt-10">
                <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark flex items-center gap-2">
@@ -789,13 +889,8 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                </h3>
                <button 
                 onClick={() => {
-                  const titleInput = document.getElementById('seo-title') as HTMLInputElement;
-                  const descInput = document.getElementById('seo-desc') as HTMLTextAreaElement;
-                  const prodTitle = (document.querySelector('input[placeholder="Titolo gestionale per sito web..."]') as HTMLInputElement)?.value;
-                  const prodDesc = (document.querySelector('textarea[placeholder="Decrizione per il sito ecommerce..."]') as HTMLTextAreaElement)?.value;
-                  
-                  if (titleInput && prodTitle) titleInput.value = `${prodTitle} | Acquista su BesPoint`;
-                  if (descInput && prodDesc) descInput.value = prodDesc.substring(0, 155) + "...";
+                  setMetaTitle(`${title} | Acquista su BesPoint`);
+                  setMetaDescription(productDescription.substring(0, 155) + "...");
                 }}
                 className="text-[10px] font-black uppercase bg-brand-yellow/10 text-brand-dark px-3 py-1.5 rounded-lg border border-brand-yellow/20 hover:bg-brand-yellow transition-all"
                >
@@ -806,11 +901,25 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
             <div className="grid grid-cols-1 gap-6">
                <label className="block">
                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Meta Title (Sito Web)</span>
-                 <input id="seo-title" type="text" placeholder="Titolo SEO ottimizzato per Google..." className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" />
+                 <input 
+                   id="seo-title" 
+                   type="text" 
+                   value={metaTitle}
+                   onChange={e => setMetaTitle(e.target.value)}
+                   placeholder="Titolo SEO ottimizzato per Google..." 
+                   className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" 
+                 />
                </label>
                <label className="block">
                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Meta Description (Sito Web)</span>
-                 <textarea id="seo-desc" rows={3} placeholder="Descrizione persuasiva per aumentare i click sui motori di ricerca..." className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-blue focus:border-brand-blue resize-none"></textarea>
+                 <textarea 
+                   id="seo-desc" 
+                   rows={3} 
+                   value={metaDescription}
+                   onChange={e => setMetaDescription(e.target.value)}
+                   placeholder="Descrizione persuasiva per aumentare i click sui motori di ricerca..." 
+                   className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-blue focus:border-brand-blue resize-none"
+                 ></textarea>
                </label>
 
                <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-gray-100 space-y-3">
@@ -822,10 +931,10 @@ export const AdminSingleProduct = ({ onBack, onSave, initialData, existingBrands
                        <span className="text-[#5f6368]">prodotti</span>
                     </div>
                     <div className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium leading-tight mb-1">
-                      {amazonTitle || "Titolo Prodotto Ottimizzato | BesPoint Shop"}
+                      {metaTitle || "Titolo Prodotto Ottimizzato | BesPoint Shop"}
                     </div>
                     <p className="text-[12px] text-[#4d5156] leading-relaxed line-clamp-2">
-                       {description.substring(0, 160) || "Questa è la descrizione che apparirà su Google. Deve essere accattivante per convincere gli utenti a cliccare sul tuo prodotto."}
+                       {metaDescription || "Questa è la descrizione che apparirà su Google. Deve essere accattivante per convincere gli utenti a cliccare sul tuo prodotto."}
                     </p>
                   </div>
                </div>

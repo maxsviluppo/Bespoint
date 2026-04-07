@@ -21,8 +21,13 @@ export interface Product {
   amazonStock?: number;
   ebayStock?: number;
   weight?: number;
+  amazonActive?: boolean;
+  ebayActive?: boolean;
+  courier?: string;
   relatedProductIds?: string[];
   isSpecialPromotion?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 export interface CartItem extends Product {

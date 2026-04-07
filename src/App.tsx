@@ -1931,6 +1931,16 @@ const SlideSection = ({ slides }: { slides: any[] }) => {
   );
 };
 
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')     // Replace spaces with -
+    .replace(/[^\w-]+/g, '')   // Remove all non-word chars
+    .replace(/--+/g, '-');    // Replace multiple - with single -
+};
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1941,7 +1951,11 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('bespoint_products', JSON.stringify(products));
+    try {
+      localStorage.setItem('bespoint_products', JSON.stringify(products));
+    } catch (e) {
+      console.warn("Spazio di archiviazione locale esaurito per i prodotti. L'immagine potrebbe essere troppo grande.");
+    }
   }, [products]);
 
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
@@ -1966,6 +1980,12 @@ export default function App() {
         if (!selectedProduct || selectedProduct.id !== productId) {
           setSelectedProduct(product);
         }
+        
+        // SEO: Se lo slug manca o è diverso, reindirizziamo alla URL corretta
+        const correctSlug = slugify(product.name);
+        if (parts[2] !== correctSlug) {
+          navigate(`/product/${productId}/${correctSlug}`, { replace: true });
+        }
       }
     } else if (path === '/') {
       if (selectedCategory !== "Tutti") setSelectedCategory("Tutti");
@@ -1980,7 +2000,7 @@ export default function App() {
   };
 
   const handleProductSelect = (p: Product | null) => {
-    if (p) navigate(`/product/${p.id}`);
+    if (p) navigate(`/product/${p.id}/${slugify(p.name)}`);
     else {
       setSelectedProduct(null);
       if (selectedCategory && selectedCategory !== "Tutti") navigate(`/category/${encodeURIComponent(selectedCategory)}`);
@@ -2405,7 +2425,7 @@ export default function App() {
       if (parsed.isFeaturedEnabled === undefined) parsed.isFeaturedEnabled = false;
       if (parsed.isNewArrivalsEnabled === undefined) parsed.isNewArrivalsEnabled = true;
       if (parsed.isSpecialCategoryEnabled === undefined) parsed.isSpecialCategoryEnabled = false;
-      if (!parsed.specialCategoryTitle) parsed.specialCategoryTitle = "Nuova Sezione";
+      if (!parsed.specialCategoryTitle || parsed.specialCategoryTitle === "Nuova Sezione") parsed.specialCategoryTitle = "SCELTI PER TE";
       if (parsed.specialCategoryValue === undefined) parsed.specialCategoryValue = "";
       if (parsed.specialSubcategoryValue === undefined) parsed.specialSubcategoryValue = "Tutti";
       if (!parsed.specialCategoryMax) parsed.specialCategoryMax = 4;
@@ -2614,12 +2634,12 @@ export default function App() {
   }, [selectedCategory]);
 
   const featuredProducts = useMemo(() => {
-    return products.filter(p => p.isFeatured && (p.stock === undefined || p.stock > 0)).slice(0, pageSettings.maxFeatured || 8);
+    return products.filter(p => p.isFeatured && (p.stock !== undefined && p.stock > 0)).slice(0, pageSettings.maxFeatured || 8);
   }, [products, cartTrigger, pageSettings.maxFeatured]);
 
   const specialCategoryProducts = useMemo(() => {
     if (!pageSettings.isSpecialCategoryEnabled) return [];
-    return products.filter(p => p.isSpecialPromotion && (p.stock === undefined || p.stock > 0))
+    return products.filter(p => p.isSpecialPromotion && (p.stock !== undefined && p.stock > 0))
       .slice(0, pageSettings.specialCategoryMax || 8);
   }, [products, pageSettings.isSpecialCategoryEnabled, pageSettings.specialCategoryMax, cartTrigger]);
 
@@ -2629,7 +2649,7 @@ export default function App() {
       const matchesSubcategory = selectedSubcategory === "Tutti" || p.subcategory === selectedSubcategory;
       const matchesBrand = selectedBrand === "Tutti" || p.brand === selectedBrand;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const isAvailable = p.stock === undefined || p.stock > 0;
+      const isAvailable = (p.stock !== undefined && p.stock > 0);
       const matchesFeatured = !showFeaturedOnly || p.isFeatured;
       const matchesSpecial = !showSpecialOnly || p.isSpecialPromotion;
       return matchesCategory && matchesSubcategory && matchesBrand && matchesSearch && isAvailable && matchesFeatured && matchesSpecial;
@@ -3068,6 +3088,60 @@ export default function App() {
         </motion.section>
       )}
 
+      {/* Global Filters Section (Universal Filters for all sections) */}
+      <section className="px-4 mb-8">
+        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+          <div className="flex items-center gap-3">
+             <div className="w-1.5 h-6 bg-brand-yellow rounded-full"></div>
+             <p className="text-[10px] font-black uppercase text-brand-dark tracking-[0.2em]">Affina la ricerca nel catalogo</p>
+          </div>
+          
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex items-center gap-3">
+              <label htmlFor="brand-global" className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Filtra Marca:</label>
+              <div className="relative">
+                <select 
+                  id="brand-global"
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-5 py-2.5 pr-10 text-[11px] font-black text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer transition-all"
+                >
+                  <option value="Tutti">Tutti i Produttori</option>
+                  {Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort().map(brand => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-brand-yellow">
+                  <ChevronRight size={14} className="rotate-90" />
+                </div>
+              </div>
+            </div>
+
+            <div className="w-px h-6 bg-gray-100 hidden sm:block"></div>
+
+            <div className="flex items-center gap-3">
+              <label htmlFor="sort-global" className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ordina Risultati:</label>
+              <div className="relative">
+                <select 
+                  id="sort-global"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-5 py-2.5 pr-10 text-[11px] font-black text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer transition-all"
+                >
+                  <option value="newest">Novità & Arrivi</option>
+                  <option value="price-asc">Prezzo: decrescente</option>
+                  <option value="price-desc">Prezzo: crescente</option>
+                  <option value="rating">Migliori Recensioni</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-brand-yellow">
+                  <ChevronRight size={14} className="rotate-90" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Promo Horizontal Scroll */}
       {selectedCategory === "Tutti" && pageSettings.isQuickLinksEnabled && (
         <>
@@ -3133,66 +3207,76 @@ export default function App() {
             </div>
           </section>
 
-          {/* Special Category Showcase (e.g. Natale) */}
-          {searchQuery === "" && pageSettings.isSpecialCategoryEnabled && specialCategoryProducts.length > 0 && (
-            <section className="px-4 mb-16 mt-0">
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="mb-3"
-              >
-                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{pageSettings.specialCategoryTitle}</h2>
-              </motion.div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                {specialCategoryProducts.map((product, index) => (
-                  <ProductCard 
-                    key={`special-${product.id}`}
-                    product={product} 
-                    onClick={() => handleProductSelect(product)} 
-                    onAddToCart={addToCart}
-                    index={index}
-                    reviews={productReviews}
-                    isFavorite={favorites.includes(product.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onShare={handleShare}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
           <SlideSection slides={middleSlides} />
-
-          {/* Home Showcase (Vetrina) */}
-          {searchQuery === "" && pageSettings.isFeaturedEnabled && featuredProducts.length > 0 && (
-            <section className="px-4 mb-16 mt-0">
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="mb-3"
-              >
-                <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{pageSettings.featuredTitle}</h2>
-              </motion.div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                {featuredProducts.map((product, index) => (
-                  <ProductCard 
-                    key={`featured-${product.id}`}
-                    product={product} 
-                    onClick={() => setSelectedProduct(product)} 
-                    onAddToCart={addToCart}
-                    index={index}
-                    reviews={productReviews}
-                    isFavorite={favorites.includes(product.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onShare={handleShare}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
         </>
+      )}
+
+      {/* Vetrina (Featured) Section */}
+      {selectedCategory === "Tutti" && searchQuery === "" && pageSettings.isFeaturedEnabled && featuredProducts.length > 0 && (
+        <section className="px-4 mb-16">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="flex items-center justify-between mb-6"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-8 bg-brand-yellow rounded-full"></div>
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
+                {pageSettings.featuredTitle || "IN VETRINA"}
+              </h2>
+            </div>
+          </motion.div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((product, index) => (
+              <ProductCard 
+                key={`featured-${product.id}`} 
+                product={product} 
+                onClick={() => handleProductSelect(product)} 
+                onAddToCart={addToCart}
+                index={index}
+                reviews={productReviews}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={toggleFavorite}
+                onShare={handleShare}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Scelti Per Te (Special Promotion) Section */}
+      {selectedCategory === "Tutti" && searchQuery === "" && pageSettings.isSpecialCategoryEnabled && specialCategoryProducts.length > 0 && (
+        <section className="px-4 mb-16">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="flex items-center justify-between mb-6"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-8 bg-indigo-600 rounded-full"></div>
+              <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">
+                {pageSettings.specialCategoryTitle || "SCELTI PER TE"}
+              </h2>
+            </div>
+          </motion.div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {specialCategoryProducts.map((product, index) => (
+              <ProductCard 
+                key={`special-${product.id}`} 
+                product={product} 
+                onClick={() => handleProductSelect(product)} 
+                onAddToCart={addToCart}
+                index={index}
+                reviews={productReviews}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={toggleFavorite}
+                onShare={handleShare}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Product Grid Section (Ultimi Arrivi / Categoria / Ricerca) */}
@@ -3202,79 +3286,12 @@ export default function App() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
           >
             <div className="flex items-baseline gap-2">
               <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter leading-none">
                 {selectedCategory === "Tutti" ? (pageSettings.newArrivalsTitle || "NUOVI ARRIVI") : selectedCategory}
               </h2>
-            </div>
-            
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <label htmlFor="brand" className="text-xs font-bold text-gray-500 uppercase tracking-widest">Marca:</label>
-                <div className="relative">
-                  <select 
-                    id="brand"
-                    value={selectedBrand}
-                    onChange={(e) => setSelectedBrand(e.target.value)}
-                    className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer"
-                  >
-                    <option value="Tutti">Tutte le Marche</option>
-                    {Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort().map(brand => (
-                      <option key={brand} value={brand}>{brand}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                    <ChevronRight className="w-4 h-4 rotate-90" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => {
-                    const newVal = !showFeaturedOnly;
-                    setShowFeaturedOnly(newVal);
-                    if (newVal) setShowSpecialOnly(false);
-                  }}
-                  className={`px-4 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 shadow-sm ${showFeaturedOnly ? 'bg-brand-yellow text-brand-dark border-brand-yellow' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
-                >
-                  <Sparkles className={`w-3.5 h-3.5 ${showFeaturedOnly ? 'fill-current' : ''}`} />
-                  {showFeaturedOnly ? 'Solo Vetrina' : 'Vetrina'}
-                </button>
-                <button 
-                  onClick={() => {
-                    const newVal = !showSpecialOnly;
-                    setShowSpecialOnly(newVal);
-                    if (newVal) setShowFeaturedOnly(false);
-                  }}
-                  className={`px-4 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest transition-all border flex items-center gap-2 shadow-sm ${showSpecialOnly ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
-                >
-                  <Star className={`w-3.5 h-3.5 ${showSpecialOnly ? 'fill-current' : ''}`} />
-                  {showSpecialOnly ? 'Solo Scelti' : 'Scelti'}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label htmlFor="sort" className="text-xs font-bold text-gray-500 uppercase tracking-widest">Ordina per:</label>
-                <div className="relative">
-                  <select 
-                    id="sort"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-yellow shadow-sm cursor-pointer"
-                  >
-                    <option value="newest">Novità</option>
-                    <option value="price-asc">Prezzo: dal più basso</option>
-                    <option value="price-desc">Prezzo: dal più alto</option>
-                    <option value="rating">Valutazione</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                    <ChevronRight className="w-4 h-4 rotate-90" />
-                  </div>
-                </div>
-              </div>
             </div>
           </motion.div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -3282,7 +3299,7 @@ export default function App() {
               <ProductCard 
                 key={product.id} 
                 product={product} 
-                onClick={() => setSelectedProduct(product)} 
+                onClick={() => handleProductSelect(product)} 
                 onAddToCart={addToCart}
                 index={index}
                 reviews={productReviews}
@@ -3527,6 +3544,8 @@ export default function App() {
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             onShare={handleShare}
+            onSelectProduct={handleProductSelect}
+            allProducts={products}
           />
         )}
         {isCartOpen && (
