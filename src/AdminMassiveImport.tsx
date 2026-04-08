@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
+import Papa from "papaparse";
 import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, Edit2, Info, Loader2 } from "lucide-react";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { Product } from "./types";
@@ -28,6 +29,8 @@ export const AdminMassiveImport = ({
   const [step, setStep] = useState<ImportStep>('upload');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [fullCsvData, setFullCsvData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [mappings, setMappings] = useState<FieldMapping[]>([
     { internal: 'sku', label: 'Codice SKU (Master)', required: true, fileColumn: 'v_products_model' },
     { internal: 'ean', label: 'Codice EAN/Barcode', required: false, fileColumn: 'v_products_model_stock_ean' },
@@ -39,6 +42,8 @@ export const AdminMassiveImport = ({
     { internal: 'price', label: 'Prezzo Vendita (B2C)', required: true, fileColumn: 'v_products_price' },
     { internal: 'stock', label: 'Giacenza Totale (Master)', required: false, fileColumn: 'v_stock_quantity' },
     { internal: 'weight', label: 'Peso Prodotto (Kg)', required: false, fileColumn: 'v_products_weight' },
+    { internal: 'image', label: 'URL Immagine Principale', required: false, fileColumn: 'v_products_image' },
+    { internal: 'gallery', label: 'Galleria Immagini (separate da virgola)', required: false, fileColumn: 'v_products_gallery' },
   ]);
   
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -62,23 +67,25 @@ export const AdminMassiveImport = ({
     if (!file) return;
 
     setFileName(file.name);
-    
-    // Simulate parsing (in real app, use PapaParse or XLSX)
-    setTimeout(() => {
-      setFileHeaders([
-        'v_products_model', 
-        'v_products_model_stock_ean', 
-        'v_manufacturers_name', 
-        'v_products_name_4', 
-        'v_products_description_4', 
-        'v_categories_name_1_4', 
-        'v_categories_name_2_4', 
-        'v_products_price', 
-        'v_stock_quantity', 
-        'v_products_weight'
-      ]);
-      setStep('mapping');
-    }, 1200);
+    setIsLoading(true);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.meta.fields) {
+          setFileHeaders(results.meta.fields);
+        }
+        setFullCsvData(results.data);
+        setIsLoading(false);
+        setStep('mapping');
+      },
+      error: (error) => {
+        console.error("CSV Parsing error:", error);
+        setIsLoading(false);
+        alert("Errore nel caricamento del file CSV. Assicurati che sia un formato valido.");
+      }
+    });
   };
 
   const handleMappingChange = (internal: string, column: string) => {
@@ -100,31 +107,49 @@ export const AdminMassiveImport = ({
   };
 
   const startPreview = () => {
-    // Mock simulation of CSV data processed after mapping
-    // We compare with current 'products' array from props
+    setIsLoading(true);
+    
+    // Process real data using mappings
     const currentSkus = products.map(p => p.sku?.toUpperCase()).filter(Boolean);
+    const IMAGE_BASE_URL = "https://www.beselettronica.com/userfiles/";
 
-    const importedMock = [
-      { sku: 'BP-NEW-001', name: 'Zaino Tecnico Pro', brand: 'TechGear', category: 'Zaini', subcategory: 'Tech', price: 89.90, stock: 15, weight: '1.2' },
-      { sku: 'BP-NEW-002', name: 'Smartwatch V3', brand: 'Vitel', category: 'Gadgets', subcategory: 'Tech', price: 129.00, stock: 45, weight: '0.2' },
-      { sku: '1001', name: 'Smartphone Pro Max (Update)', brand: 'BrandX', category: 'Elettronica', subcategory: 'Smartphone', price: 999, stock: 10, weight: '0.2' }, // Assume 1001 exists
-      { sku: 'BP-NEW-003', name: 'Cuffie Noise Cancel', brand: 'AudioPro', category: 'Audio', subcategory: 'Tutti', price: 199.90, stock: 8, weight: '0.3' },
-    ];
+    const processed = fullCsvData.map(row => {
+      const item: any = {};
+      
+      mappings.forEach(m => {
+        if (m.fileColumn && row[m.fileColumn] !== undefined) {
+          let value = row[m.fileColumn];
+          
+          // Data sanitization and transformation
+          if (m.internal === 'price') value = parseFloat(value.toString().replace(',', '.')) || 0;
+          if (m.internal === 'stock') value = parseInt(value, 10) || 0;
+          if (m.internal === 'image' && value && !value.toString().startsWith('http')) {
+            value = IMAGE_BASE_URL + value;
+          }
+          if (m.internal === 'gallery' && value) {
+            // Handle gallery by splitting filenames and adding prefix
+            const files = value.toString().split(',').map((f: string) => f.trim()).filter(Boolean);
+            value = files.map((f: string) => f.startsWith('http') ? f : IMAGE_BASE_URL + f).join(',');
+          }
+          
+          item[m.internal] = value;
+        }
+      });
 
-    const processed = importedMock.map(item => {
-      const isDuplicate = currentSkus.includes(item.sku.toUpperCase());
+      const isDuplicate = item.sku && currentSkus.includes(item.sku.toString().toUpperCase());
       return { 
         ...item, 
         status: isDuplicate ? 'duplicate' : 'ready',
         isNew: !isDuplicate
       };
-    });
+    }).filter(p => p.sku); // Ensure we have at least an SKU
 
     setPreviewData(processed);
     setDuplicateSkus(processed.filter(p => p.status === 'duplicate').map(p => p.sku));
     
-    // Auto-select only NEW products by default as per request
+    // Auto-select only NEW products by default
     setSelectedRows(processed.map((p, i) => p.isNew ? i : -1).filter(i => i !== -1));
+    setIsLoading(false);
     setStep('preview');
   };
 
@@ -173,26 +198,38 @@ export const AdminMassiveImport = ({
       // 2. Map imported data to Product type
       const newProducts = selectedProducts.map(p => ({
         id: (products.length + Math.floor(Math.random() * 10000)).toString(),
-        sku: p.sku,
+        sku: p.sku || "",
         ean: p.ean || "",
         brand: p.brand || "",
-        name: p.name,
-        category: p.category,
+        name: p.name || "Prodotto Senza Nome",
+        category: p.category || "Generale",
         subcategory: p.subcategory || "Tutti",
-        price: p.price,
-        stock: p.stock || 0,
-        weight: typeof p.weight === 'string' ? parseFloat(p.weight) : (p.weight || 0),
-        image: "https://picsum.photos/seed/" + (p.sku || Math.random()) + "/800/800",
+        price: Number(p.price) || 0,
+        cost: Number(p.cost) || (Number(p.price) * 0.7) || 0,
+        markup: 30,
+        stock: Number(p.stock) || 0,
+        weight: typeof p.weight === 'string' ? parseFloat(p.weight) : (Number(p.weight) || 0),
+        image: p.image || "https://picsum.photos/seed/" + (p.sku || Math.random()) + "/800/800",
         description: p.description || "",
         rating: 4.5,
         reviews: 0,
         isFeatured: false,
         isNew: true,
+        isSpecialPromotion: false,
+        amazonActive: true,
+        ebayActive: true,
+        amazonStock: 0,
+        ebayStock: 0,
+        amazonMarkup: 15,
+        ebayMarkup: 12,
+        vinceCommission: 10,
+        relatedProductIds: [],
         specs: {},
-        gallery: [],
+        gallery: Array.isArray(p.gallery) ? p.gallery : (p.gallery ? (typeof p.gallery === 'string' ? p.gallery.split(',').map((u: string) => u.trim()).filter(Boolean) : []) : []),
         galleryIdx: 0,
-        variants: []
-      } as any));
+        variants: [],
+        courier: "GLS Italy"
+      } as Product));
 
       // 3. Update products state
       setProducts(prev => {
@@ -208,6 +245,16 @@ export const AdminMassiveImport = ({
 
   return (
     <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 border border-gray-100 shadow-xl space-y-10 animate-in slide-in-from-bottom-8 duration-500 relative min-h-[500px]">
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-[100] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-[2.5rem]">
+          <div className="w-16 h-16 bg-brand-yellow/20 text-brand-yellow rounded-2xl flex items-center justify-center animate-bounce mb-4">
+            <Loader2 className="w-8 h-8 animate-spin" />
+          </div>
+          <p className="font-black text-brand-dark uppercase tracking-widest text-xs animate-pulse">Analisi dati in corso...</p>
+        </div>
+      )}
       
       {/* Header */}
       <div className="flex justify-between items-center pb-6 border-b border-gray-100">
@@ -340,7 +387,14 @@ export const AdminMassiveImport = ({
                    <button onClick={() => setEditingIndex(null)} className="bg-white/10 hover:bg-white/20 text-brand-yellow px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase border border-brand-yellow/20"><X className="w-4 h-4"/> Esci e Salva</button>
                 </div>
                 <div className="p-8 bg-white max-h-[70vh] overflow-y-auto">
-                   <AdminSingleProduct onBack={() => setEditingIndex(null)} initialData={previewData[editingIndex]} />
+                   <AdminSingleProduct 
+                     onBack={() => setEditingIndex(null)} 
+                     initialData={previewData[editingIndex]} 
+                     onSave={(updated) => {
+                       setPreviewData(prev => prev.map((item, idx) => idx === editingIndex ? { ...updated, status: item.status, isNew: item.isNew } : item));
+                       setEditingIndex(null);
+                     }}
+                   />
                 </div>
               </div>
            ) : (

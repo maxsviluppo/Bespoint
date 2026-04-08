@@ -141,7 +141,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
 
   const [gallery, setGallery] = useState<string[]>(initialData?.gallery || (initialData?.image ? [initialData.image] : []));
   const [specs, setSpecs] = useState<{key: string, value: string}[]>(
-    initialData?.specs 
+    initialData?.specs && typeof initialData.specs === 'object' && !Array.isArray(initialData.specs)
       ? Object.entries(initialData.specs).map(([key, value]) => ({ key, value: String(value) }))
       : [{ key: "", value: "" }]
   );
@@ -161,7 +161,10 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
     sku: string, 
     totalStock: number,
     allocations: { amazon: number, ebay: number }
-  }[]>(initialData?.variants || []);
+  }[]>(Array.isArray(initialData?.variants) ? initialData.variants.map((v: any) => ({
+    ...v,
+    allocations: v.allocations || { amazon: 0, ebay: 0 }
+  })) : []);
 
   const [amazonMarkup, setAmazonMarkup] = useState<number>(Number(initialData?.amazonMarkup) || 15);
   const [amazonManualPrice, setAmazonManualPrice] = useState<string>(initialData?.amazonPrice || "");
@@ -832,7 +835,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                  </div>
                  {isSearchingRelated && (
                    <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
-                     {allProducts?.filter(p => p.id !== initialData?.id && p.name.toLowerCase().includes(relatedSearchTerm.toLowerCase())).map(p => (
+                     {allProducts?.filter(p => p.id !== initialData?.id && (p.name || "").toLowerCase().includes(relatedSearchTerm.toLowerCase())).map(p => (
                        <div
                          key={`search-${p.id}`}
                          className="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
@@ -966,7 +969,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                   <div className="w-full pl-8 pr-16 py-6 bg-gray-50 border-2 border-transparent rounded-[2rem] text-base font-medium focus:border-indigo-500 flex items-center">
                     <span className="font-extrabold mr-2 tracking-tighter uppercase">{selectedCourier}</span>
                     <span className="text-gray-400 text-sm italic font-normal">
-                      — {COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details.split(' — ')[1] || COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details}
+                      — {COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details?.split(' — ')?.[1] || COURIER_OPTIONS.find(c => c.name === selectedCourier)?.details || "Standard Nazione"}
                     </span>
                   </div>
                   <div className="absolute right-8 top-1/2 -translate-y-1/2 p-3 bg-indigo-500 rounded-2xl transition-transform group-hover:scale-110">

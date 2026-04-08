@@ -28,6 +28,23 @@ export interface Product {
   isSpecialPromotion?: boolean;
   metaTitle?: string;
   metaDescription?: string;
+  cost?: number;
+  markup?: number;
+  amazonMarkup?: number;
+  ebayMarkup?: number;
+  vinceCommission?: number;
+  amazonPrice?: string;
+  ebayPrice?: string;
+  amazonTitle?: string;
+  ebayTitle?: string;
+  variants?: {
+    id: string;
+    type: string;
+    value: string;
+    sku: string;
+    totalStock: number;
+    allocations: { amazon: number; ebay: number };
+  }[];
 }
 
 export interface CartItem extends Product {
