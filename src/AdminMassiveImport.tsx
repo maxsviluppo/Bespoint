@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from "react";
 import Papa from "papaparse";
-import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, Edit2, Info, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, Edit2, Info, Loader2, Plus, Trash2 } from "lucide-react";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { Product } from "./types";
 
@@ -43,7 +43,7 @@ export const AdminMassiveImport = ({
     { internal: 'stock', label: 'Giacenza Totale (Master)', required: false, fileColumn: 'v_stock_quantity' },
     { internal: 'weight', label: 'Peso Prodotto (Kg)', required: false, fileColumn: 'v_products_weight' },
     { internal: 'image', label: 'URL Immagine Principale', required: false, fileColumn: 'v_products_image' },
-    { internal: 'gallery', label: 'Galleria Immagini (separate da virgola)', required: false, fileColumn: 'v_products_gallery' },
+    { internal: 'gallery', label: 'Galleria (Lista CSV)', required: false, fileColumn: 'v_products_gallery' },
   ]);
   
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -60,32 +60,61 @@ export const AdminMassiveImport = ({
   });
   const [newMappingName, setNewMappingName] = useState("");
   
+  const addGalleryField = () => {
+    const galleryFields = mappings.filter(m => String(m.internal).startsWith('gallery_'));
+    const nextIndex = galleryFields.length + 1;
+    setMappings(prev => [
+      ...prev,
+      { internal: `gallery_${nextIndex}`, label: `Nuovo Campo ${nextIndex}`, required: false, fileColumn: '' }
+    ]);
+  };
+
+  const handleLabelChange = (internal: string, newLabel: string) => {
+    setMappings(prev => prev.map(m => m.internal === internal ? { ...m, label: newLabel } : m));
+  };
+
+  const removeMappingField = (internal: string) => {
+    setMappings(prev => prev.filter(m => m.internal !== internal));
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    setFileName(file.name);
-    setIsLoading(true);
+      setFileName(file.name);
+      setIsLoading(true);
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.meta.fields) {
-          setFileHeaders(results.meta.fields);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          try {
+            const headers = results?.meta?.fields || [];
+            const data = Array.isArray(results?.data) ? results.data : [];
+            setFileHeaders(headers);
+            setFullCsvData(data);
+            setStep('mapping');
+          } catch (innerErr) {
+            console.error("Error processing CSV results:", innerErr);
+            alert("Errore nell'elaborazione del CSV. Verifica il formato del file.");
+          } finally {
+            setIsLoading(false);
+          }
+        },
+        error: (error) => {
+          console.error("CSV Parsing error:", error);
+          setIsLoading(false);
+          alert("Errore nel caricamento del file CSV. Assicurati che sia un formato valido.");
         }
-        setFullCsvData(results.data);
-        setIsLoading(false);
-        setStep('mapping');
-      },
-      error: (error) => {
-        console.error("CSV Parsing error:", error);
-        setIsLoading(false);
-        alert("Errore nel caricamento del file CSV. Assicurati che sia un formato valido.");
-      }
-    });
+      });
+    } catch (err) {
+      console.error("Unexpected error during file upload:", err);
+      setIsLoading(false);
+      alert("Errore inaspettato durante il caricamento. Riprova.");
+    }
   };
 
   const handleMappingChange = (internal: string, column: string) => {
@@ -109,48 +138,70 @@ export const AdminMassiveImport = ({
   const startPreview = () => {
     setIsLoading(true);
     
-    // Process real data using mappings
-    const currentSkus = products.map(p => p.sku?.toUpperCase()).filter(Boolean);
-    const IMAGE_BASE_URL = "https://www.beselettronica.com/userfiles/";
+    try {
+      // Process real data using mappings
+      const currentSkus = (products || []).map(p => String(p.sku || '').toUpperCase()).filter(Boolean);
+      const IMAGE_BASE_URL = "https://www.beselettronica.com/userfiles/";
 
-    const processed = fullCsvData.map(row => {
-      const item: any = {};
+      const processed = (fullCsvData || []).map(row => {
+        if (!row) return null;
+        const item: any = { gallery: [] }; 
+        
+        mappings.forEach(m => {
+          if (m.fileColumn && row[m.fileColumn] !== undefined && row[m.fileColumn] !== null) {
+            const rawValue = row[m.fileColumn];
+            const stringValue = String(rawValue).trim();
+            
+            // Data sanitization and transformation
+            if (m.internal === 'price') {
+              item[m.internal] = parseFloat(stringValue.replace(',', '.')) || 0;
+            } else if (m.internal === 'stock') {
+              item[m.internal] = parseInt(stringValue, 10) || 0;
+            } else if (m.internal === 'image') {
+              item[m.internal] = (stringValue && !stringValue.startsWith('http')) 
+                ? IMAGE_BASE_URL + stringValue 
+                : stringValue;
+            } else if (m.internal === 'gallery' && stringValue) {
+              const files = stringValue.split(',').map(f => f.trim()).filter(Boolean);
+              const processedFiles = files.map(f => f.startsWith('http') ? f : IMAGE_BASE_URL + f);
+              item.gallery = [...(item.gallery || []), ...processedFiles];
+            } else if (m.internal.startsWith('gallery_') && stringValue) {
+              const imageUrl = stringValue.startsWith('http') ? stringValue : IMAGE_BASE_URL + stringValue;
+              item.gallery = [...(item.gallery || []), imageUrl];
+            } else {
+              item[m.internal] = rawValue;
+            }
+          } else {
+            // Ensure gallery is always an array even if not mapped/empty
+            if (m.internal === 'gallery' && !item.gallery) item.gallery = [];
+          }
+        });
+
+        // Skip rows without SKU
+        if (!item.sku) return null;
+
+        const itemSku = String(item.sku).toUpperCase();
+        const isDuplicate = currentSkus.includes(itemSku);
+        
+        return { 
+          ...item, 
+          status: isDuplicate ? 'duplicate' : 'ready',
+          isNew: !isDuplicate
+        };
+      }).filter((item): item is any => item !== null && item !== undefined); 
+
+      setPreviewData(processed);
+      setDuplicateSkus(processed.filter(p => p && p.status === 'duplicate').map(p => p.sku));
       
-      mappings.forEach(m => {
-        if (m.fileColumn && row[m.fileColumn] !== undefined) {
-          let value = row[m.fileColumn];
-          
-          // Data sanitization and transformation
-          if (m.internal === 'price') value = parseFloat(value.toString().replace(',', '.')) || 0;
-          if (m.internal === 'stock') value = parseInt(value, 10) || 0;
-          if (m.internal === 'image' && value && !value.toString().startsWith('http')) {
-            value = IMAGE_BASE_URL + value;
-          }
-          if (m.internal === 'gallery' && value) {
-            // Handle gallery by splitting filenames and adding prefix
-            const files = value.toString().split(',').map((f: string) => f.trim()).filter(Boolean);
-            value = files.map((f: string) => f.startsWith('http') ? f : IMAGE_BASE_URL + f).join(',');
-          }
-          
-          item[m.internal] = value;
-        }
-      });
-
-      const isDuplicate = item.sku && currentSkus.includes(item.sku.toString().toUpperCase());
-      return { 
-        ...item, 
-        status: isDuplicate ? 'duplicate' : 'ready',
-        isNew: !isDuplicate
-      };
-    }).filter(p => p.sku); // Ensure we have at least an SKU
-
-    setPreviewData(processed);
-    setDuplicateSkus(processed.filter(p => p.status === 'duplicate').map(p => p.sku));
-    
-    // Auto-select only NEW products by default
-    setSelectedRows(processed.map((p, i) => p.isNew ? i : -1).filter(i => i !== -1));
-    setIsLoading(false);
-    setStep('preview');
+      // Auto-select only NEW products by default
+      setSelectedRows(processed.map((p, i) => (p && p.isNew) ? i : -1).filter(i => i !== -1));
+      setStep('preview');
+    } catch (error) {
+      console.error("Critical error during CSV processing:", error);
+      alert("Si è verificato un errore durante l'elaborazione del listino. Verifica che il file non sia corrotto.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleSelect = (index: number) => {
@@ -347,10 +398,29 @@ export const AdminMassiveImport = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
               {mappings.map((m) => (
-                <div key={m.internal} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div key={m.internal} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center group/map">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${m.required ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-gray-300'}`} />
-                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest leading-none">{m.label}</span>
+                    {String(m.internal).startsWith('gallery_') ? (
+                      <input 
+                        type="text" 
+                        value={m.label}
+                        onChange={(e) => handleLabelChange(m.internal, e.target.value)}
+                        className="text-[10px] font-black text-brand-dark uppercase tracking-widest bg-transparent border-b border-dashed border-gray-300 focus:border-brand-yellow outline-none px-1 w-32"
+                      />
+                    ) : (
+                      <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest leading-none">{m.label}</span>
+                    )}
+                    {String(m.internal).startsWith('gallery_') && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removeMappingField(m.internal); }}
+                        className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover/map:opacity-100 transition-all focus:opacity-100"
+                        title="Rimuovi questo campo"
+                        type="button"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                   <select 
                     value={m.fileColumn}
@@ -358,10 +428,20 @@ export const AdminMassiveImport = ({
                     className={`w-full bg-white rounded-xl border px-4 py-3 text-xs font-black uppercase tracking-tight transition-all focus:ring-4 focus:ring-brand-yellow/20 ${m.fileColumn ? 'border-brand-yellow text-brand-dark' : 'border-gray-100 text-gray-400'}`}
                   >
                     <option value="">-- Ignora Campo --</option>
-                    {fileHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {(fileHeaders || []).map((h, hi) => <option key={`${h}-${hi}`} value={h}>{h}</option>)}
                   </select>
                 </div>
               ))}
+            </div>
+
+            <div className="flex justify-center pt-4">
+               <button 
+                 type="button"
+                 onClick={addGalleryField}
+                 className="flex items-center gap-2 px-6 py-4 bg-brand-yellow/10 text-brand-yellow border-2 border-dashed border-brand-yellow/30 rounded-[2rem] hover:bg-brand-yellow/20 hover:border-brand-yellow/50 transition-all font-black uppercase text-[10px] tracking-widest shadow-sm"
+               >
+                 <Plus className="w-4 h-4" /> Aggiungi Campo Galleria
+               </button>
             </div>
             
             <div className="pt-8 flex justify-end border-t border-gray-50">
