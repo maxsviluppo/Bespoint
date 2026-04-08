@@ -1,7 +1,246 @@
-import React, { useState } from "react";
-import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star } from "lucide-react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
+
+/**
+ * MASTER RICH EDITOR v3
+ * Editor di testo ricco personalizzato, ultra-stabile per React 19.
+ * Supporta: Grassetto, Corsivo, Sottolineato, Allineamento,
+ * Dimensione Testo, Immagini con +/− resize e Link.
+ */
+const MasterRichEditor = ({ value, onChange, placeholder, minHeight = "200px" }: { value: string, onChange: (val: string) => void, placeholder?: string, minHeight?: string }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [imgBtnPos, setImgBtnPos] = useState<{ top: number, right: number } | null>(null);
+
+  // Sincronizza il valore iniziale UNA SOLA VOLTA
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, []);
+
+  // Calcola la posizione del pannello +/- rispetto al container
+  const updateBtnPos = (img: HTMLImageElement) => {
+    if (!containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+    setImgBtnPos({
+      top: imgRect.top - containerRect.top + imgRect.height / 2 - 20, // centra verticalmente
+      right: 8, // fisso a destra, dentro il container
+    });
+  };
+
+  // Click sull'editor: se clicco su immagine la seleziono, altrimenti deseleziono
+  const handleEditorClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      const img = target as HTMLImageElement;
+      setSelectedImg(img);
+      updateBtnPos(img);
+    } else {
+      setSelectedImg(null);
+      setImgBtnPos(null);
+    }
+  };
+
+  // Resize: passo 20% per click
+  const resizeImg = (factor: number) => {
+    if (!selectedImg) return;
+    const currentW = selectedImg.offsetWidth || selectedImg.naturalWidth || 200;
+    const currentH = selectedImg.offsetHeight || selectedImg.naturalHeight || 150;
+    const aspect = currentH / currentW;
+    const newW = Math.max(40, Math.round(currentW * factor));
+    selectedImg.style.width = `${newW}px`;
+    selectedImg.style.height = `${Math.round(newW * aspect)}px`;
+    updateBtnPos(selectedImg);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
+  const execCommand = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
+  const handleFontSize = (px: string) => {
+    if (!px) return;
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = px;
+      try {
+        range.surroundContents(span);
+      } catch {
+        document.execCommand('fontSize', false, '7');
+        editorRef.current?.querySelectorAll('font[size="7"]').forEach(el => {
+          const s = document.createElement('span');
+          s.style.fontSize = px;
+          while (el.firstChild) s.appendChild(el.firstChild);
+          el.parentNode?.replaceChild(s, el);
+        });
+      }
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const FONT_SIZES = Array.from({ length: Math.ceil((60 - 8) / 5) + 1 }, (_, i) => 8 + i * 5).filter(s => s <= 60);
+
+  const handleImageUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          editorRef.current?.focus();
+          document.execCommand('insertImage', false, re.target?.result as string);
+          if (editorRef.current) onChange(editorRef.current.innerHTML);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleImageUrl = () => {
+    const url = prompt("Inserisci URL Immagine:");
+    if (url) {
+      editorRef.current?.focus();
+      document.execCommand('insertImage', false, url);
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleLink = () => {
+    const url = prompt("Inserisci URL Link:");
+    if (url) execCommand('createLink', url);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-inner relative"
+    >
+      {/* Toolbar Premium */}
+      <div className="flex flex-wrap items-center gap-1 p-2 bg-gray-50/80 border-b border-gray-100 backdrop-blur-sm sticky top-0 z-10">
+        
+        {/* Grassetto / Corsivo / Sottolineato */}
+        <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
+          <ToolbarButton onClick={() => execCommand('bold')} icon={<Bold className="w-4 h-4"/>} title="Grassetto" />
+          <ToolbarButton onClick={() => execCommand('italic')} icon={<Italic className="w-4 h-4"/>} title="Corsivo" />
+          <ToolbarButton onClick={() => execCommand('underline')} icon={<Underline className="w-4 h-4"/>} title="Sottolineato" />
+        </div>
+
+        {/* Dimensione testo — selettore da 8pt a 60pt passo 5 */}
+        <div className="flex items-center px-2 border-r border-gray-200">
+          <select
+            defaultValue=""
+            onChange={(e) => { handleFontSize(e.target.value); e.currentTarget.value = ''; }}
+            title="Dimensione testo"
+            className="text-[11px] font-bold text-gray-500 bg-transparent border border-gray-200 rounded-lg px-1.5 py-1 hover:border-brand-blue focus:outline-none cursor-pointer appearance-none min-w-[56px]"
+          >
+            <option value="" disabled>pt ▾</option>
+            {FONT_SIZES.map(size => (
+              <option key={size} value={`${size}px`}>{size} pt</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Allineamento */}
+        <div className="flex items-center gap-1 px-2 border-r border-gray-200">
+          <ToolbarButton onClick={() => execCommand('justifyLeft')} icon={<AlignLeft className="w-4 h-4"/>} title="Allinea Sinistra" />
+          <ToolbarButton onClick={() => execCommand('justifyCenter')} icon={<AlignCenter className="w-4 h-4"/>} title="Allinea Centro" />
+          <ToolbarButton onClick={() => execCommand('justifyRight')} icon={<AlignRight className="w-4 h-4"/>} title="Allinea Destra" />
+        </div>
+
+        {/* Immagini */}
+        <div className="flex items-center gap-1 px-2 border-r border-gray-200">
+          <ToolbarButton onClick={handleImageUpload} icon={<ImageIcon className="w-4 h-4"/>} title="Carica Immagine" />
+          <ToolbarButton onClick={handleImageUrl} icon={<LucideLink className="w-4 h-4 text-brand-blue"/>} title="Immagine da URL" />
+        </div>
+
+        {/* Link + Clear */}
+        <div className="flex items-center gap-1 pl-2">
+          <ToolbarButton onClick={handleLink} icon={<Type className="w-4 h-4"/>} title="Inserisci Link" />
+          <ToolbarButton onClick={() => execCommand('removeFormat')} icon={<Eraser className="w-4 h-4 text-red-400"/>} title="Pulisci Formattazione" />
+        </div>
+      </div>
+
+      {/* Area di Editing */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={(e: any) => onChange(e.target.innerHTML)}
+        onClick={handleEditorClick}
+        className="p-6 focus:outline-none overflow-auto prose prose-sm max-w-none text-brand-dark font-medium"
+        style={{ minHeight }}
+        data-placeholder={placeholder}
+      />
+
+      {/* Bottoni +/− resize immagine */}
+      {selectedImg && imgBtnPos && (
+        <div
+          style={{
+            position: 'absolute',
+            top: imgBtnPos.top,
+            right: imgBtnPos.right,
+            zIndex: 30,
+          }}
+          className="flex flex-col gap-1"
+          onMouseDown={(e) => e.preventDefault()} // evita perdita selezione editor
+        >
+          <button
+            onClick={() => resizeImg(1.2)}
+            title="Ingrandisci immagine"
+            className="w-8 h-8 rounded-xl bg-brand-dark text-white text-lg font-black flex items-center justify-center shadow-lg hover:bg-brand-blue transition-colors leading-none"
+          >+</button>
+          <button
+            onClick={() => resizeImg(0.8)}
+            title="Riduci immagine"
+            className="w-8 h-8 rounded-xl bg-gray-200 text-gray-700 text-lg font-black flex items-center justify-center shadow-lg hover:bg-gray-300 transition-colors leading-none"
+          >−</button>
+        </div>
+      )}
+
+      <style>{`
+        [contenteditable]:empty:before {
+          content: attr(data-placeholder);
+          color: #9CA3AF;
+          font-weight: 500;
+          pointer-events: none;
+        }
+        [contenteditable] img {
+          max-width: 100%;
+          border-radius: 1rem;
+          margin: 1rem 0;
+          display: block;
+          cursor: pointer;
+        }
+        [contenteditable] img:hover {
+          outline: 2px solid #6b7280;
+          border-radius: 8px;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+const ToolbarButton = ({ onClick, icon, title }: { onClick: () => void, icon: React.ReactNode, title: string }) => (
+  <button
+    onClick={(e) => { e.preventDefault(); onClick(); }}
+    title={title}
+    className="p-2 hover:bg-white hover:text-brand-blue hover:shadow-sm rounded-lg transition-all active:scale-95 text-gray-500"
+  >
+    {icon}
+  </button>
+);
 
 export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {}, allProducts = [], availableVariants = ['Colore', 'Taglia'], setAvailableVariants }: { onBack: () => void, onSave: (p: any) => void, onDelete?: (id: string) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]>, allProducts?: any[], availableVariants?: string[], setAvailableVariants?: (v: string[]) => void }) => {
   const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
@@ -37,6 +276,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [relatedSearchTerm, setRelatedSearchTerm] = useState("");
   const [isSearchingRelated, setIsSearchingRelated] = useState(false);
 
+  const [isDescModalOpen, setIsDescModalOpen] = useState(false);
   const [isAddingNewBrand, setIsAddingNewBrand] = useState<boolean>(false);
   const [isAddingNewCategory, setIsAddingNewCategory] = useState<boolean>(false);
   const [isAddingNewSubcategory, setIsAddingNewSubcategory] = useState<boolean>(false);
@@ -254,16 +494,31 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                 className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" 
               />
             </label>
-            <label className="block">
+            <div className="space-y-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Descrizione Prodotto</span>
-              <textarea 
-                rows={4} 
-                value={productDescription}
-                onChange={e => setProductDescription(e.target.value)}
-                placeholder="Decrizione per il sito ecommerce..." 
-                className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-blue focus:border-brand-blue resize-none"
-              ></textarea>
-            </label>
+              
+              <div className="relative group/editor">
+                <MasterRichEditor 
+                  value={productDescription}
+                  onChange={setProductDescription}
+                  placeholder="Scrivi qui la descrizione professionale per il sito..."
+                  minHeight="250px"
+                />
+                
+                {/* Overlay per Espandere */}
+                <button 
+                  onClick={(e) => { e.preventDefault(); setIsDescModalOpen(true); }}
+                  className="absolute bottom-4 right-4 bg-brand-blue text-white p-3 rounded-xl shadow-lg opacity-0 group-hover/editor:opacity-100 transition-all hover:scale-110 active:scale-95 flex items-center gap-2 text-[10px] font-black uppercase z-20"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Espandi Editor
+                </button>
+              </div>
+
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2 italic">
+                Editor nativo ultra-stabile. Carica immagini da file o incolla URL esterni.
+              </p>
+            </div>
             
             {/* Frontend Specs: 3D, Video, Specifiche */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
@@ -1280,6 +1535,84 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
          </div>
        )}
      </AnimatePresence>
+      <AnimatePresence>
+        {isDescModalOpen && (
+          <ExpandedDescriptionModal 
+            isOpen={isDescModalOpen}
+            onClose={() => setIsDescModalOpen(false)}
+            value={productDescription}
+            onChange={setProductDescription}
+          />
+        )}
+      </AnimatePresence>
     </>
+  );
+};
+
+// Modale Editor Espanso
+const ExpandedDescriptionModal = ({ isOpen, onClose, value, onChange }: { isOpen: boolean, onClose: () => void, value: string, onChange: (v: string) => void }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 lg:p-10">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-brand-dark/90 backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-6xl h-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+      >
+        <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-brand-blue/10 rounded-2xl flex items-center justify-center">
+              <Maximize2 className="w-6 h-6 text-brand-blue" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Editor Descrizione Avanzato</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Gestione professionale dei contenuti</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-12 h-12 bg-gray-50 text-gray-400 hover:bg-brand-blue hover:text-white rounded-2xl transition-all flex items-center justify-center"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-4 lg:p-8 bg-gray-50/50">
+          <div className="h-full bg-white rounded-3xl shadow-inner border border-gray-100 overflow-hidden">
+             <MasterRichEditor 
+                value={value}
+                onChange={onChange}
+                placeholder="Inizia a scrivere la descrizione estesa..."
+                minHeight="100%"
+             />
+          </div>
+        </div>
+        
+        <div className="p-8 bg-white border-t border-gray-100 flex justify-end gap-3">
+          <button 
+            onClick={onClose}
+            className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl text-[11px] font-black uppercase hover:bg-gray-200 transition-all"
+          >
+            Chiudi Senza Salvare
+          </button>
+          <button 
+            onClick={onClose}
+            className="px-8 py-4 bg-brand-blue text-white rounded-2xl text-[11px] font-black uppercase hover:bg-brand-dark shadow-xl transition-all flex items-center gap-3"
+          >
+            <Check className="w-5 h-5" />
+            Conferma Modifiche
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 };

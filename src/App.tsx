@@ -536,7 +536,10 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
               <div className="space-y-4">
                 <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Descrizione</h4>
                 <div className="text-gray-600 text-sm leading-relaxed space-y-4">
-                  <p>{product.description}</p>
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: product.description }} 
+                    className="rich-content"
+                  />
                   <p>Progettato per durare nel tempo, questo prodotto unisce materiali di alta qualità a un design funzionale che si adatta a ogni ambiente.</p>
                 </div>
               </div>
@@ -584,12 +587,14 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
             <div className="lg:col-span-3 lg:bg-gray-50/50 lg:p-8 lg:rounded-[32px] lg:border lg:border-gray-100 space-y-8">
               {/* Pricing Card */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-4xl font-black text-brand-blue">€{product.price.toFixed(2)}</span>
-                  <div className="flex flex-col">
+                <div className="flex flex-col gap-1">
+                  {/* Prezzo originale barrato + badge sconto inline */}
+                  <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-400 line-through">€{(product.price * 1.2).toFixed(2)}</span>
-                    <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase w-fit">-20% OGGI</span>
+                    <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">-20% OGGI</span>
                   </div>
+                  {/* Prezzo scontato grande */}
+                  <span className="text-4xl font-black text-brand-blue leading-none">€{product.price.toFixed(2)}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-xs text-green-600 font-bold bg-green-50 p-3 rounded-xl border border-green-100">
