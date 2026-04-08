@@ -13,6 +13,30 @@ interface FieldMapping {
   fileColumn: string;
 }
 
+// Preset BesPoint Listino — mappatura completa con tutte le immagini del CSV
+const BESPOINT_PRESET: FieldMapping[] = [
+  { internal: 'sku',         label: 'Codice SKU (Master)',       required: true,  fileColumn: 'v_products_model' },
+  { internal: 'ean',         label: 'Codice EAN/Barcode',        required: false, fileColumn: 'v_products_model_stock_ean' },
+  { internal: 'brand',       label: 'Marca / Produttore',        required: false, fileColumn: 'v_manufacturers_name' },
+  { internal: 'name',        label: 'Nome Prodotto',             required: true,  fileColumn: 'v_products_name_4' },
+  { internal: 'description', label: 'Descrizione (HTML/Text)',   required: false, fileColumn: 'v_products_description_4' },
+  { internal: 'category',    label: 'Categoria (Root)',          required: true,  fileColumn: 'v_categories_name_1_4' },
+  { internal: 'subcategory', label: 'Sottocategoria (Sub)',       required: false, fileColumn: 'v_categories_name_2_4' },
+  { internal: 'price',       label: 'Prezzo Vendita (B2C)',       required: true,  fileColumn: 'v_products_price' },
+  { internal: 'stock',       label: 'Giacenza Totale (Master)',   required: false, fileColumn: 'v_stock_quantity' },
+  { internal: 'weight',      label: 'Peso Prodotto (Kg)',         required: false, fileColumn: 'v_products_weight' },
+  // Immagine principale
+  { internal: 'image',       label: 'Immagine Principale',        required: false, fileColumn: 'v_products_image' },
+  // Galleria: 6 slot subimage del listino BesPoint (https://www.beselettronica.com/userfiles/<filename>)
+  { internal: 'gallery_1',   label: 'Galleria — Foto 1',         required: false, fileColumn: 'v_products_subimage1' },
+  { internal: 'gallery_2',   label: 'Galleria — Foto 2',         required: false, fileColumn: 'v_products_subimage2' },
+  { internal: 'gallery_3',   label: 'Galleria — Foto 3',         required: false, fileColumn: 'v_products_subimage3' },
+  { internal: 'gallery_4',   label: 'Galleria — Foto 4',         required: false, fileColumn: 'v_products_subimage4' },
+  { internal: 'gallery_5',   label: 'Galleria — Foto 5',         required: false, fileColumn: 'v_products_subimage5' },
+  { internal: 'gallery_6',   label: 'Galleria — Foto 6',         required: false, fileColumn: 'v_products_subimage6' },
+];
+
+
 export const AdminMassiveImport = ({ 
   onBack, 
   products, 
@@ -31,20 +55,8 @@ export const AdminMassiveImport = ({
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [fullCsvData, setFullCsvData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [mappings, setMappings] = useState<FieldMapping[]>([
-    { internal: 'sku', label: 'Codice SKU (Master)', required: true, fileColumn: 'v_products_model' },
-    { internal: 'ean', label: 'Codice EAN/Barcode', required: false, fileColumn: 'v_products_model_stock_ean' },
-    { internal: 'brand', label: 'Marca / Produttore', required: false, fileColumn: 'v_manufacturers_name' },
-    { internal: 'name', label: 'Nome Prodotto', required: true, fileColumn: 'v_products_name_4' },
-    { internal: 'description', label: 'Descrizione (HTML/Text)', required: false, fileColumn: 'v_products_description_4' },
-    { internal: 'category', label: 'Categoria (Root)', required: true, fileColumn: 'v_categories_name_1_4' },
-    { internal: 'subcategory', label: 'Sottocategoria (Sub)', required: false, fileColumn: 'v_categories_name_2_4' },
-    { internal: 'price', label: 'Prezzo Vendita (B2C)', required: true, fileColumn: 'v_products_price' },
-    { internal: 'stock', label: 'Giacenza Totale (Master)', required: false, fileColumn: 'v_stock_quantity' },
-    { internal: 'weight', label: 'Peso Prodotto (Kg)', required: false, fileColumn: 'v_products_weight' },
-    { internal: 'image', label: 'URL Immagine Principale', required: false, fileColumn: 'v_products_image' },
-    { internal: 'gallery', label: 'Galleria (Lista CSV)', required: false, fileColumn: 'v_products_gallery' },
-  ]);
+  const [mappings, setMappings] = useState<FieldMapping[]>(BESPOINT_PRESET);
+
   
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [duplicateSkus, setDuplicateSkus] = useState<string[]>([]);
@@ -56,7 +68,9 @@ export const AdminMassiveImport = ({
   
   const [savedMappings, setSavedMappings] = useState<Record<string, FieldMapping[]>>(() => {
     const saved = localStorage.getItem('bespoint_import_presets');
-    return saved ? JSON.parse(saved) : {};
+    const base = saved ? JSON.parse(saved) : {};
+    // Inietta sempre il preset BesPoint aggiornato
+    return { ...base, 'BesPoint Listino': BESPOINT_PRESET };
   });
   const [newMappingName, setNewMappingName] = useState("");
   
