@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import { Upload, FileSpreadsheet, Check, X, ArrowRight, AlertCircle, Table, ChevronLeft, Layers, Edit2, Info, Loader2, Plus, Trash2 } from "lucide-react";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { Product } from "./types";
+import { toProperCase } from "./utils";
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
@@ -182,6 +183,8 @@ export const AdminMassiveImport = ({
             } else if (m.internal.startsWith('gallery_') && stringValue) {
               const imageUrl = stringValue.startsWith('http') ? stringValue : IMAGE_BASE_URL + stringValue;
               item.gallery = [...(item.gallery || []), imageUrl];
+            } else if (m.internal === 'name') {
+              item[m.internal] = toProperCase(stringValue);
             } else {
               item[m.internal] = rawValue;
             }

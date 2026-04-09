@@ -37,6 +37,8 @@ export interface Product {
   ebayPrice?: string;
   amazonTitle?: string;
   ebayTitle?: string;
+  amazonDescription?: string;
+  ebayDescription?: string;
   variants?: {
     id: string;
     type: string;

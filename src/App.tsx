@@ -74,7 +74,8 @@ import {
   XCircle,
   LayoutDashboard,
   AlertTriangle,
-  Zap
+  Zap,
+  Image as ImageIcon
 } from "lucide-react";
 
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent, useSpring } from "motion/react";
@@ -84,6 +85,7 @@ import { Product, CartItem } from "./types";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AdminSingleProduct } from "./AdminSingleProduct";
 import { AdminMassiveImport } from "./AdminMassiveImport";
+import { AdminImageLinker } from "./AdminImageLinker";
 import { AdminOrders, INITIAL_ORDERS } from "./AdminOrders";
 import { AdminCouriers } from "./AdminCouriers";
 import { AdminReturns } from "./AdminReturns";
@@ -540,7 +542,6 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                     dangerouslySetInnerHTML={{ __html: product.description }} 
                     className="rich-content"
                   />
-                  <p>Progettato per durare nel tempo, questo prodotto unisce materiali di alta qualità a un design funzionale che si adatta a ogni ambiente.</p>
                 </div>
               </div>
 
@@ -2158,7 +2159,7 @@ export default function App() {
   }, [returnRequests]);
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'categories' | 'users' | 'seo' | 'analytics' | 'company' | 'slides' | 'link_rapidi' | 'couriers' | 'returns' | 'marketplaces' | 'payments' | 'marketing' | 'reviews'>('dashboard');
+  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'categories' | 'users' | 'seo' | 'analytics' | 'company' | 'slides' | 'link_rapidi' | 'couriers' | 'returns' | 'marketplaces' | 'payments' | 'marketing' | 'reviews' | 'image_linker'>('dashboard');
   const [isGeneralSaveSuccess, setIsGeneralSaveSuccess] = useState(false);
   const [availableVariants, setAvailableVariants] = useState<string[]>(['Colore', 'Taglia']);
   const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
@@ -3210,7 +3211,7 @@ export default function App() {
                     setSelectedCategory(item.category || "Tutti");
                     setSelectedSubcategory(item.subcategory || "Tutti");
                   }}
-                  className={`${item.color} rounded-2xl p-4 h-40 lg:h-full min-w-[160px] sm:min-w-[200px] flex flex-col justify-between overflow-hidden relative group cursor-pointer flex-shrink-0 shadow-lg ${
+                  className={`${item.imageUrl ? 'bg-gray-800' : item.color} rounded-2xl p-4 h-40 lg:h-full min-w-[160px] sm:min-w-[200px] flex flex-col justify-between overflow-hidden relative group cursor-pointer flex-shrink-0 shadow-lg ${
                     idx === 0 ? "lg:col-span-4 lg:row-span-2" : 
                     idx === 1 ? "lg:col-span-4 lg:row-span-1" :
                     idx === 2 ? "lg:col-span-4 lg:row-span-1" :
@@ -3220,27 +3221,40 @@ export default function App() {
                     "lg:hidden"
                   }`}
                 >
+                  {/* Background image if set */}
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  {/* Dark overlay for readability */}
+                  {item.imageUrl && <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />}
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 + 0.2 }}
-                    className="z-10"
+                    className="z-10 relative"
                   >
-                    <h3 className={`${item.color === "bg-brand-yellow" ? "text-brand-dark" : "text-white"} font-bold text-sm mb-1`}>
+                    <h3 className="text-white font-bold text-sm mb-1 drop-shadow-md">
                       {item.title}
                     </h3>
-                    <p className={`${item.color === "bg-brand-yellow" ? "text-brand-blue" : "text-brand-yellow"} text-[10px] font-bold`}>
+                    <p className={`${!item.imageUrl && item.color === "bg-brand-yellow" ? "text-brand-blue" : "text-brand-yellow"} text-[10px] font-bold drop-shadow-sm`}>
                       {item.subtitle}
                     </p>
                   </motion.div>
-                  <motion.img 
-                    initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
-                    animate={{ opacity: 0.5, scale: 1, rotate: 0 }}
-                    transition={{ delay: idx * 0.1 + 0.3, type: "spring" }}
-                    src={`https://picsum.photos/seed/${item.seed}/300/300`} 
-                    className="absolute right-[-20px] bottom-[-20px] w-24 h-24 object-cover rounded-full group-hover:scale-110 transition-transform" 
-                    referrerPolicy="no-referrer"
-                  />
+                  {!item.imageUrl && (
+                    <motion.img 
+                      initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
+                      animate={{ opacity: 0.5, scale: 1, rotate: 0 }}
+                      transition={{ delay: idx * 0.1 + 0.3, type: "spring" }}
+                      src={`https://picsum.photos/seed/${item.seed}/300/300`} 
+                      className="absolute right-[-20px] bottom-[-20px] w-24 h-24 object-cover rounded-full group-hover:scale-110 transition-transform" 
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -3733,6 +3747,7 @@ export default function App() {
                     { tab: 'link_rapidi', label: 'Link Rapidi', icon: Box, color: 'bg-brand-yellow text-brand-dark' },
                     { tab: 'categories', label: 'Categorie', icon: Compass, color: 'bg-brand-yellow text-brand-dark' },
                     { tab: 'products', label: 'Prodotti', icon: Package, color: 'bg-brand-yellow text-brand-dark' },
+                    { tab: 'image_linker', label: 'Bulk Images', icon: ImageIcon, color: 'bg-indigo-500 text-white' },
                     { tab: 'couriers', label: 'Corrieri', icon: Truck, color: 'bg-brand-yellow text-brand-dark' },
                     { tab: 'orders', label: 'Ordini', icon: ShoppingBag, color: 'bg-brand-blue text-white font-black' },
                     { tab: 'users', label: 'Archivio Utenti', icon: Users, color: 'bg-blue-600 text-white' },
@@ -5515,6 +5530,62 @@ export default function App() {
                                 ))}
                               </div>
                             </div>
+
+                            {/* IMAGE OPTION */}
+                            <div className="pt-2 border-t border-gray-100 space-y-2">
+                              <span className="text-[10px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1">
+                                <Camera className="w-3 h-3" /> Immagine Box (opzionale)
+                              </span>
+                              <p className="text-[9px] text-gray-400 ml-1">Se impostata, sostituisce il colore come sfondo del box.</p>
+                              <input
+                                type="text"
+                                value={item.imageUrl || ''}
+                                onChange={(e) => {
+                                  const newLinks = [...pageSettings.linkRapidi];
+                                  newLinks[idx] = { ...item, imageUrl: e.target.value };
+                                  setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                }}
+                                placeholder="https://... oppure incolla URL immagine"
+                                className="block w-full bg-gray-50 border-transparent rounded-xl px-3 py-2 text-xs font-medium focus:ring-brand-yellow focus:bg-white"
+                              />
+                              <div className="flex items-center gap-2">
+                                <label className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-brand-yellow/20 border-2 border-dashed border-gray-300 rounded-xl py-2 cursor-pointer transition-all text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                                  <Upload className="w-3 h-3" />
+                                  Carica dal dispositivo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const reader = new FileReader();
+                                      reader.onload = (ev) => {
+                                        const newLinks = [...pageSettings.linkRapidi];
+                                        newLinks[idx] = { ...item, imageUrl: ev.target?.result as string };
+                                        setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }}
+                                  />
+                                </label>
+                                {item.imageUrl && (
+                                  <button
+                                    onClick={() => {
+                                      const newLinks = [...pageSettings.linkRapidi];
+                                      newLinks[idx] = { ...item, imageUrl: '' };
+                                      setPageSettings({ ...pageSettings, linkRapidi: newLinks });
+                                    }}
+                                    className="px-3 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black hover:bg-red-100 transition-all"
+                                  >
+                                    Rimuovi
+                                  </button>
+                                )}
+                              </div>
+                              {item.imageUrl && (
+                                <img src={item.imageUrl} alt="preview" className="w-full h-20 object-cover rounded-xl border border-gray-200" referrerPolicy="no-referrer" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -5732,6 +5803,14 @@ export default function App() {
                         </div>
                     </div>
                   </div>
+                )}
+
+                {adminActiveTab === 'image_linker' && (
+                  <AdminImageLinker 
+                    products={products} 
+                    setProducts={setProducts} 
+                    onBack={() => setAdminActiveTab('products')} 
+                  />
                 )}
 
                 {adminActiveTab === 'analytics' && (

@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
+import { GoogleGenAI, Type as GenAIType } from "@google/genai";
+import { toProperCase } from "./utils";
+import { Sparkles, Loader2 as LoaderIcon } from "lucide-react";
 
 /**
  * MASTER RICH EDITOR v3
@@ -258,7 +261,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [isSpecialPromotion, setIsSpecialPromotion] = useState<boolean>(initialData?.isSpecialPromotion || false);
 
   // Core Data States
-  const [title, setTitle] = useState<string>(initialData?.name || "");
+  const [title, setTitle] = useState<string>(toProperCase(initialData?.name || ""));
   const [sku, setSku] = useState<string>(initialData?.sku || "");
   const [ean, setEan] = useState<string>(initialData?.ean || "");
   const [brand, setBrand] = useState<string>(initialData?.brand || "");
@@ -294,6 +297,11 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [replacingImageIndex, setReplacingImageIndex] = useState<number | null>(null);
+  const [isGeneratingAmazon, setIsGeneratingAmazon] = useState(false);
+  const [isGeneratingEbay, setIsGeneratingEbay] = useState(false);
+  const [amazonDescription, setAmazonDescription] = useState<string>(initialData?.amazonDescription || "");
+  const [ebayDescription, setEbayDescription] = useState<string>(initialData?.ebayDescription || "");
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -413,11 +421,85 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
 
   const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || "");
   const [description, setDescription] = useState<string>(initialData?.description || "");
-  const [amazonTitle, setAmazonTitle] = useState<string>(initialData?.amazonTitle || "");
-  const [ebayTitle, setEbayTitle] = useState<string>(initialData?.ebayTitle || "");
+  const [amazonTitle, setAmazonTitle] = useState<string>(toProperCase(initialData?.amazonTitle || ""));
+  const [ebayTitle, setEbayTitle] = useState<string>(toProperCase(initialData?.ebayTitle || ""));
 
   const amazonPrice = amazonManualPrice ? parseFloat(amazonManualPrice) : baseCost * (1 + amazonMarkup / 100);
   const ebayPrice = ebayManualPrice ? parseFloat(ebayManualPrice) : baseCost * (1 + ebayMarkup / 100);
+
+  const generateAIContent = async (marketplace: 'Amazon' | 'eBay') => {
+    const setLoader = marketplace === 'Amazon' ? setIsGeneratingAmazon : setIsGeneratingEbay;
+    const setTitle = marketplace === 'Amazon' ? setAmazonTitle : setEbayTitle;
+    const setDesc = marketplace === 'Amazon' ? setAmazonDescription : setEbayDescription;
+
+    const modelsToTry = ['gemini-1.5-flash-latest', 'gemini-3-flash-preview', 'gemini-1.5-flash', 'gemini-pro'];
+    let lastError = null;
+
+    setAiError(null);
+    setLoader(true);
+    
+    try {
+      const apiKey = (process.env as any).GEMINI_API_KEY;
+      if (!apiKey || apiKey === 'undefined' || apiKey === '' || apiKey === 'MY_GEMINI_API_KEY' || apiKey === 'INSERISCI_QUI_LA_TUA_CHIAVE_API') {
+        throw new Error("API_KEY_MISSING");
+      }
+      const genAI = new GoogleGenAI({ apiKey });
+
+      const prompt = `Sei un esperto SEO per marketplace. Crea un titolo ottimizzato e una descrizione persuasiva per il marketplace ${marketplace} per questo prodotto:
+Nome Master: ${title}
+Marca: ${brand || 'N/D'}
+Categoria: ${category || 'N/D'}
+Descrizione Base: ${productDescription.replace(/<[^>]*>?/gm, '').slice(0, 500)}
+Specifiche: ${JSON.stringify(specs).slice(0, 300)}
+
+REGOLE TITOLO: Massimo 150 caratteri. Usa parole chiave rilevanti. Prima lettera di ogni parola MAIUSCOLA.
+REGOLE DESCRIZIONE: ${marketplace === 'Amazon' ? 'Usa punti elenco (• ) per i benefici principali.' : 'Tono professionale, evidenzia affidabilità e compatibilità.'}
+
+Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "description": "..." }`;
+
+      let success = false;
+      for (const modelName of modelsToTry) {
+        try {
+          const response = await genAI.models.generateContent({
+            model: modelName,
+            contents: prompt,
+          });
+
+          if (response && response.text) {
+            const text = response.text.trim();
+            const cleanJson = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+            const parsed = JSON.parse(cleanJson);
+
+            setTitle(toProperCase(parsed.title));
+            setDesc(parsed.description ?? '');
+            success = true;
+            break; // Successo! Esci dal ciclo dei modelli
+          }
+        } catch (err: any) {
+          console.warn(`Modello ${modelName} non disponibile, provo il prossimo...`, err);
+          lastError = err;
+          // Se è un errore di quota o sovraccarico, continua al prossimo modello
+          continue;
+        }
+      }
+
+      if (!success) {
+        throw lastError || new Error("Nessun modello disponibile al momento.");
+      }
+
+    } catch (error: any) {
+      console.error("Errore generazione AI finale:", error);
+      if (error.message === 'API_KEY_MISSING') {
+        setAiError('🔑 Chiave API Gemini non trovata. Inserisci la chiave nel file .env e riavvia.');
+      } else if (error.status === 'UNAVAILABLE' || error.code === 503) {
+        setAiError('⏳ I server di Google sono molto carichi. Riprova tra qualche istante.');
+      } else {
+        setAiError('❌ Errore: ' + (error.message || 'Servizio non disponibile'));
+      }
+    } finally {
+      setLoader(false);
+    }
+  };
 
   const handleManualPrice = (val: string, type: 'b2c' | 'b2b' | 'amazon' | 'ebay') => {
     if (type === 'b2c') setManualB2c(val);
@@ -460,7 +542,9 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
       gallery: gallery,
       relatedProductIds: relatedProductIds,
       metaTitle,
-      metaDescription
+      metaDescription,
+      amazonDescription,
+      ebayDescription
     };
     onSave(finalProduct);
     setIsSaveSuccess(true);
@@ -489,7 +573,7 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
               <input 
                 type="text" 
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => setTitle(toProperCase(e.target.value))}
                 placeholder="Titolo gestionale per sito web..." 
                 className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" 
               />
@@ -959,6 +1043,14 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
           <div className="space-y-4">
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><Globe className="w-5 h-5 text-gray-400"/> Sincronizzazione Marketplace (Overrides)</h3>
             
+            {/* AI Error Banner */}
+            {aiError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-3 flex items-start gap-3 text-sm font-medium">
+                <span className="flex-1">{aiError}</span>
+                <button onClick={() => setAiError(null)} className="text-red-400 hover:text-red-600 font-black text-lg leading-none">×</button>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Amazon Block */}
               <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-6 border border-orange-100 relative overflow-hidden group hover:border-orange-300 transition-all flex flex-col justify-between">
@@ -975,8 +1067,19 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                 </div>
                 <div className="space-y-4 relative z-10">
                   <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Titolo Ottimizzato SEO</span>
-                    <input type="text" value={amazonTitle} onChange={e => setAmazonTitle(e.target.value)} placeholder="Override per Amazon..." className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 block">Titolo Ottimizzato SEO</span>
+                      <button 
+                        type="button"
+                        onClick={() => generateAIContent('Amazon')}
+                        disabled={isGeneratingAmazon}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-orange-100 text-orange-600 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all disabled:opacity-50"
+                      >
+                        {isGeneratingAmazon ? <LoaderIcon className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        Auto-Componi
+                      </button>
+                    </div>
+                    <input type="text" value={amazonTitle} onChange={e => setAmazonTitle(toProperCase(e.target.value))} placeholder="Override per Amazon..." className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
                   </label>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Costo riferimento:</span>
@@ -1005,7 +1108,13 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                   </label>
                   <label className="block">
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Descrizione Ottimizzata Amazon</span>
-                    <textarea rows={3} placeholder="Descrizione specifica per Amazon (Bullet points ecc)..." className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-orange-500 focus:border-orange-500 resize-none"></textarea>
+                    <textarea 
+                      rows={3} 
+                      value={amazonDescription}
+                      onChange={e => setAmazonDescription(e.target.value)}
+                      placeholder="Descrizione specifica per Amazon (Bullet points ecc)..." 
+                      className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-orange-500 focus:border-orange-500 resize-none"
+                    ></textarea>
                   </label>
                 </div>
               </div>
@@ -1025,8 +1134,19 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                 </div>
                 <div className="space-y-4 relative z-10">
                   <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Titolo + Sottotitolo Store</span>
-                    <input type="text" placeholder="Titolo per inserzione eBay..." className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 block">Titolo + Sottotitolo Store</span>
+                      <button 
+                        type="button"
+                        onClick={() => generateAIContent('eBay')}
+                        disabled={isGeneratingEbay}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-200 transition-all disabled:opacity-50"
+                      >
+                        {isGeneratingEbay ? <LoaderIcon className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        Auto-Componi
+                      </button>
+                    </div>
+                    <input type="text" value={ebayTitle} onChange={e => setEbayTitle(toProperCase(e.target.value))} placeholder="Titolo per inserzione eBay..." className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
                   </label>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Costo riferimento:</span>
@@ -1061,7 +1181,13 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
                   </div>
                   <label className="block">
                     <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Descrizione Ottimizzata eBay</span>
-                    <textarea rows={3} placeholder="HTML/Descrizione specifica per eBay..." className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+                    <textarea 
+                      rows={3} 
+                      value={ebayDescription}
+                      onChange={e => setEbayDescription(e.target.value)}
+                      placeholder="HTML/Descrizione specifica per eBay..." 
+                      className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    ></textarea>
                   </label>
                 </div>
               </div>
