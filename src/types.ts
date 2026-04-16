@@ -44,9 +44,14 @@ export interface Product {
     type: string;
     value: string;
     sku: string;
-    totalStock: number;
-    allocations: { amazon: number; ebay: number };
+    webStock: number;
+    amazonStock: number;
+    ebayStock: number;
+    costType?: 'fixed' | 'delta' | 'percent';
+    costValue?: number;
   }[];
+  showBrand?: boolean;
+  showEan?: boolean;
 }
 
 export interface CartItem extends Product {

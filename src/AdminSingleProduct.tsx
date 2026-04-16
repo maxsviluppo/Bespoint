@@ -18,12 +18,13 @@ const MasterRichEditor = ({ value, onChange, placeholder, minHeight = "200px" }:
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgBtnPos, setImgBtnPos] = useState<{ top: number, right: number } | null>(null);
 
-  // Sincronizza il valore iniziale UNA SOLA VOLTA
+  // Sincronizza il valore quando cambia dall'esterno (es. da un altro editor o reset)
+  // solo se l'utente non sta scrivendo in QUESTO editor (evita salto cursore)
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
+    if (editorRef.current && document.activeElement !== editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || "";
     }
-  }, []);
+  }, [value]);
 
   // Calcola la posizione del pannello +/- rispetto al container
   const updateBtnPos = (img: HTMLImageElement) => {
@@ -253,20 +254,39 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [manualB2c, setManualB2c] = useState<string>(initialData?.price || "");
   const [manualB2b, setManualB2b] = useState<string>("");
 
-  const [isAmazonActive, setIsAmazonActive] = useState<boolean>(initialData?.amazonActive ?? true);
+  const [isAmazonActive, setIsAmazonActive] = useState<boolean>(initialData?.amazonActive ?? false);
   const [isEbayActive, setIsEbayActive] = useState<boolean>(initialData?.ebayActive ?? false);
   const [selectedCourier, setSelectedCourier] = useState<string>(initialData?.courier || "GLS Italy");
   const [isCourierDropdownOpen, setIsCourierDropdownOpen] = useState<boolean>(false);
   const [isFeatured, setIsFeatured] = useState<boolean>(initialData?.isFeatured || false);
   const [isSpecialPromotion, setIsSpecialPromotion] = useState<boolean>(initialData?.isSpecialPromotion || false);
+  const [showBrand, setShowBrand] = useState<boolean>(initialData?.showBrand || false);
+  const [showEan, setShowEan] = useState<boolean>(initialData?.showEan || false);
+  const [has3D, setHas3D] = useState<boolean>(initialData?.has3D || false);
 
   // Core Data States
   const [title, setTitle] = useState<string>(toProperCase(initialData?.name || ""));
-  const [sku, setSku] = useState<string>(initialData?.sku || "");
+  // Genera SKU Automatico SKU-01...
+  const generateAutoSku = () => {
+    if (!allProducts || allProducts.length === 0) return "SKU-01";
+    const codes = allProducts
+      .map(p => p.sku || "")
+      .filter(s => s.startsWith("SKU-"))
+      .map(s => parseInt(s.replace("SKU-", "")))
+      .filter(n => !isNaN(n));
+    
+    const max = codes.length > 0 ? Math.max(...codes) : 0;
+    return `SKU-${(max + 1).toString().padStart(2, '0')}`;
+  };
+
+  const [sku, setSku] = useState<string>(initialData?.sku || generateAutoSku());
   const [ean, setEan] = useState<string>(initialData?.ean || "");
   const [brand, setBrand] = useState<string>(initialData?.brand || "");
   const [productDescription, setProductDescription] = useState<string>(initialData?.description || "");
   const [weight, setWeight] = useState<number>(Number(initialData?.weight) || 0);
+  const [length, setLength] = useState<number>(Number(initialData?.length) || 0);
+  const [width, setWidth] = useState<number>(Number(initialData?.width) || 0);
+  const [height, setHeight] = useState<number>(Number(initialData?.height) || 0);
 
   const [category, setCategory] = useState<string>(initialData?.category || existingCategories[0] || "");
   const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || "Tutti");
@@ -394,24 +414,29 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
       : [{ key: "", value: "" }]
   );
   
-  // NEW: State for Master Stock (Simple Product)
-  const [masterStock, setMasterStock] = useState<number>(initialData?.stock || initialData?.amazonStock || initialData?.ebayStock ? (Number(initialData?.stock || 0) + Number(initialData?.amazonStock || 0) + Number(initialData?.ebayStock || 0)) : 0);
-  const [masterAllocations, setMasterAllocations] = useState({ 
-    amazon: Number(initialData?.amazonStock || 0), 
-    ebay: Number(initialData?.ebayStock || 0) 
-  });
+  // NEW: Independent Channel Stock Management
+  const [webStock, setWebStock] = useState<number>(Number(initialData?.stock) || 0);
+  const [amazonStock, setAmazonStock] = useState<number>(Number(initialData?.amazonStock) || 0);
+  const [ebayStock, setEbayStock] = useState<number>(Number(initialData?.ebayStock) || 0);
 
-  // UPDATED: Variants State with detailed inventory
+  // UPDATED: Variants State with independent inventory
   const [variants, setVariants] = useState<{
     id: string, 
     type: string, 
     value: string, 
     sku: string, 
-    totalStock: number,
-    allocations: { amazon: number, ebay: number }
+    costType: 'fixed' | 'delta' | 'percent',
+    costValue: number,
+    webStock: number,
+    amazonStock: number,
+    ebayStock: number
   }[]>(Array.isArray(initialData?.variants) ? initialData.variants.map((v: any) => ({
     ...v,
-    allocations: v.allocations || { amazon: 0, ebay: 0 }
+    webStock: v.webStock ?? (Number(v.totalStock || 0) - Number(v.allocations?.amazon || 0) - Number(v.allocations?.ebay || 0)),
+    amazonStock: v.amazonStock ?? Number(v.allocations?.amazon || 0),
+    ebayStock: v.ebayStock ?? Number(v.allocations?.ebay || 0),
+    costType: v.costType || 'fixed',
+    costValue: v.costValue ?? (Number(v.cost) || baseCost)
   })) : []);
 
   const [amazonMarkup, setAmazonMarkup] = useState<number>(Number(initialData?.amazonMarkup) || 15);
@@ -520,13 +545,14 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       name: title,
       description: productDescription,
       price: manualB2c ? parseFloat(manualB2c) : parseFloat(b2cPrice.toFixed(2)),
-      // STOCK LOGIC:
-      // If simple: stock is Web Shop (master - amazon - ebay)
-      // If variants: sum of web shop stock of each variant
-      stock: Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0)),
-      amazonStock: isAmazonActive ? masterAllocations.amazon : 0,
-      ebayStock: isEbayActive ? masterAllocations.ebay : 0,
+      // STOCK LOGIC: Managed independently per channel
+      stock: webStock,
+      amazonStock: isAmazonActive ? amazonStock : 0,
+      ebayStock: isEbayActive ? ebayStock : 0,
       weight,
+      length,
+      width,
+      height,
       category: isAddingNewCategory ? newCategory : category,
       subcategory: isAddingNewSubcategory ? newSubcategory : subcategory,
       isFeatured,
@@ -544,7 +570,17 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       metaTitle,
       metaDescription,
       amazonDescription,
-      ebayDescription
+      ebayDescription,
+      showBrand,
+      showEan,
+      videoUrl,
+      has3D,
+      cost: baseCost,
+      markup: b2cMarkup,
+      amazonMarkup,
+      ebayMarkup,
+      amazonTitle,
+      ebayTitle
     };
     onSave(finalProduct);
     setIsSaveSuccess(true);
@@ -552,7 +588,7 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
 
   return (
     <>
-    <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 border border-gray-100 shadow-xl space-y-10 animate-in slide-in-from-bottom-8 duration-500 relative">
+    <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 border border-gray-100 shadow-xl space-y-10 animate-in slide-in-from-bottom-8 duration-500 relative w-full max-w-7xl mx-auto">
       <button onClick={onBack} className="absolute top-8 right-8 p-3 bg-gray-50 text-gray-500 hover:bg-brand-yellow hover:text-brand-dark rounded-xl transition-all">
         <X className="w-6 h-6" />
       </button>
@@ -568,21 +604,33 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
         <div className="lg:col-span-8 space-y-8">
           
           <div className="space-y-6">
-            <label className="block">
-              <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Titolo Prodotto (DB Interno & Sito) *</span>
+            <div className="flex justify-between items-end mb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">Titolo Prodotto (DB Interno & Sito) *</span>
+              <span className={`text-[9px] font-black px-2 py-0.5 rounded-md transition-all ${title.length > 60 ? 'bg-red-500 text-white shadow-lg animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
+                {title.length} / 60
+              </span>
+            </div>
+            <div className="relative">
               <input 
                 type="text" 
                 value={title}
                 onChange={e => setTitle(toProperCase(e.target.value))}
                 placeholder="Titolo gestionale per sito web..." 
-                className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue focus:border-brand-blue" 
+                className={`w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold transition-all ${title.length > 60 ? 'border-red-500 ring-4 ring-red-500/10' : 'focus:ring-brand-blue focus:border-brand-blue'}`} 
               />
-            </label>
+              {title.length > 60 && (
+                <div className="mt-2 text-[11px] leading-relaxed p-3 bg-red-50 border border-red-100 rounded-xl text-gray-600 font-medium">
+                  <span className="text-red-500 font-black uppercase text-[9px] block mb-1">Limite Superato!</span>
+                  {title.substring(0, 60)}<span className="text-red-500 bg-red-100 px-0.5 rounded font-black">{title.substring(60)}</span>
+                </div>
+              )}
+            </div>
             <div className="space-y-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Descrizione Prodotto</span>
               
               <div className="relative group/editor">
                 <MasterRichEditor 
+                  key={`collapsed-editor-${isDescModalOpen}`}
                   value={productDescription}
                   onChange={setProductDescription}
                   placeholder="Scrivi qui la descrizione professionale per il sito..."
@@ -608,7 +656,13 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
                <label className="block">
                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 block">URL Video Youtube (Opzionale)</span>
-                 <input type="text" placeholder="https://youtube.com/..." className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-yellow focus:border-brand-yellow" />
+                 <input 
+                   type="text" 
+                   value={videoUrl}
+                   onChange={e => setVideoUrl(e.target.value)}
+                   placeholder="https://youtube.com/..." 
+                   className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-brand-yellow focus:border-brand-yellow" 
+                 />
                </label>
 
                <div className="flex flex-col gap-4">
@@ -634,23 +688,53 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                         onChange={e => setIsSpecialPromotion(e.target.checked)} 
                       />
                       <div className="w-11 h-6 bg-gray-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-200 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 relative"></div>
-                      {isSpecialPromotion && <Star className="absolute left-[3px] top-[4px] w-3 h-3 text-white pointer-events-none z-10 fill-current" />}
-                   </label>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Scelti Per Te</span>
-                 </div>
-               </div>
+                       {isSpecialPromotion && <Star className="absolute left-[3px] top-[4px] w-3 h-3 text-white pointer-events-none z-10 fill-current" />}
+                    </label>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Scelti Per Te</span>
+                  </div>
+                </div>
 
-               <div className="flex items-center gap-3 pt-4">
-                 <label className="inline-flex items-center cursor-pointer">
-                   <input type="checkbox" className="sr-only peer" />
-                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 relative"></div>
-                 </label>
-                 <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Modello Vista 3D / AR</span>
-               </div>
+                <div className="flex items-center gap-3 pt-4">
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={has3D}
+                      onChange={e => setHas3D(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 relative"></div>
+                  </label>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Modello Vista 3D / AR</span>
+                </div>
             </div>
+          </div>
             
-            <div className="space-y-3 pt-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">Specifiche Tecniche per Tabella (Sito)</span>
+          <div className="space-y-6 pt-4">
+              <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">Specifiche Tecniche & Dimensioni</span>
+              
+              {/* Parametri Fissi */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+                <label className="block">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Peso + Imballo (Kg)</span>
+                  <input type="number" value={weight} onFocus={e => weight === 0 && setWeight('' as any)} onChange={e => setWeight(Number(e.target.value))} step="0.01" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue" />
+                </label>
+                <label className="block">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Lunghezza (cm)</span>
+                  <input type="number" value={length} onFocus={e => length === 0 && setLength('' as any)} onChange={e => setLength(Number(e.target.value))} step="0.1" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue" />
+                </label>
+                <label className="block">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Larghezza (cm)</span>
+                  <input type="number" value={width} onFocus={e => width === 0 && setWidth('' as any)} onChange={e => setWidth(Number(e.target.value))} step="0.1" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue" />
+                </label>
+                <label className="block">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Altezza (cm)</span>
+                  <input type="number" value={height} onFocus={e => height === 0 && setHeight('' as any)} onChange={e => setHeight(Number(e.target.value))} step="0.1" className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-xs font-bold focus:ring-brand-blue" />
+                </label>
+              </div>
+
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block pt-2">Voci Aggiuntive Manuali</span>
+              <div className="space-y-3 pt-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">Specifiche Tecniche per Tabella (Sito)</span>
               {specs.map((s, i) => (
                 <div key={i} className="flex gap-2">
                   <input type="text" value={s.key} onChange={e => {
@@ -671,16 +755,38 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <label className="lg:col-span-1">
                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">SKU Master *</span>
-                <input 
-                  type="text" 
-                  value={sku}
-                  onChange={e => setSku(e.target.value)}
-                  placeholder="TSHIRT-01" 
-                  className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue" 
-                />
+                <div className="relative group">
+                    <input 
+                      type="text" 
+                      value={sku}
+                      onChange={e => setSku(e.target.value.toUpperCase().replace(/\s+/g, '-'))}
+                      placeholder="SKU-01" 
+                      className="w-full bg-gray-50 border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-blue" 
+                    />
+                    <button 
+                      onClick={() => {
+                        const newV = variants.map(v => ({
+                          ...v,
+                          sku: `${sku}-${v.value}`.toUpperCase().replace(/\s+/g, '-')
+                        }));
+                        setVariants(newV);
+                      }}
+                      title="Sincronizza SKU Varianti"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-blue hover:text-brand-yellow transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
               </label>
               <label className="lg:col-span-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">EAN</span>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">EAN</span>
+                  <label className="inline-flex items-center cursor-pointer scale-75 origin-right">
+                    <input type="checkbox" className="sr-only peer" checked={showEan} onChange={e => setShowEan(e.target.checked)} />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-blue relative"></div>
+                    <span className="ml-2 text-[8px] font-black uppercase text-gray-400 peer-checked:text-brand-blue">Visibile</span>
+                  </label>
+                </div>
                 <input 
                   type="text" 
                   value={ean}
@@ -690,7 +796,14 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                 />
               </label>
               <label className="lg:col-span-1">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Marca / Brand</span>
+                 <div className="flex justify-between items-center mb-1">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue block">Marca / Brand</span>
+                   <label className="inline-flex items-center cursor-pointer scale-75 origin-right">
+                     <input type="checkbox" className="sr-only peer" checked={showBrand} onChange={e => setShowBrand(e.target.checked)} />
+                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-blue relative"></div>
+                     <span className="ml-2 text-[8px] font-black uppercase text-gray-400 peer-checked:text-brand-blue">Visibile</span>
+                   </label>
+                 </div>
                  {isAddingNewBrand ? (
                    <div className="flex gap-1">
                      <input 
@@ -720,41 +833,54 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                    </select>
                  )}
                </label>
-              <label className="lg:col-span-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Peso (Kg)</span>
-                <input 
-                   type="number" 
-                   value={weight}
-                   onChange={e => setWeight(Number(e.target.value))}
-                   placeholder="0.0" 
-                   step="0.1"
-                   className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-brand-yellow" 
-                />
-              </label>
+               <div className="hidden">
+                 {/* Peso spostato in Specifiche Tecniche */}
+               </div>
 
-              {/* Quantità Principale (Sempre visibile) */}
-              <label className="lg:col-span-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale</span>
-                <input type="number" value={masterStock} onChange={e => setMasterStock(Number(e.target.value))} className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700" />
-              </label>
-              {isAmazonActive && (
-                <label className="lg:col-span-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
-                  <input type="number" value={masterAllocations.amazon} onChange={e => setMasterAllocations({...masterAllocations, amazon: Number(e.target.value)})} className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" />
-                </label>
-              )}
-              {isEbayActive && (
-                <label className="lg:col-span-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
-                  <input type="number" value={masterAllocations.ebay} onChange={e => setMasterAllocations({...masterAllocations, ebay: Number(e.target.value)})} className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" />
-                </label>
-              )}
-              <label className="lg:col-span-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
-                <div className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700 flex items-center h-[46px]">
-                  {Math.max(0, masterStock - (isAmazonActive ? masterAllocations.amazon : 0) - (isEbayActive ? masterAllocations.ebay : 0))}
-                </div>
-              </label>
+               {/* Independent Channel Stocks Interface */}
+               <label className="lg:col-span-1">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
+                 <input 
+                   type="number" 
+                   value={webStock} 
+                   onFocus={e => webStock === 0 && setWebStock('' as any)} 
+                   onChange={e => setWebStock(Number(e.target.value))} 
+                   className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700" 
+                 />
+               </label>
+
+               {isAmazonActive && (
+                 <label className="lg:col-span-1">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
+                   <input 
+                     type="number" 
+                     value={amazonStock} 
+                     onFocus={e => amazonStock === 0 && setAmazonStock('' as any)} 
+                     onChange={e => setAmazonStock(Number(e.target.value))} 
+                     className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" 
+                   />
+                 </label>
+               )}
+               
+               {isEbayActive && (
+                 <label className="lg:col-span-1">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
+                   <input 
+                     type="number" 
+                     value={ebayStock} 
+                     onFocus={e => ebayStock === 0 && setEbayStock('' as any)} 
+                     onChange={e => setEbayStock(Number(e.target.value))} 
+                     className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" 
+                   />
+                 </label>
+               )}
+
+               <label className="lg:col-span-1">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale (Somma)</span>
+                 <div className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700 flex items-center h-[46px]">
+                   {webStock + (isAmazonActive ? amazonStock : 0) + (isEbayActive ? ebayStock : 0)}
+                 </div>
+               </label>
             </div>
           </div>
 
@@ -870,99 +996,195 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
 
                <div className="space-y-4">
                  {variants.map((v, i) => {
-                const amazonQuota = isAmazonActive ? v.allocations.amazon : 0;
-                const ebayQuota = isEbayActive ? v.allocations.ebay : 0;
-                const webStock = Math.max(0, v.totalStock - (amazonQuota + ebayQuota));
-                
-                // Dinamic grid cols based on active channels
-                let gridCols = 2; // Totale + Web Shop
-                if (isAmazonActive) gridCols++;
-                if (isEbayActive) gridCols++;
+                 // Dynamic grid columns based on active channels + Total
+                 let gridCols = 1; // Solo Web inizialmente
+                 if (isAmazonActive) gridCols++;
+                 if (isEbayActive) gridCols++;
 
-                return (
-                  <div key={v.id} className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
-                    <div className="flex gap-3 items-start">
-                      <select 
-                        value={v.type}
-                        onChange={e => {
-                          const newV = [...variants]; newV[i].type = e.target.value; setVariants(newV);
-                        }}
-                        className="w-28 bg-white border-gray-200 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-tighter"
-                      >
-                        {availableVariants.map(type => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                      <input 
-                        type="text" 
-                        value={v.value}
-                        onChange={e => {
-                          const newV = [...variants]; newV[i].value = e.target.value; setVariants(newV);
-                        }}
-                        placeholder="Valore" 
-                        className="w-32 bg-white border-gray-200 rounded-lg px-3 py-2 text-xs font-black uppercase" 
-                      />
-                      <input 
-                        type="text"
-                        value={v.sku}
-                        onChange={e => {
-                          const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV);
-                        }}
-                        placeholder="SKU"
-                        className="w-32 bg-white border-gray-200 rounded-lg px-3 py-2 text-[10px] font-bold"
-                      />
-                      <div className={`flex-[1.5] grid gap-2 bg-white/50 p-2 rounded-2xl border border-gray-100 items-end`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                         <div className="flex flex-col gap-1">
-                            <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center leading-none">Totale</span>
-                            <input type="number" value={v.totalStock} onChange={e => {
-                              const newV = [...variants]; newV[i].totalStock = Number(e.target.value); setVariants(newV);
-                            }} className="w-full h-8 bg-white border-gray-100 rounded-lg px-1 py-1 text-[11px] font-black text-center focus:ring-1 focus:ring-brand-blue" />
-                         </div>
-                         {isAmazonActive && (
-                           <div className="flex flex-col gap-1">
-                              <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest text-center leading-none">Amazon</span>
-                              <input type="number" value={v.allocations.amazon} onChange={e => {
-                                const newV = [...variants]; newV[i].allocations.amazon = Number(e.target.value); setVariants(newV);
-                              }} className="w-full h-8 bg-orange-50 border-orange-100 rounded-lg px-1 py-1 text-[11px] font-black text-center text-orange-600 focus:ring-1 focus:ring-orange-500" />
-                           </div>
-                         )}
-                         {isEbayActive && (
-                           <div className="flex flex-col gap-1">
-                              <span className="text-[7px] font-black text-blue-600 uppercase tracking-widest text-center leading-none">eBay</span>
-                              <input type="number" value={v.allocations.ebay} onChange={e => {
-                                const newV = [...variants]; newV[i].allocations.ebay = Number(e.target.value); setVariants(newV);
-                              }} className="w-full h-8 bg-blue-50 border-blue-100 rounded-lg px-1 py-1 text-[11px] font-black text-center text-blue-600 focus:ring-1 focus:ring-blue-500" />
-                           </div>
-                         )}
-                         <div className="flex flex-col gap-1">
-                            <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest text-center leading-none">Web Shop</span>
-                            <div className="w-full h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[11px] font-black">
-                              {webStock}
+                 return (
+                   <div key={v.id} className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
+                      <div className="flex flex-col gap-6">
+                        {/* Row 1: Core IDs & Cost */}
+                        <div className="flex flex-wrap gap-4 items-start">
+                          <div className="flex flex-col gap-1.5 min-w-[120px]">
+                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Parametro</span>
+                            <select 
+                              value={v.type}
+                              onChange={e => {
+                                const newV = [...variants]; newV[i].type = e.target.value; setVariants(newV);
+                              }}
+                              className="w-full bg-white border-gray-200 rounded-xl px-3 py-3 text-[10px] font-black uppercase tracking-tighter shadow-sm"
+                            >
+                              {availableVariants.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 min-w-[140px]">
+                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Valore</span>
+                            <input 
+                              type="text" 
+                              value={v.value}
+                               onChange={e => {
+                                 const val = e.target.value;
+                                 const newV = [...variants]; 
+                                 newV[i].value = val;
+                                 newV[i].sku = `${sku}-${val}`.toUpperCase().replace(/\s+/g, '-');
+                                 setVariants(newV);
+                               }}
+                              placeholder="es. XL, Rosso..." 
+                              className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-xs font-black uppercase shadow-sm" 
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 min-w-[120px]">
+                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">SKU Variante</span>
+                            <input 
+                               type="text"
+                               value={v.sku}
+                               onChange={e => {
+                                 const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV);
+                               }}
+                               placeholder="SKU"
+                               className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-[10px] font-bold shadow-sm"
+                             />
+                          </div>
+
+                          {/* Cost Management */}
+                          <div className="flex flex-col gap-1.5 bg-gray-50/50 p-3 rounded-2xl border border-gray-100 min-w-[200px] shadow-inner">
+                            <span className="text-[8px] font-black uppercase text-brand-blue tracking-widest pl-1">Logica Costo Variante</span>
+                            <div className="flex items-center gap-2">
+                              <select 
+                                value={v.costType}
+                                onChange={e => {
+                                  const newV = [...variants]; 
+                                  newV[i].costType = e.target.value as any; 
+                                  setVariants(newV);
+                                }}
+                                className="text-[10px] font-black uppercase bg-white border-gray-100 rounded-lg px-2 py-2 focus:ring-0 shadow-sm"
+                              >
+                                <option value="fixed">Fisso €</option>
+                                <option value="delta">Delta €</option>
+                                <option value="percent">% Su Madre</option>
+                              </select>
+                              <input 
+                                type="number" 
+                                step="0.01"
+                                value={v.costValue}
+                                onChange={e => {
+                                  const newV = [...variants]; 
+                                  newV[i].costValue = Number(e.target.value); 
+                                  setVariants(newV);
+                                }}
+                                className="w-20 bg-white border-gray-100 rounded-lg px-3 py-2 text-[11px] font-black text-center shadow-sm"
+                              />
+                              <div className="flex flex-col items-end px-2 border-l border-gray-200 ml-1">
+                                <span className="text-[7px] font-black text-gray-400 uppercase leading-none mb-1">Finale</span>
+                                <span className="text-[11px] font-black text-brand-blue">
+                                  €{(() => {
+                                    if (v.costType === 'fixed') return v.costValue.toFixed(2);
+                                    if (v.costType === 'delta') return (baseCost + v.costValue).toFixed(2);
+                                    if (v.costType === 'percent') return (baseCost * (1 + v.costValue / 100)).toFixed(2);
+                                    return '0.00';
+                                  })()}
+                                </span>
+                              </div>
                             </div>
-                         </div>
+                          </div>
+                        </div>
+
+                        {/* Row 2: Stocks & Actions */}
+                        <div className="flex gap-4 items-end">
+                          <div className={`flex-1 grid gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+                            {/* Web Variant Stock */}
+                            <div className="flex flex-col gap-1.5">
+                               <div className="flex items-center justify-between px-1">
+                                 <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none">Canale Web</span>
+                                 <Globe className="w-3 h-3 text-indigo-300" />
+                               </div>
+                               <input 
+                                 type="number" 
+                                 value={v.webStock} 
+                                 onFocus={e => (v.webStock === 0 || v.webStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].webStock = '' as any; setVariants(newV); } )()} 
+                                 onChange={e => {
+                                   const val = Number(e.target.value); const newV = [...variants]; newV[i].webStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.webStock || 0), 0); newV[0].webStock = Math.max(0, webStock - otherSum); } } setVariants(newV);
+                                 }} 
+                                 className="w-full h-11 bg-indigo-50/30 border-indigo-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-indigo-700 focus:ring-2 focus:ring-indigo-500 transition-all" 
+                               />
+                            </div>
+
+                            {/* Amazon Variant Stock */}
+                            {isAmazonActive && (
+                              <div className="flex flex-col gap-1.5">
+                                 <div className="flex items-center justify-between px-1">
+                                   <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest leading-none">Amazon Sync</span>
+                                   <ExternalLink className="w-3 h-3 text-orange-300" />
+                                 </div>
+                                 <input 
+                                   type="number" 
+                                   value={v.amazonStock} 
+                                   onFocus={e => (v.amazonStock === 0 || v.amazonStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].amazonStock = '' as any; setVariants(newV); } )()} 
+                                   onChange={e => {
+                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].amazonStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.amazonStock || 0), 0); newV[0].amazonStock = Math.max(0, amazonStock - otherSum); } } setVariants(newV);
+                                   }} 
+                                   className="w-full h-11 bg-orange-50/30 border-orange-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-orange-600 focus:ring-2 focus:ring-orange-500 transition-all" 
+                                 />
+                              </div>
+                            )}
+
+                            {/* eBay Variant Stock */}
+                            {isEbayActive && (
+                              <div className="flex flex-col gap-1.5">
+                                 <div className="flex items-center justify-between px-1">
+                                   <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest leading-none">eBay Sync</span>
+                                   <Globe className="w-3 h-3 text-blue-300" />
+                                 </div>
+                                 <input 
+                                   type="number" 
+                                   value={v.ebayStock} 
+                                   onFocus={e => (v.ebayStock === 0 || v.ebayStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].ebayStock = '' as any; setVariants(newV); } )()} 
+                                   onChange={e => {
+                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].ebayStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.ebayStock || 0), 0); newV[0].ebayStock = Math.max(0, ebayStock - otherSum); } } setVariants(newV);
+                                   }} 
+                                   className="w-full h-11 bg-blue-50/30 border-blue-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all" 
+                                 />
+                              </div>
+                            )}
+                          </div>
+
+                          <button 
+                            onClick={() => setVariants(variants.filter((_, idx) => idx !== i))} 
+                            className="h-11 w-11 flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
+                            title="Rimuovi Variante"
+                          >
+                            <Trash2 className="w-5 h-5"/>
+                          </button>
+                        </div>
                       </div>
-                      <button onClick={() => setVariants(variants.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all pt-3"><Trash2 className="w-4 h-4"/></button>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              <div className="flex justify-center pt-2">
-                <button 
-                  onClick={() => setVariants([...variants, {
-                    id: Math.random().toString(36).substr(2, 9),
-                    type: availableVariants[0] || 'Colore', 
-                    value: "", 
-                    sku: "", 
-                    totalStock: 0,
-                    allocations: { amazon: 0, ebay: 0 }
-                  }])} 
-                  className="group flex items-center gap-3 px-6 py-4 bg-gray-50 hover:bg-brand-yellow hover:text-brand-dark rounded-3xl border-2 border-dashed border-gray-200 hover:border-brand-yellow transition-all duration-300"
-                >
-                  <Plus className="w-5 h-5 text-gray-400 group-hover:text-brand-dark" />
-                  <span className="text-xs font-black uppercase tracking-widest text-gray-500 group-hover:text-brand-dark">Aggiungi Nuova Variante con gestione Canali</span>
-                </button>
-              </div>
+                   </div>
+                 );
+               })}
+               
+               <div className="flex justify-center pt-2">
+                 <button 
+                   onClick={() => setVariants([...variants, {
+                     id: Math.random().toString(36).substr(2, 9),
+                     type: availableVariants[0] || 'Colore', 
+                     value: "", 
+                     sku: sku ? `${sku}-` : "", 
+                     costType: 'fixed',
+                     costValue: baseCost,
+                     webStock: variants.length === 0 ? webStock : 0,
+                     amazonStock: variants.length === 0 ? amazonStock : 0,
+                     ebayStock: variants.length === 0 ? ebayStock : 0
+                   }])} 
+                   className="group flex items-center gap-3 px-6 py-4 bg-gray-50 hover:bg-brand-yellow hover:text-brand-dark rounded-3xl border-2 border-dashed border-gray-200 hover:border-brand-yellow transition-all duration-300"
+                 >
+                   <Plus className="w-5 h-5 text-gray-400 group-hover:text-brand-dark" />
+                   <span className="text-xs font-black uppercase tracking-widest text-gray-500 group-hover:text-brand-dark">Aggiungi Nuova Variante Indipendente</span>
+                 </button>
+               </div>
             </div>
           </div>
             <div className="space-y-4">
@@ -1088,13 +1310,13 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                   <div className="grid grid-cols-2 gap-4">
                     <label className="block">
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Ricarico (%)</span>
-                      <input type="number" value={amazonMarkup} onChange={e => setAmazonMarkup(Number(e.target.value))} className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
+                      <input type="number" value={amazonMarkup} onFocus={e => amazonMarkup === 0 && setAmazonMarkup('' as any)} onChange={e => setAmazonMarkup(Number(e.target.value))} className="w-full bg-white border-orange-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-orange-500 focus:border-orange-500" />
                     </label>
                     <label className="block relative">
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Prezzo Finale (Manuale)</span>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400 font-bold">€</span>
-                        <input type="number" value={amazonManualPrice || (amazonPrice ? amazonPrice.toFixed(2) : "0.00")} onChange={e => setAmazonManualPrice(e.target.value)} className={`w-full bg-orange-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-orange-300 ${amazonManualPrice ? 'ring-2 ring-orange-200' : ''}`} />
+                        <input type="number" value={amazonManualPrice || (amazonPrice ? amazonPrice.toFixed(2) : "0.00")} onFocus={e => (amazonManualPrice === "0" || amazonManualPrice === "") && setAmazonManualPrice('')} onChange={e => setAmazonManualPrice(e.target.value)} className={`w-full bg-orange-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-orange-300 ${amazonManualPrice ? 'ring-2 ring-orange-200' : ''}`} />
                         {amazonManualPrice && <button onClick={() => setAmazonManualPrice("")} className="absolute -bottom-4 right-0 text-[8px] font-black text-orange-600 uppercase">Reset</button>}
                       </div>
                     </label>
@@ -1155,13 +1377,13 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                   <div className="grid grid-cols-2 gap-4">
                     <label className="block">
                       <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Ricarico (%)</span>
-                      <input type="number" value={ebayMarkup} onChange={e => setEbayMarkup(Number(e.target.value))} className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
+                      <input type="number" value={ebayMarkup} onFocus={e => ebayMarkup === 0 && setEbayMarkup('' as any)} onChange={e => setEbayMarkup(Number(e.target.value))} className="w-full bg-white border-blue-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-blue-500 focus:border-blue-500" />
                     </label>
                     <label className="block relative">
                       <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">Prezzo Finale (Manuale)</span>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold">€</span>
-                        <input type="number" value={ebayManualPrice || ebayPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'ebay')} className={`w-full bg-blue-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-blue-300 ${ebayManualPrice ? 'ring-2 ring-blue-200' : ''}`} />
+                        <input type="number" value={ebayManualPrice || ebayPrice.toFixed(2)} onFocus={e => (ebayManualPrice === "0" || ebayManualPrice === "") && setEbayManualPrice('')} onChange={e => handleManualPrice(e.target.value, 'ebay')} className={`w-full bg-blue-500 text-white border-none rounded-xl pl-7 pr-2 py-3 text-sm font-black focus:ring-2 focus:ring-blue-300 ${ebayManualPrice ? 'ring-2 ring-blue-200' : ''}`} />
                         {ebayManualPrice && <button onClick={() => setEbayManualPrice("")} className="absolute -bottom-4 right-0 text-[8px] font-black text-blue-600 uppercase">Reset</button>}
                       </div>
                     </label>
@@ -1459,7 +1681,7 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-300 mb-1 block">Costo Base d'Acquisto</span>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-gray-400">€</span>
-                      <input type="number" value={baseCost} onChange={e => setBaseCost(Number(e.target.value))} className="w-full bg-black/40 border border-gray-700 text-white rounded-xl pl-8 pr-4 py-3 text-lg font-black focus:ring-brand-yellow focus:border-brand-yellow transition-all" />
+                      <input type="number" value={baseCost} onFocus={e => baseCost === 0 && setBaseCost('' as any)} onChange={e => setBaseCost(Number(e.target.value))} className="w-full bg-black/40 border border-gray-700 text-white rounded-xl pl-8 pr-4 py-3 text-lg font-black focus:ring-brand-yellow focus:border-brand-yellow transition-all" />
                     </div>
                   </label>
                   
@@ -1471,11 +1693,11 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                        </div>
                        <div className="flex gap-2">
                           <div className="relative w-1/3">
-                             <input type="number" value={b2cMarkup} onChange={e => setB2cMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-brand-yellow focus:ring-brand-yellow" />
+                             <input type="number" value={b2cMarkup} onFocus={e => b2cMarkup === 0 && setB2cMarkup('' as any)} onChange={e => setB2cMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-brand-yellow focus:ring-brand-yellow" />
                           </div>
                           <div className="relative w-2/3">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-brand-dark/50">€</span>
-                            <input type="number" value={manualB2c || b2cPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2c')} placeholder={b2cPrice.toFixed(2)} className={`w-full bg-brand-yellow text-brand-dark border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2c ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
+                            <input type="number" value={manualB2c || b2cPrice.toFixed(2)} onFocus={e => (manualB2c === "0" || manualB2c === "") && setManualB2c('')} onChange={e => handleManualPrice(e.target.value, 'b2c')} placeholder={b2cPrice.toFixed(2)} className={`w-full bg-brand-yellow text-brand-dark border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2c ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
                             {manualB2c && <button onClick={() => setManualB2c("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
                           </div>
                        </div>
@@ -1488,11 +1710,11 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                        </div>
                        <div className="flex gap-2">
                           <div className="relative w-1/3">
-                             <input type="number" value={b2bMarkup} onChange={e => setB2bMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-blue-500 focus:ring-blue-500" />
+                             <input type="number" value={b2bMarkup} onFocus={e => b2bMarkup === 0 && setB2bMarkup('' as any)} onChange={e => setB2bMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-blue-500 focus:ring-blue-500" />
                           </div>
                           <div className="relative w-2/3">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-white/50">€</span>
-                            <input type="number" value={manualB2b || b2bPrice.toFixed(2)} onChange={e => handleManualPrice(e.target.value, 'b2b')} placeholder={b2bPrice.toFixed(2)} className={`w-full bg-blue-500 text-white border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2b ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
+                            <input type="number" value={manualB2b || b2bPrice.toFixed(2)} onFocus={e => (manualB2b === "0" || manualB2b === "") && setManualB2b('')} onChange={e => handleManualPrice(e.target.value, 'b2b')} placeholder={b2bPrice.toFixed(2)} className={`w-full bg-blue-500 text-white border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2b ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
                             {manualB2b && <button onClick={() => setManualB2b("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
                           </div>
                        </div>
@@ -1677,6 +1899,8 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
 
 // Modale Editor Espanso
 const ExpandedDescriptionModal = ({ isOpen, onClose, value, onChange }: { isOpen: boolean, onClose: () => void, value: string, onChange: (v: string) => void }) => {
+  const [tempValue, setTempValue] = useState(value);
+  
   if (!isOpen) return null;
 
   return (
@@ -1715,8 +1939,8 @@ const ExpandedDescriptionModal = ({ isOpen, onClose, value, onChange }: { isOpen
         <div className="flex-1 overflow-auto p-4 lg:p-8 bg-gray-50/50">
           <div className="h-full bg-white rounded-3xl shadow-inner border border-gray-100 overflow-hidden">
              <MasterRichEditor 
-                value={value}
-                onChange={onChange}
+                value={tempValue}
+                onChange={setTempValue}
                 placeholder="Inizia a scrivere la descrizione estesa..."
                 minHeight="100%"
              />
@@ -1726,16 +1950,19 @@ const ExpandedDescriptionModal = ({ isOpen, onClose, value, onChange }: { isOpen
         <div className="p-8 bg-white border-t border-gray-100 flex justify-end gap-3">
           <button 
             onClick={onClose}
-            className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl text-[11px] font-black uppercase hover:bg-gray-200 transition-all"
+            className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl text-[11px] font-black uppercase hover:bg-gray-200 transition-all font-bold"
           >
-            Chiudi Senza Salvare
+            Annulla Modifiche
           </button>
           <button 
-            onClick={onClose}
+            onClick={() => {
+              onChange(tempValue);
+              onClose();
+            }}
             className="px-8 py-4 bg-brand-blue text-white rounded-2xl text-[11px] font-black uppercase hover:bg-brand-dark shadow-xl transition-all flex items-center gap-3"
           >
             <Check className="w-5 h-5" />
-            Conferma Modifiche
+            Salva e Conferma
           </button>
         </div>
       </motion.div>

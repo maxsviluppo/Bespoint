@@ -12,6 +12,7 @@ import {
   ChevronRight, 
   ChevronLeft,
   ChevronDown,
+  ChevronUp,
   ArrowLeft,
   ArrowRight,
   Home,
@@ -75,6 +76,8 @@ import {
   LayoutDashboard,
   AlertTriangle,
   Zap,
+  Eye,
+  EyeOff,
   Image as ImageIcon
 } from "lucide-react";
 
@@ -368,6 +371,14 @@ function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false
 
 const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], favorites = [], toggleFavorite, onShare, onSelectProduct, allProducts = [] }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void; isDesktop: boolean; reviews?: any[]; favorites?: string[]; toggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; onSelectProduct?: (p: Product) => void; allProducts?: Product[]; key?: any }) => {
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
+    // Auto-seleziona la prima opzione per ogni tipo
+    const initial: Record<string, string> = {};
+    product.variants?.forEach(v => {
+      if (!initial[v.type]) initial[v.type] = v.value;
+    });
+    return initial;
+  });
   const [activeImage, setActiveImage] = useState(product.image);
   const isFavorite = favorites.includes(product.id);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -380,6 +391,37 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
   const reviewCount = approvedReviews.length > 0
     ? approvedReviews.length + product.reviews
     : product.reviews;
+
+  const variantsByType = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    product.variants?.forEach(v => {
+      if (!groups[v.type]) groups[v.type] = [];
+      if (!groups[v.type].some(item => item.value === v.value)) {
+        groups[v.type].push(v);
+      }
+    });
+    return groups;
+  }, [product.variants]);
+
+  const selectedVariantObject = useMemo(() => {
+    if (!product.variants || product.variants.length === 0) return null;
+    // For simplicity with current flat structure, we find the one matching the first selected value
+    // In a multi-dim system, we'd match all selected types.
+    const firstType = Object.keys(variantsByType)[0];
+    if (!firstType || !selectedVariants[firstType]) return null;
+    return product.variants.find(v => v.type === firstType && v.value === selectedVariants[firstType]) || null;
+  }, [product.variants, selectedVariants, variantsByType]);
+
+  const displayPrice = useMemo(() => {
+    if (selectedVariantObject) {
+      const markup = product.markup || 30;
+      let cost = selectedVariantObject.costValue || product.cost || 10;
+      if (selectedVariantObject.costType === 'delta') cost = (product.cost || 10) + (selectedVariantObject.costValue || 0);
+      if (selectedVariantObject.costType === 'percent') cost = (product.cost || 10) * (1 + (selectedVariantObject.costValue || 0) / 100);
+      return cost * (1 + markup / 100);
+    }
+    return product.price;
+  }, [product, selectedVariantObject]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -518,7 +560,7 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-xs font-semibold text-brand-yellow uppercase tracking-widest">{product.category}</p>
-                  {product.brand && (
+                  {product.brand && product.showBrand && (
                     <>
                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                       <p className="text-xs font-black text-brand-blue uppercase tracking-widest">{product.brand}</p>
@@ -549,6 +591,12 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
               <div className="space-y-6">
                 <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Caratteristiche</h4>
                 <div className="grid grid-cols-2 gap-3">
+                  {product.ean && product.showEan && (
+                    <div className="bg-brand-blue text-white p-3 rounded-2xl border border-brand-blue shadow-lg shadow-brand-blue/10">
+                      <p className="text-[9px] text-white/60 uppercase font-black mb-0.5">Codice EAN</p>
+                      <p className="text-xs font-black tracking-widest">{product.ean}</p>
+                    </div>
+                  )}
                   {Object.entries(product.specs).map(([key, value]) => (
                     <div key={key} className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
                       <p className="text-[9px] text-gray-400 uppercase font-black mb-0.5">{key}</p>
@@ -595,12 +643,43 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                     <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">-20% OGGI</span>
                   </div>
                   {/* Prezzo scontato grande */}
-                  <span className="text-4xl font-black text-brand-blue leading-none">€{product.price.toFixed(2)}</span>
+                  <span className="text-4xl font-black text-brand-blue leading-none">€{displayPrice.toFixed(2)}</span>
+                </div>
+
+                {/* SKU Info */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SKU:</span>
+                  <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">{selectedVariantObject?.sku || product.sku || 'N/A'}</span>
                 </div>
                 
+                {/* Variant Selection UI */}
+                {Object.entries(variantsByType).map(([type, options]) => (
+                  <div key={type} className="space-y-3 pt-2">
+                    <h4 className="font-black text-[10px] uppercase tracking-widest text-brand-dark flex items-center gap-2">
+                      {type} 
+                      {selectedVariants[type] && <span className="text-brand-blue">— {selectedVariants[type]}</span>}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {options.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setSelectedVariants({ ...selectedVariants, [type]: opt.value })}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all border-2 ${
+                            selectedVariants[type] === opt.value
+                              ? "border-brand-yellow bg-brand-yellow/5 text-brand-dark shadow-lg shadow-brand-yellow/10"
+                              : "border-gray-100 hover:border-gray-200 text-gray-400"
+                          }`}
+                        >
+                          {opt.value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
                 <div className="flex items-center gap-2 text-xs text-green-600 font-bold bg-green-50 p-3 rounded-xl border border-green-100">
                   <Shield className="w-4 h-4" />
-                  <span>Disponibilità immediata</span>
+                  <span>{selectedVariantObject ? `In stock: ${selectedVariantObject.webStock}` : 'Disponibilità immediata'}</span>
                 </div>
               </div>
 
@@ -729,7 +808,13 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
             
             <button 
               onClick={() => {
-                for(let i=0; i<quantity; i++) onAddToCart(product);
+                const itemToAddToCart = {
+                  ...product,
+                  price: displayPrice,
+                  sku: selectedVariantObject?.sku || product.sku,
+                  name: selectedVariantObject ? `${product.name} - ${selectedVariantObject.value}` : product.name
+                };
+                for(let i=0; i<quantity; i++) onAddToCart(itemToAddToCart);
                 onClose();
               }}
               className="flex-[2] bg-brand-yellow hover:bg-brand-orange text-brand-dark h-14 lg:h-16 rounded-2xl font-black flex items-center justify-center gap-3 active:scale-95 transition-all uppercase text-sm tracking-widest shadow-xl shadow-brand-yellow/20"
@@ -1848,7 +1933,7 @@ const PROMO_ITEMS = [
   { id: 8, title: "Accessori", subtitle: "Tutto il resto", color: "bg-gray-800", seed: "acc" },
 ];
 
-const SlideSection = ({ slides }: { slides: any[] }) => {
+const SlideSection = ({ slides, darken = false }: { slides: any[], darken?: boolean }) => {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -1875,6 +1960,11 @@ const SlideSection = ({ slides }: { slides: any[] }) => {
             transition={{ duration: 0.8 }}
             className="w-full h-full"
           >
+            {/* Dark Overlay (Triggle) */}
+            {darken && (
+              <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
+            )}
+
             {currentSlide.link ? (
               <a href={currentSlide.link} className="block w-full h-full">
                 {currentSlide.url && (
@@ -2289,7 +2379,9 @@ export default function App() {
       socials: {
         facebook: "https://facebook.com/bespoint",
         instagram: "https://instagram.com/bespoint",
-        twitter: "https://twitter.com/bespoint"
+        twitter: "https://twitter.com/bespoint",
+        youtube: "https://youtube.com/@bespoint",
+        tiktok: "https://tiktok.com/@bespoint"
       },
       googleVerificationTag: "",
       googleAnalyticsSnippet: "",
@@ -2437,7 +2529,6 @@ export default function App() {
       if (parsed.specialSubcategoryValue === undefined) parsed.specialSubcategoryValue = "Tutti";
       if (!parsed.specialCategoryMax) parsed.specialCategoryMax = 4;
       if (parsed.isQuickLinksEnabled === undefined) parsed.isQuickLinksEnabled = true;
-      if (parsed.isQuickLinksEnabled === undefined) parsed.isQuickLinksEnabled = true;
       if (!parsed.linkRapidi) parsed.linkRapidi = [];
       
       if (parsed.topBarMode === undefined) parsed.topBarMode = 'static';
@@ -2446,6 +2537,9 @@ export default function App() {
       if (!parsed.topBarImage) parsed.topBarImage = "";
       if (!parsed.topBarMarqueeText) parsed.topBarMarqueeText = "Consegna rapida in tutta Italia | Resi facili entro 30 giorni | Supporto clienti 24/7";
       if (parsed.topBarMarqueeSpeed === undefined) parsed.topBarMarqueeSpeed = 30;
+      if (parsed.slidesOverlayEnabled === undefined) parsed.slidesOverlayEnabled = true;
+      if (parsed.isMiddleSlidesEnabled === undefined) parsed.isMiddleSlidesEnabled = true;
+      if (parsed.isBottomSlidesEnabled === undefined) parsed.isBottomSlidesEnabled = true;
 
       return parsed;
     }
@@ -2480,7 +2574,10 @@ export default function App() {
       topBarRightText: "Aiuto Resi e Ordini",
       topBarImage: "",
       topBarMarqueeText: "Consegna rapida in tutta Italia | Resi facili entro 30 giorni | Supporto clienti 24/7",
-      topBarMarqueeSpeed: 30
+      topBarMarqueeSpeed: 30,
+      slidesOverlayEnabled: true,
+      isMiddleSlidesEnabled: true,
+      isBottomSlidesEnabled: true
     };
   });
 
@@ -3020,6 +3117,11 @@ export default function App() {
                   key={idx}
                   className={`absolute inset-0 w-full h-full ${heroIndex === idx ? 'block z-10' : 'hidden z-0'}`}
                 >
+                  {/* Dark Overlay (Triggle) */}
+                  {pageSettings.slidesOverlayEnabled && (
+                    <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
+                  )}
+
                   {slide.link ? (
                     <a href={slide.link} className="block w-full h-full">
                       <img 
@@ -3190,10 +3292,9 @@ export default function App() {
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="flex items-center justify-between mb-4"
+              className="mb-4"
             >
               <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">LE SCELTE MIGLIORI PER TE</h2>
-              <button className="text-xs font-bold text-blue-600">Vedi tutte</button>
             </motion.div>
             <div className="flex overflow-x-auto lg:grid lg:grid-cols-12 lg:grid-rows-2 lg:h-[450px] no-scrollbar gap-4 pb-4">
               {(pageSettings.linkRapidi || []).map((item: any, idx: number) => (
@@ -3260,7 +3361,7 @@ export default function App() {
             </div>
           </section>
 
-          <SlideSection slides={middleSlides} />
+          {pageSettings.isMiddleSlidesEnabled && <SlideSection slides={middleSlides} darken={pageSettings.slidesOverlayEnabled} />}
         </>
       )}
 
@@ -3447,7 +3548,7 @@ export default function App() {
         </section>
       )}
 
-      {selectedCategory === "Tutti" && <SlideSection slides={bottomSlides} />}
+      {selectedCategory === "Tutti" && pageSettings.isBottomSlidesEnabled && <SlideSection slides={bottomSlides} darken={pageSettings.slidesOverlayEnabled} />}
 
       {/* Parallax Floating Banner */}
       {selectedCategory === "Tutti" && (
@@ -4198,6 +4299,24 @@ export default function App() {
                             className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
                           />
                         </label>
+                        <label className="block">
+                          <span className="text-[10px] font-black uppercase text-gray-400">YouTube URL</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.socials.youtube}
+                            onChange={(e) => setCompanySettings({...companySettings, socials: {...companySettings.socials, youtube: e.target.value}})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[10px] font-black uppercase text-gray-400">TikTok URL</span>
+                          <input 
+                            type="text" 
+                            value={companySettings.socials.tiktok}
+                            onChange={(e) => setCompanySettings({...companySettings, socials: {...companySettings.socials, tiktok: e.target.value}})}
+                            className="mt-1 block w-full bg-gray-50 border-gray-200 rounded-xl px-3 py-2 text-base font-bold focus:ring-brand-yellow focus:border-brand-yellow"
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -4405,8 +4524,19 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">GESTIONE SLIDE</h2>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-6">
+                        <h2 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">GESTIONE SLIDE</h2>
+                        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Scura Slide</span>
+                          <button 
+                            onClick={() => setPageSettings({ ...pageSettings, slidesOverlayEnabled: !pageSettings.slidesOverlayEnabled })}
+                            className={`w-12 h-6 rounded-full transition-all relative ${pageSettings.slidesOverlayEnabled ? 'bg-brand-blue' : 'bg-gray-200'}`}
+                          >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${pageSettings.slidesOverlayEnabled ? 'left-7' : 'left-1'}`} />
+                          </button>
+                        </div>
+                      </div>
                       <button 
                         onClick={() => {
                           const newSlides: any[] = [];
@@ -4457,7 +4587,7 @@ export default function App() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-brand-yellow rounded-full"></span>
-                            Slide Top (Hero)
+                            Slide Top (Hero) <span className="text-brand-blue text-xs ml-2 opacity-50 underline decoration-brand-yellow">1920x1080px</span>
                           </h3>
                           
                           <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
@@ -4636,10 +4766,18 @@ export default function App() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-brand-blue rounded-full"></span>
-                            Slide Middle
+                            Slide Middle <span className="text-brand-dark text-xs ml-2 opacity-50 underline decoration-brand-blue">1920x600px</span>
                           </h3>
                           
                           <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                            <button 
+                              onClick={() => setPageSettings({ ...pageSettings, isMiddleSlidesEnabled: !pageSettings.isMiddleSlidesEnabled })}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${pageSettings.isMiddleSlidesEnabled ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                            >
+                              {pageSettings.isMiddleSlidesEnabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                              <span>{pageSettings.isMiddleSlidesEnabled ? 'Visibile' : 'Nascosta'}</span>
+                            </button>
+                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
                             <div className="flex items-center">
                               <button 
                                 onClick={() => setAdminMidIdx(prev => Math.max(0, prev - 1))}
@@ -4802,10 +4940,18 @@ export default function App() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                           <h3 className="text-lg font-black text-brand-dark uppercase tracking-tighter flex items-center gap-2">
                             <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
-                            Slide Bottom
+                            Slide Bottom <span className="text-red-500 text-xs ml-2 opacity-50 underline decoration-red-200">1920x600px</span>
                           </h3>
                           
                           <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                            <button 
+                              onClick={() => setPageSettings({ ...pageSettings, isBottomSlidesEnabled: !pageSettings.isBottomSlidesEnabled })}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${pageSettings.isBottomSlidesEnabled ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                            >
+                              {pageSettings.isBottomSlidesEnabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                              <span>{pageSettings.isBottomSlidesEnabled ? 'Visibile' : 'Nascosta'}</span>
+                            </button>
+                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
                             <div className="flex items-center">
                               <button 
                                 onClick={() => setAdminBotIdx(prev => Math.max(0, prev - 1))}
@@ -5229,12 +5375,45 @@ export default function App() {
 
                     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                       <div className="divide-y divide-gray-50">
-                        {pageSettings.categories.filter(c => c !== "Tutti").map((cat) => (
+                        {pageSettings.categories.filter(c => c !== "Tutti").map((cat, fIdx, fArr) => {
+                          const originalIdx = pageSettings.categories.indexOf(cat);
+                          return (
                           <div key={cat} className="group">
                             {/* Category Row */}
                             <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                               <div className="flex items-center gap-3">
-                                <ChevronDown className="w-4 h-4 text-gray-300" />
+                                {/* Order Buttons */}
+                                <div className="flex flex-col gap-1 mr-2 invisible group-hover:visible">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (originalIdx > 1) {
+                                        const newCats = [...pageSettings.categories];
+                                        [newCats[originalIdx - 1], newCats[originalIdx]] = [newCats[originalIdx], newCats[originalIdx - 1]];
+                                        setPageSettings({...pageSettings, categories: newCats});
+                                      }
+                                    }}
+                                    disabled={fIdx === 0}
+                                    className="p-1 bg-white border border-gray-100 rounded shadow-sm hover:bg-brand-yellow transition-colors disabled:opacity-20"
+                                  >
+                                    <ChevronUp className="w-3 h-3" />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (originalIdx < pageSettings.categories.length - 1) {
+                                        const newCats = [...pageSettings.categories];
+                                        [newCats[originalIdx], newCats[originalIdx + 1]] = [newCats[originalIdx + 1], newCats[originalIdx]];
+                                        setPageSettings({...pageSettings, categories: newCats});
+                                      }
+                                    }}
+                                    disabled={fIdx === fArr.length - 1}
+                                    className="p-1 bg-white border border-gray-100 rounded shadow-sm hover:bg-brand-yellow transition-colors disabled:opacity-20"
+                                  >
+                                    <ChevronDown className="w-3 h-3" />
+                                  </button>
+                                </div>
+
                                 <div className="w-8 h-8 bg-brand-yellow/10 rounded-lg flex items-center justify-center text-brand-dark">
                                   <Grid className="w-4 h-4" />
                                 </div>
@@ -5340,9 +5519,39 @@ export default function App() {
 
                             {/* Subcategories List (Vertical Tree) */}
                             <div className="bg-gray-50/50 pl-14 pr-4 py-2 space-y-1">
-                              {(pageSettings.subcategories[cat] || []).map((sub) => (
+                              {(pageSettings.subcategories[cat] || []).map((sub, sIdx, sArr) => (
                                 <div key={sub} className="flex items-center justify-between py-1.5 group/sub">
                                   <div className="flex items-center gap-4">
+                                     {/* Sub Order Buttons */}
+                                     <div className="flex flex-col gap-0.5 mr-1 opacity-0 group-hover/sub:opacity-100 transition-all">
+                                       <button 
+                                         onClick={() => {
+                                           if (sIdx > 0) {
+                                             const newSubs = [...pageSettings.subcategories[cat]];
+                                             [newSubs[sIdx - 1], newSubs[sIdx]] = [newSubs[sIdx], newSubs[sIdx - 1]];
+                                             setPageSettings({...pageSettings, subcategories: {...pageSettings.subcategories, [cat]: newSubs}});
+                                           }
+                                         }}
+                                         disabled={sIdx === 0}
+                                         className="p-0.5 bg-white border border-gray-100 rounded shadow-sm hover:bg-brand-yellow transition-colors disabled:opacity-10"
+                                       >
+                                         <ChevronUp className="w-2.5 h-2.5 text-gray-400" />
+                                       </button>
+                                       <button 
+                                         onClick={() => {
+                                           if (sIdx < sArr.length - 1) {
+                                             const newSubs = [...pageSettings.subcategories[cat]];
+                                             [newSubs[sIdx], newSubs[sIdx + 1]] = [newSubs[sIdx + 1], newSubs[sIdx]];
+                                             setPageSettings({...pageSettings, subcategories: {...pageSettings.subcategories, [cat]: newSubs}});
+                                           }
+                                         }}
+                                         disabled={sIdx === sArr.length - 1}
+                                         className="p-0.5 bg-white border border-gray-100 rounded shadow-sm hover:bg-brand-yellow transition-colors disabled:opacity-10"
+                                       >
+                                         <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
+                                       </button>
+                                     </div>
+
                                      <div className="flex items-center gap-2">
                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                                        <span className="text-xs font-bold text-gray-600">{sub}</span>
@@ -5370,7 +5579,7 @@ export default function App() {
                               )}
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     </div>
                   </div>
