@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
@@ -1304,206 +1304,182 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                  if (isAmazonActive) gridCols++;
                  if (isEbayActive) gridCols++;
 
-                 return (
-                   <div key={v.id} className="relative bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
-                      <div className="flex flex-col gap-2">
-                        {/* Row 1: Core IDs & Cost */}
-                        <div className="flex flex-wrap gap-4 items-start">
-                           <div className="flex flex-col gap-1.5 min-w-[120px]">
-                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Parametro</span>
-                            <select 
-                              value={v.type}
-                              onChange={e => {
-                                const newV = [...variants]; newV[i].type = e.target.value; setVariants(newV);
-                              }}
-                              className="w-full bg-white border-gray-200 rounded-xl px-3 py-3 text-[10px] font-black uppercase tracking-tighter shadow-sm"
-                            >
-                              {availableVariants.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                              ))}
-                            </select>
-                          </div>
+                  return (
+                     <div key={v.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                       <div className="flex flex-col lg:flex-row gap-6">
+                         
+                         {/* Col 1+2: Form fields */}
+                         <div className="flex-1 flex flex-col gap-4">
+                           
+                           {/* Row 1: Variante & Valore */}
+                           <div className="grid grid-cols-2 gap-4">
+                             <div className="flex flex-col gap-1">
+                               <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Variante</span>
+                               <select 
+                                 value={v.type}
+                                 onChange={e => { const newV = [...variants]; newV[i].type = e.target.value; setVariants(newV); }}
+                                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[11px] font-black uppercase border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 transition-all"
+                               >
+                                 {availableVariants.map(type => (<option key={type} value={type}>{type}</option>))}
+                               </select>
+                             </div>
+                             <div className="flex flex-col gap-1">
+                               <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Valore</span>
+                               <input 
+                                 type="text" value={v.value}
+                                 onChange={e => {
+                                   const val = e.target.value;
+                                   const newV = [...variants]; 
+                                   newV[i].value = val;
+                                   newV[i].sku = `${sku}-${val}`.toUpperCase().replace(/\s+/g, '-');
+                                   setVariants(newV);
+                                 }}
+                                 placeholder="es. XL, Rosso..." 
+                                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[11px] font-black uppercase border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 transition-all" 
+                               />
+                             </div>
+                           </div>
 
-                          <div className="flex flex-col gap-1.5 min-w-[140px]">
-                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Valore</span>
-                            <input 
-                              type="text" 
-                              value={v.value}
-                               onChange={e => {
-                                 const val = e.target.value;
-                                 const newV = [...variants]; 
-                                 newV[i].value = val;
-                                 newV[i].sku = `${sku}-${val}`.toUpperCase().replace(/\s+/g, '-');
-                                 setVariants(newV);
-                               }}
-                              placeholder="es. XL, Rosso..." 
-                              className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-xs font-black uppercase shadow-sm" 
-                            />
-                          </div>
+                           {/* Row 2: SKU & EAN */}
+                           <div className="grid grid-cols-2 gap-4">
+                             <div className="flex flex-col gap-1">
+                               <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">SKU Variante</span>
+                               <input 
+                                 type="text" value={v.sku}
+                                 onChange={e => { const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV); }}
+                                 placeholder="SKU-001"
+                                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[11px] font-bold border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 transition-all"
+                               />
+                             </div>
+                             <div className="flex flex-col gap-1">
+                               <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">EAN Variante</span>
+                               <input 
+                                 type="text" value={v.ean}
+                                 onChange={e => { const newV = [...variants]; newV[i].ean = e.target.value; setVariants(newV); }}
+                                 placeholder="801234..."
+                                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[11px] font-bold border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 transition-all"
+                               />
+                             </div>
+                           </div>
 
-                          {/* SKU + EAN + Image grouped on the right (Image is now absolute) */}
-                          <div className="flex items-start gap-3 ml-auto mr-[150px]">
-                            {/* SKU and EAN stacked */}
-                            <div className="flex flex-col gap-2 min-w-[150px]">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">SKU Variante</span>
-                                <input 
-                                   type="text"
-                                   value={v.sku}
-                                   onChange={e => {
-                                     const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV);
-                                   }}
-                                   placeholder="SKU"
-                                   className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-[10px] font-bold shadow-sm"
-                                 />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">EAN Variante</span>
-                                <input 
-                                   type="text"
-                                   value={v.ean}
-                                   onChange={e => {
-                                     const newV = [...variants]; newV[i].ean = e.target.value; setVariants(newV);
-                                   }}
-                                   placeholder="801234..."
-                                   className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-[10px] font-bold shadow-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
+                           {/* Row 3: Logica Prezzo */}
+                           <div className="flex flex-col gap-1 bg-blue-50/40 p-4 rounded-2xl border border-blue-100/60">
+                             <span className="text-[9px] font-black uppercase text-brand-blue tracking-widest pl-1">Logica Prezzo Variante</span>
+                             <div className="flex items-center gap-2 mt-1">
+                               <select 
+                                 value={v.costType}
+                                 onChange={e => { const newV = [...variants]; newV[i].costType = e.target.value as any; setVariants(newV); }}
+                                 className="flex-1 text-[11px] font-black uppercase bg-white rounded-lg px-3 py-2.5 border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 shadow-sm"
+                               >
+                                 <option value="fixed">Fisso €</option>
+                                 <option value="delta">Delta €</option>
+                                 <option value="percent">% Su Pubblico</option>
+                               </select>
+                               <input 
+                                 type="number" step="0.01" value={v.costValue}
+                                 onChange={e => { const newV = [...variants]; newV[i].costValue = Number(e.target.value); setVariants(newV); }}
+                                 className="w-28 bg-white rounded-lg px-3 py-2.5 text-[12px] font-black text-center border border-gray-200 outline-none focus:ring-2 focus:ring-brand-blue/30 shadow-sm"
+                               />
+                             </div>
+                           </div>
 
-                          {/* Variant image picker (Fixed in corner) */}
-                          <div className="absolute top-6 right-6 flex flex-col gap-1 items-center z-10">
-                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1 self-start">Foto</span>
-                            <div
-                              onClick={() => { setVariantImageTargetIndex(i); setIsVariantImageModalOpen(true); }}
-                              className="w-[130px] h-[130px] bg-white border-2 border-dashed border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-brand-blue hover:bg-brand-blue/5 transition-all flex items-center justify-center relative group/vimg shadow-sm"
-                            >
-                              {v.image ? (
-                                <>
-                                  <img src={v.image} className="w-full h-full object-cover" alt="" />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/vimg:opacity-100 transition-opacity flex items-center justify-center">
-                                    <RefreshCw className="w-4 h-4 text-white" />
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center gap-1 text-gray-400 group-hover/vimg:text-brand-blue transition-colors">
-                                  <Camera className="w-5 h-5" />
-                                  <span className="text-[7px] font-black uppercase">Aggiungi</span>
-                                </div>
-                              )}
-                            </div>
-                            {v.image && (
-                              <button
-                                onClick={() => { const newV = [...variants]; newV[i].image = ""; setVariants(newV); }}
-                                className="text-[7px] font-black uppercase text-red-400 hover:text-red-600 transition-colors mt-0.5"
-                              >Rimuovi</button>
-                            )}
-                          </div>
-
-                          {/* Variant Pricing Management */}
-                          <div className="flex flex-col gap-1.5 bg-gray-50/50 pt-3 px-3 pb-[10px] rounded-2xl border border-gray-100 min-w-[280px] shadow-inner">
-                            <span className="text-[8px] font-black uppercase text-brand-blue tracking-widest pl-1">Logica Prezzo Variante</span>
-                            <div className="flex items-center gap-2">
-                              <select 
-                                value={v.costType}
-                                onChange={e => {
-                                  const newV = [...variants]; 
-                                  newV[i].costType = e.target.value as any; 
-                                  setVariants(newV);
-                                }}
-                                className="flex-1 text-[10px] font-black uppercase bg-white border-gray-100 rounded-lg px-2 py-2 focus:ring-0 shadow-sm"
-                              >
-                                <option value="fixed">Fisso €</option>
-                                <option value="delta">Delta €</option>
-                                <option value="percent">% Su Pubblico</option>
-                              </select>
-                              <input 
-                                type="number" 
-                                step="0.01"
-                                value={v.costValue}
-                                onChange={e => {
-                                  const newV = [...variants]; 
-                                  newV[i].costValue = Number(e.target.value); 
-                                  setVariants(newV);
-                                }}
-                                className="w-32 bg-white border-gray-100 rounded-lg px-3 py-2 text-[11px] font-black text-center shadow-sm"
-                              />
-                            </div>
-                          </div>
-                          
-
-                        </div>
-
-                        {/* Row 2: Stocks & Actions */}
-                        <div className="flex gap-4 items-end">
-                          <div className={`flex-1 grid gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                            {/* Web Variant Stock */}
-                            <div className="flex flex-col gap-1.5">
+                           {/* Row 4: Stock Canali */}
+                           <div className="grid gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+                             <div className="flex flex-col gap-1">
                                <div className="flex items-center justify-between px-1">
-                                 <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none">Canale Web</span>
+                                 <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Webshop</span>
                                  <Globe className="w-3 h-3 text-indigo-300" />
                                </div>
                                <input 
-                                 type="number" 
-                                 value={v.webStock} 
-                                 onFocus={e => (v.webStock === 0 || v.webStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].webStock = '' as any; setVariants(newV); } )()} 
+                                 type="number" value={v.webStock}
+                                 onFocus={e => (v.webStock === 0 || v.webStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].webStock = '' as any; setVariants(newV); } )()}
                                  onChange={e => {
-                                   const val = Number(e.target.value); const newV = [...variants]; newV[i].webStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.webStock || 0), 0); newV[0].webStock = Math.max(0, webStock - otherSum); } } setVariants(newV);
-                                 }} 
-                                 className="w-full h-11 bg-indigo-50/30 border-indigo-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-indigo-700 focus:ring-2 focus:ring-indigo-500 transition-all" 
+                                   const val = Number(e.target.value); const newV = [...variants]; newV[i].webStock = val;
+                                   if (newV.length > 1 && i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.webStock || 0), 0); newV[0].webStock = Math.max(0, webStock - otherSum); }
+                                   setVariants(newV);
+                                 }}
+                                 className="w-full h-11 bg-white rounded-xl px-3 text-[14px] font-black text-center text-indigo-700 border border-indigo-100 focus:ring-2 focus:ring-indigo-300 transition-all" 
                                />
-                            </div>
-
-                            {/* Amazon Variant Stock */}
-                            {isAmazonActive && (
-                              <div className="flex flex-col gap-1.5">
+                             </div>
+                             {isAmazonActive && (
+                               <div className="flex flex-col gap-1">
                                  <div className="flex items-center justify-between px-1">
-                                   <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest leading-none">Amazon Sync</span>
+                                   <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Amazon</span>
                                    <ExternalLink className="w-3 h-3 text-orange-300" />
                                  </div>
                                  <input 
-                                   type="number" 
-                                   value={v.amazonStock} 
-                                   onFocus={e => (v.amazonStock === 0 || v.amazonStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].amazonStock = '' as any; setVariants(newV); } )()} 
+                                   type="number" value={v.amazonStock}
+                                   onFocus={e => (v.amazonStock === 0 || v.amazonStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].amazonStock = '' as any; setVariants(newV); } )()}
                                    onChange={e => {
-                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].amazonStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.amazonStock || 0), 0); newV[0].amazonStock = Math.max(0, amazonStock - otherSum); } } setVariants(newV);
-                                   }} 
-                                   className="w-full h-11 bg-orange-50/30 border-orange-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-orange-600 focus:ring-2 focus:ring-orange-500 transition-all" 
+                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].amazonStock = val;
+                                     if (newV.length > 1 && i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.amazonStock || 0), 0); newV[0].amazonStock = Math.max(0, amazonStock - otherSum); }
+                                     setVariants(newV);
+                                   }}
+                                   className="w-full h-11 bg-white rounded-xl px-3 text-[14px] font-black text-center text-orange-600 border border-orange-100 focus:ring-2 focus:ring-orange-300 transition-all" 
                                  />
-                              </div>
-                            )}
-
-                            {/* eBay Variant Stock */}
-                            {isEbayActive && (
-                              <div className="flex flex-col gap-1.5">
+                               </div>
+                             )}
+                             {isEbayActive && (
+                               <div className="flex flex-col gap-1">
                                  <div className="flex items-center justify-between px-1">
-                                   <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest leading-none">eBay Sync</span>
-                                   <Globe className="w-3 h-3 text-blue-300" />
+                                   <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">eBay</span>
+                                   <ExternalLink className="w-3 h-3 text-blue-300" />
                                  </div>
                                  <input 
-                                   type="number" 
-                                   value={v.ebayStock} 
-                                   onFocus={e => (v.ebayStock === 0 || v.ebayStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].ebayStock = '' as any; setVariants(newV); } )()} 
+                                   type="number" value={v.ebayStock}
+                                   onFocus={e => (v.ebayStock === 0 || v.ebayStock === ('' as any)) && ( () => { const newV = [...variants]; newV[i].ebayStock = '' as any; setVariants(newV); } )()}
                                    onChange={e => {
-                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].ebayStock = val; if (newV.length > 1) { if (i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.ebayStock || 0), 0); newV[0].ebayStock = Math.max(0, ebayStock - otherSum); } } setVariants(newV);
-                                   }} 
-                                   className="w-full h-11 bg-blue-50/30 border-blue-100 rounded-xl px-4 py-2 text-[13px] font-black text-center text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all" 
+                                     const val = Number(e.target.value); const newV = [...variants]; newV[i].ebayStock = val;
+                                     if (newV.length > 1 && i !== 0) { const otherSum = newV.reduce((acc, curr, idx) => idx === 0 ? acc : acc + Number(curr.ebayStock || 0), 0); newV[0].ebayStock = Math.max(0, ebayStock - otherSum); }
+                                     setVariants(newV);
+                                   }}
+                                   className="w-full h-11 bg-white rounded-xl px-3 text-[14px] font-black text-center text-blue-600 border border-blue-100 focus:ring-2 focus:ring-blue-300 transition-all" 
                                  />
-                              </div>
-                            )}
-                          </div>
+                               </div>
+                             )}
+                           </div>
+                         </div>
 
-                          <button 
-                            onClick={() => setVariants(variants.filter((_, idx) => idx !== i))} 
-                            className="h-11 w-11 flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
-                            title="Rimuovi Variante"
-                          >
-                            <Trash2 className="w-5 h-5"/>
-                          </button>
-                        </div>
-                      </div>
-                   </div>
+                         {/* Col 3: Foto + Elimina */}
+                         <div className="lg:w-[150px] flex-shrink-0 flex flex-col items-center gap-4">
+                           <div className="flex flex-col items-center gap-2 w-full">
+                             <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest text-center">Foto Variante</span>
+                             <div
+                               onClick={() => { setVariantImageTargetIndex(i); setIsVariantImageModalOpen(true); }}
+                               className="w-[130px] h-[130px] bg-gray-50 border-2 border-dashed border-gray-200 rounded-[1.5rem] overflow-hidden cursor-pointer hover:border-brand-blue hover:bg-brand-blue/5 transition-all flex items-center justify-center relative group/vimg"
+                             >
+                               {v.image ? (
+                                 <>
+                                   <img src={v.image} className="w-full h-full object-cover" alt="" />
+                                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/vimg:opacity-100 transition-opacity flex items-center justify-center">
+                                     <RefreshCw className="w-5 h-5 text-white" />
+                                   </div>
+                                 </>
+                               ) : (
+                                 <div className="flex flex-col items-center gap-2 text-gray-400 group-hover/vimg:text-brand-blue transition-colors">
+                                   <Camera className="w-6 h-6" />
+                                   <span className="text-[9px] font-black uppercase">Aggiungi</span>
+                                 </div>
+                               )}
+                             </div>
+                             {v.image && (
+                               <button
+                                 onClick={() => { const newV = [...variants]; newV[i].image = ""; setVariants(newV); }}
+                                 className="text-[9px] font-black uppercase text-red-400 hover:text-red-600 transition-colors"
+                               >Rimuovi</button>
+                             )}
+                           </div>
+                           <button 
+                             onClick={() => setVariants(variants.filter((_, idx) => idx !== i))}
+                             className="mt-auto w-10 h-10 flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                             title="Elimina Variante"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                         </div>
+
+                       </div>
+                     </div>
                  );
                })}
                
