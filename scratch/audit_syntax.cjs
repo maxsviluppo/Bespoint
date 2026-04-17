@@ -1,6 +1,6 @@
 
 const fs = require('fs');
-const content = fs.readFileSync('c:\\Users\\Max\\Downloads\\A Codici Main\\bespoint-main\\src\\App.tsx', 'utf8');
+const content = fs.readFileSync(process.argv[2] || 'c:\\Users\\Max\\Downloads\\A Codici Main\\bespoint-main\\src\\App.tsx', 'utf8');
 const lines = content.split('\n');
 
 let divStats = 0;

@@ -314,8 +314,8 @@ function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFav
           className="flex items-baseline gap-1 mb-3"
         >
           <span className="text-xs font-bold align-top">€</span>
-          <span className="text-xl font-bold">{Math.floor(product.price)}</span>
-          <span className="text-xs font-bold">{(product.price % 1).toFixed(2).substring(2)}</span>
+          <span className="text-xl font-bold">{Math.floor(product.price || 0)}</span>
+          <span className="text-xs font-bold">{((product.price || 0) % 1).toFixed(2).substring(2)}</span>
         </motion.div>
         <motion.button 
           initial={{ opacity: 0, y: 10 }}
@@ -357,7 +357,7 @@ function MiniProductCard({ product, onClick, onRemove, index, isCarousel = false
       </div>
       <div className="px-1 mb-2">
         <h4 className="text-[10px] font-black text-brand-dark line-clamp-2 leading-tight uppercase tracking-tight mb-1 cursor-pointer hover:text-brand-yellow transition-colors" onClick={onClick}>{product.name}</h4>
-        <p className="text-sm font-black text-brand-blue italic">€{product.price.toFixed(2)}</p>
+        <p className="text-sm font-black text-brand-blue italic">€{(product.price || 0).toFixed(2)}</p>
       </div>
       <button 
         onClick={onClick}
@@ -387,10 +387,10 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
   const approvedReviews = reviews.filter(rev => rev.productId === product.id && rev.status === 'approved');
   const avgRating = approvedReviews.length > 0
     ? approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length
-    : product.rating;
+    : (product.rating || 0);
   const reviewCount = approvedReviews.length > 0
-    ? approvedReviews.length + product.reviews
-    : product.reviews;
+    ? approvedReviews.length + (product.reviews || 0)
+    : (product.reviews || 0);
 
   const variantsByType = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -412,15 +412,22 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
     return product.variants.find(v => v.type === firstType && v.value === selectedVariants[firstType]) || null;
   }, [product.variants, selectedVariants, variantsByType]);
 
-  const displayPrice = useMemo(() => {
-    if (selectedVariantObject) {
-      const markup = product.markup || 30;
-      let cost = selectedVariantObject.costValue || product.cost || 10;
-      if (selectedVariantObject.costType === 'delta') cost = (product.cost || 10) + (selectedVariantObject.costValue || 0);
-      if (selectedVariantObject.costType === 'percent') cost = (product.cost || 10) * (1 + (selectedVariantObject.costValue || 0) / 100);
-      return cost * (1 + markup / 100);
+  useEffect(() => {
+    if (selectedVariantObject?.image) {
+      setActiveImage(selectedVariantObject.image);
+    } else {
+      setActiveImage(product.image);
     }
-    return product.price;
+  }, [selectedVariantObject, product.image]);
+
+  const displayPrice = useMemo(() => {
+    const basePrice = product.price || 0;
+    if (selectedVariantObject) {
+      if (selectedVariantObject.costType === 'fixed') return selectedVariantObject.costValue || basePrice;
+      if (selectedVariantObject.costType === 'delta') return basePrice + (selectedVariantObject.costValue || 0);
+      if (selectedVariantObject.costType === 'percent') return basePrice * (1 + (selectedVariantObject.costValue || 0) / 100);
+    }
+    return basePrice;
   }, [product, selectedVariantObject]);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -523,34 +530,37 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                 </div>
               </div>
 
-              {/* Thumbnails */}
-              <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar pb-2">
-                <button 
-                  key="main-thumb"
-                  onClick={() => setActiveImage(product.image)}
-                  className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent"}`}
-                >
-                  {product.image && (
-                    <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  )}
-                </button>
-                {product.gallery.map((img, idx) => (
-                  <button 
-                    key={`gallery-${idx}`}
-                    onClick={() => setActiveImage(img)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent"}`}
+              {/* Thumbnails con scroll */}
+              <div className="relative mb-6">
+                <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth" style={{ scrollbarWidth: 'thin', scrollbarColor: '#e5e7eb transparent' }}>
+                  {/* Prima immagine (principale) */}
+                  <button
+                    onClick={() => setActiveImage(product.image)}
+                    className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === product.image ? "border-brand-yellow" : "border-transparent hover:border-gray-300"}`}
                   >
-                    {img && (
-                      <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    {product.image && (
+                      <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     )}
                   </button>
-                ))}
-                {product.has3D && (
-                  <button className="w-16 h-16 rounded-xl bg-brand-blue flex flex-col items-center justify-center text-white flex-shrink-0 group hover:bg-brand-yellow hover:text-brand-dark transition-colors">
-                    <Box className="w-6 h-6 mb-1" />
-                    <span className="text-[8px] font-bold uppercase">3D View</span>
-                  </button>
-                )}
+                  {/* Galleria: escludi la prima immagine se già mostrata sopra */}
+                  {(product?.gallery || []).filter(img => img !== product.image).map((img, idx) => (
+                    <button
+                      key={`gallery-${idx}`}
+                      onClick={() => setActiveImage(img)}
+                      className={`w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${activeImage === img ? "border-brand-yellow" : "border-transparent hover:border-gray-300"}`}
+                    >
+                      {img && (
+                        <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      )}
+                    </button>
+                  ))}
+                  {product.has3D && (
+                    <button className="w-16 h-16 rounded-xl bg-brand-blue flex flex-col items-center justify-center text-white flex-shrink-0 group hover:bg-brand-yellow hover:text-brand-dark transition-colors">
+                      <Box className="w-6 h-6 mb-1" />
+                      <span className="text-[8px] font-bold uppercase">3D View</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -591,13 +601,13 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
               <div className="space-y-6">
                 <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Caratteristiche</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  {product.ean && product.showEan && (
+                  {product.showEan && (selectedVariantObject?.ean || product.ean) && (
                     <div className="bg-brand-blue text-white p-3 rounded-2xl border border-brand-blue shadow-lg shadow-brand-blue/10">
                       <p className="text-[9px] text-white/60 uppercase font-black mb-0.5">Codice EAN</p>
-                      <p className="text-xs font-black tracking-widest">{product.ean}</p>
+                      <p className="text-xs font-black tracking-widest">{selectedVariantObject?.ean || product.ean}</p>
                     </div>
                   )}
-                  {Object.entries(product.specs).map(([key, value]) => (
+                  {Object.entries(product?.specs || {}).map(([key, value]) => (
                     <div key={key} className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
                       <p className="text-[9px] text-gray-400 uppercase font-black mb-0.5">{key}</p>
                       <p className="text-xs font-bold text-brand-dark">{value}</p>
@@ -639,11 +649,11 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                 <div className="flex flex-col gap-1">
                   {/* Prezzo originale barrato + badge sconto inline */}
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400 line-through">€{(product.price * 1.2).toFixed(2)}</span>
+                    <span className="text-sm text-gray-400 line-through">€{((product?.price || 0) * 1.2).toFixed(2)}</span>
                     <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">-20% OGGI</span>
                   </div>
                   {/* Prezzo scontato grande */}
-                  <span className="text-4xl font-black text-brand-blue leading-none">€{displayPrice.toFixed(2)}</span>
+                  <span className="text-4xl font-black text-brand-blue leading-none">€{(displayPrice || 0).toFixed(2)}</span>
                 </div>
 
                 {/* SKU Info */}
@@ -689,7 +699,7 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark">Recensioni</h4>
                   <div className="flex items-center bg-brand-yellow px-2 py-1 rounded-lg">
                     <Star className="w-3 h-3 text-brand-dark fill-brand-dark mr-1" />
-                    <span className="text-xs font-black text-brand-dark">{avgRating.toFixed(1)}</span>
+                    <span className="text-xs font-black text-brand-dark">{(avgRating || 0).toFixed(1)}</span>
                   </div>
                 </div>
 
@@ -725,7 +735,7 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   <p className="text-[11px] text-gray-600 italic leading-relaxed">"Qualità eccezionale, arrivato in 24 ore. BesPoint una garanzia!"</p>
                 </div>
 
-                <button className="w-full text-center text-xs font-bold text-blue-600 hover:underline pt-2">Vedi tutte le {reviewCount} recensioni</button>
+                <button className="w-full text-center text-xs font-bold text-blue-600 hover:underline pt-2">Vedi tutte le {reviewCount || 0} recensioni</button>
               </div>
             </div>
           </div>
@@ -770,7 +780,7 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   </div>
                   <h5 className="text-xs font-bold text-brand-dark line-clamp-2 h-10">{p.name}</h5>
                   <div className="mt-2 flex items-center justify-between">
-                    <p className="text-sm font-black text-brand-blue">€{p.price.toFixed(2)}</p>
+                    <p className="text-sm font-black text-brand-blue">€{(p.price || 0).toFixed(2)}</p>
                     <div className="flex items-center gap-0.5">
                       <Star className="w-3 h-3 text-brand-yellow fill-brand-yellow" />
                       <span className="text-[10px] font-bold">{p.rating}</span>
@@ -1863,11 +1873,24 @@ const SideMenu = ({ isOpen, onClose, onSelectCategory, companySettings, pageSett
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-brand-yellow uppercase tracking-widest">Categorie</h3>
-                {pageSettings.categories.map(cat => {
-                  const count = products.filter(p => p.category === cat || cat === "Tutti").length;
+                {/* Icona Home — ritorna alla home */}
+                <button
+                  onClick={() => {
+                    onSelectCategory("Tutti");
+                    onClose();
+                  }}
+                  className="flex items-center gap-3 w-fit p-3 hover:bg-white/10 rounded-xl transition-colors"
+                  title="Torna alla Home"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-brand-yellow flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-yellow/20">
+                    <Home className="w-5 h-5 text-brand-dark" />
+                  </div>
+                </button>
+                {pageSettings.categories.filter((cat: string) => cat !== "Tutti").map((cat: string) => {
+                  const count = products.filter(p => p.category === cat).length;
                   return (
-                    <button 
-                      key={cat} 
+                    <button
+                      key={cat}
                       onClick={() => {
                         onSelectCategory(cat);
                         onClose();
@@ -2076,12 +2099,14 @@ export default function App() {
         if (!selectedProduct || selectedProduct.id !== productId) {
           setSelectedProduct(product);
         }
-        
         // SEO: Se lo slug manca o è diverso, reindirizziamo alla URL corretta
         const correctSlug = slugify(product.name);
         if (parts[2] !== correctSlug) {
           navigate(`/product/${productId}/${correctSlug}`, { replace: true });
         }
+      } else if (products.length > 0) {
+        // Prodotto non trovato: torna alla home invece di mostrare pagina bianca
+        navigate('/', { replace: true });
       }
     } else if (path === '/') {
       if (selectedCategory !== "Tutti") setSelectedCategory("Tutti");
@@ -2090,9 +2115,18 @@ export default function App() {
   }, [location.pathname, products]);
 
   const handleCategorySelect = (cat: string) => {
-    if (cat === "Tutti") navigate("/");
-    else navigate(`/category/${encodeURIComponent(cat)}`);
-    setSelectedSubcategory("Tutti");
+    if (cat === "Tutti") {
+      navigate("/");
+      setSelectedSubcategory("Tutti");
+    } else {
+      navigate(`/category/${encodeURIComponent(cat)}`);
+      const subcats = pageSettings.subcategories[cat] || [];
+      if (subcats.length > 0) {
+        setSelectedSubcategory(subcats[0]);
+      } else {
+        setSelectedSubcategory("Tutti");
+      }
+    }
   };
 
   const handleProductSelect = (p: Product | null) => {
@@ -2738,12 +2772,12 @@ export default function App() {
   }, [selectedCategory]);
 
   const featuredProducts = useMemo(() => {
-    return products.filter(p => p.isFeatured && (p.stock !== undefined && p.stock > 0)).slice(0, pageSettings.maxFeatured || 8);
+    return products.filter(p => p.isFeatured).slice(0, pageSettings.maxFeatured || 8);
   }, [products, cartTrigger, pageSettings.maxFeatured]);
 
   const specialCategoryProducts = useMemo(() => {
     if (!pageSettings.isSpecialCategoryEnabled) return [];
-    return products.filter(p => p.isSpecialPromotion && (p.stock !== undefined && p.stock > 0))
+    return products.filter(p => p.isSpecialPromotion)
       .slice(0, pageSettings.specialCategoryMax || 8);
   }, [products, pageSettings.isSpecialCategoryEnabled, pageSettings.specialCategoryMax, cartTrigger]);
 
@@ -2753,10 +2787,10 @@ export default function App() {
       const matchesSubcategory = selectedSubcategory === "Tutti" || p.subcategory === selectedSubcategory;
       const matchesBrand = selectedBrand === "Tutti" || p.brand === selectedBrand;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const isAvailable = (p.stock !== undefined && p.stock > 0);
+      // Il filtro stock è rimosso: tutti i prodotti vengono mostrati indipendentemente dalla giacenza
       const matchesFeatured = !showFeaturedOnly || p.isFeatured;
       const matchesSpecial = !showSpecialOnly || p.isSpecialPromotion;
-      return matchesCategory && matchesSubcategory && matchesBrand && matchesSearch && isAvailable && matchesFeatured && matchesSpecial;
+      return matchesCategory && matchesSubcategory && matchesBrand && matchesSearch && matchesFeatured && matchesSpecial;
     });
 
     return [...filtered].sort((a, b) => {
@@ -3055,20 +3089,29 @@ export default function App() {
 
         {/* Secondary Nav / Categories (NOW ABOVE SEARCH) */}
         <div className="bg-brand-blue border-t border-white/10 px-4 py-2 flex items-center text-xs font-bold text-white/90 overflow-hidden">
-          {selectedCategory !== "Tutti" && (
-            <div className="flex-shrink-0 bg-brand-blue pr-4 z-20 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.3)] relative">
+          <div className="flex overflow-x-auto no-scrollbar gap-4 items-center flex-1 scroll-smooth">
+            {/* Icona Home Gialla e Nome Categoria Attiva */}
+            <div className="flex items-center gap-3 pr-2 border-r border-white/10 flex-shrink-0">
               <button 
                 onClick={() => handleCategorySelect("Tutti")}
-                className="text-brand-yellow uppercase tracking-widest flex items-center gap-1"
+                className="flex items-center group"
+                title="Torna alla Home"
               >
-                <ArrowLeft className="w-3 h-3" />
-                {selectedCategory}
+                <div className="w-6 h-6 rounded-md bg-brand-yellow flex items-center justify-center group-hover:scale-110 transition-transform shadow-md shadow-brand-yellow/20">
+                  <Home className="w-3.5 h-3.5 text-brand-dark" />
+                </div>
               </button>
+              {selectedCategory !== "Tutti" && (
+                <span className="text-brand-yellow font-black uppercase text-[10px] tracking-[0.15em] whitespace-nowrap">
+                  {selectedCategory}
+                </span>
+              )}
             </div>
-          )}
-          
-          <div className="flex overflow-x-auto no-scrollbar gap-4 items-center flex-1 scroll-smooth">
-            {(selectedCategory === "Tutti" ? pageSettings.categories : ["Tutti", ...(pageSettings.subcategories[selectedCategory] || [])]).map((cat, idx) => (
+
+            {(selectedCategory === "Tutti" 
+              ? pageSettings.categories.filter((c: string) => c !== "Tutti") 
+              : (pageSettings.subcategories[selectedCategory] || []).filter((c: string) => c !== "Tutti")
+            ).map((cat, idx) => (
               <motion.button
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -3743,7 +3786,7 @@ export default function App() {
           key="side-menu"
           isOpen={isSideMenuOpen} 
           onClose={() => setIsSideMenuOpen(false)} 
-          onSelectCategory={setSelectedCategory}
+          onSelectCategory={handleCategorySelect}
           companySettings={companySettings}
           pageSettings={pageSettings}
           products={products}
@@ -6546,7 +6589,7 @@ export default function App() {
                                       <img src={p.image} alt={p.name} className="w-12 h-12 rounded-xl object-cover bg-gray-100" />
                                       <div>
                                         <p className="font-bold text-sm text-brand-dark">{p.name}</p>
-                                        <p className="text-xs text-gray-500 font-medium">SKU: BP-{p.id.padStart(4, '0')}</p>
+                                        <p className="text-xs text-gray-500 font-medium">SKU: {p.sku || `BP-${p.id.padStart(4, '0')}`}</p>
                                       </div>
                                     </div>
                                   </td>

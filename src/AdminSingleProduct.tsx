@@ -223,7 +223,7 @@ const MasterRichEditor = ({ value, onChange, placeholder, minHeight = "200px" }:
         [contenteditable] img {
           max-width: 100%;
           border-radius: 1rem;
-          margin: 1rem 0;
+          margin: 1rem auto;
           display: block;
           cursor: pointer;
         }
@@ -247,12 +247,14 @@ const ToolbarButton = ({ onClick, icon, title }: { onClick: () => void, icon: Re
 );
 
 export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, existingBrands = [], existingCategories = [], existingSubcategories = {}, allProducts = [], availableVariants = ['Colore', 'Taglia'], setAvailableVariants }: { onBack: () => void, onSave: (p: any) => void, onDelete?: (id: string) => void, initialData?: any, existingBrands?: string[], existingCategories?: string[], existingSubcategories?: Record<string, string[]>, allProducts?: any[], availableVariants?: string[], setAvailableVariants?: (v: string[]) => void }) => {
-  const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 10);
-  const [b2cMarkup, setB2cMarkup] = useState<number>(Number(initialData?.markup) || 30);
-  const [b2bMarkup, setB2bMarkup] = useState<number>(10);
-  
-  const [manualB2c, setManualB2c] = useState<string>(initialData?.price || "");
-  const [manualB2b, setManualB2b] = useState<string>("");
+  const [baseCost, setBaseCost] = useState<number>(Number(initialData?.cost) || 0);
+  // Prezzo al pubblico IVA inclusa (manuale)
+  const [manualB2c, setManualB2c] = useState<string>(initialData?.price ? String(initialData.price) : "");
+  // Sconto % rivenditori rispetto al prezzo pubblico
+  const [b2bDiscount, setB2bDiscount] = useState<number>(Number(initialData?.b2bDiscount) || 20);
+  // Spedizione
+  const [freeShipping, setFreeShipping] = useState<boolean>(initialData?.freeShipping ?? false);
+  const [shippingCost, setShippingCost] = useState<string>(initialData?.shippingCost ? String(initialData.shippingCost) : "");
 
   const [isAmazonActive, setIsAmazonActive] = useState<boolean>(initialData?.amazonActive ?? false);
   const [isEbayActive, setIsEbayActive] = useState<boolean>(initialData?.ebayActive ?? false);
@@ -317,6 +319,9 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [replacingImageIndex, setReplacingImageIndex] = useState<number | null>(null);
+  const [isVariantImageModalOpen, setIsVariantImageModalOpen] = useState(false);
+  const [variantImageUrlInput, setVariantImageUrlInput] = useState("");
+  const [variantImageTargetIndex, setVariantImageTargetIndex] = useState<number | null>(null);
   const [isGeneratingAmazon, setIsGeneratingAmazon] = useState(false);
   const [isGeneratingEbay, setIsGeneratingEbay] = useState(false);
   const [amazonDescription, setAmazonDescription] = useState<string>(initialData?.amazonDescription || "");
@@ -358,9 +363,9 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
             if (replacingImageIndex !== null) {
                const newGallery = [...prev];
                newGallery[replacingImageIndex] = newImage;
-               return newGallery.slice(0, 6);
+               return newGallery.slice(0, 10);
             }
-            return [...prev, newImage].slice(0, 6);
+            return [...prev, newImage].slice(0, 10);
           });
           setIsImageModalOpen(false);
           setReplacingImageIndex(null);
@@ -378,13 +383,43 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
         if (replacingImageIndex !== null) {
            const newGallery = [...prev];
            newGallery[replacingImageIndex] = newImage;
-           return newGallery.slice(0, 6);
+           return newGallery.slice(0, 10);
         }
-        return [...prev, newImage].slice(0, 6);
+        return [...prev, newImage].slice(0, 10);
       });
       setImageUrlInput("");
       setIsImageModalOpen(false);
       setReplacingImageIndex(null);
+    }
+  };
+
+  const handleVariantImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && variantImageTargetIndex !== null) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 800;
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+          const newImage = canvas.toDataURL('image/jpeg', 0.8);
+          const newV = [...variants]; newV[variantImageTargetIndex].image = newImage; setVariants(newV);
+          setIsVariantImageModalOpen(false); setVariantImageTargetIndex(null);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addVariantImageUrl = () => {
+    if (variantImageUrlInput.trim() && variantImageTargetIndex !== null) {
+      const newV = [...variants]; newV[variantImageTargetIndex].image = variantImageUrlInput.trim(); setVariants(newV);
+      setVariantImageUrlInput(""); setIsVariantImageModalOpen(false); setVariantImageTargetIndex(null);
     }
   };
 
@@ -404,8 +439,8 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
     { name: "Poste Italiane", details: "Economy & Punti Ritiro — Arrivo 3-5gg" },
   ];
 
-  const b2cPrice = manualB2c ? parseFloat(manualB2c) : baseCost * (1 + b2cMarkup / 100);
-  const b2bPrice = manualB2b ? parseFloat(manualB2b) : baseCost * (1 + b2bMarkup / 100);
+  const b2cPriceFinal = parseFloat(manualB2c || '0');
+  const b2bPriceFinal = b2cPriceFinal * (1 - b2bDiscount / 100);
 
   const [gallery, setGallery] = useState<string[]>(initialData?.gallery || (initialData?.image ? [initialData.image] : []));
   const [specs, setSpecs] = useState<{key: string, value: string}[]>(
@@ -429,9 +464,13 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
     costValue: number,
     webStock: number,
     amazonStock: number,
-    ebayStock: number
+    ebayStock: number,
+    ean: string,
+    image: string
   }[]>(Array.isArray(initialData?.variants) ? initialData.variants.map((v: any) => ({
     ...v,
+    ean: v.ean || "",
+    image: v.image || "",
     webStock: v.webStock ?? (Number(v.totalStock || 0) - Number(v.allocations?.amazon || 0) - Number(v.allocations?.ebay || 0)),
     amazonStock: v.amazonStock ?? Number(v.allocations?.amazon || 0),
     ebayStock: v.ebayStock ?? Number(v.allocations?.ebay || 0),
@@ -526,9 +565,7 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
     }
   };
 
-  const handleManualPrice = (val: string, type: 'b2c' | 'b2b' | 'amazon' | 'ebay') => {
-    if (type === 'b2c') setManualB2c(val);
-    if (type === 'b2b') setManualB2b(val);
+  const handleManualPrice = (val: string, type: 'amazon' | 'ebay') => {
     if (type === 'amazon') setAmazonManualPrice(val);
     if (type === 'ebay') setEbayManualPrice(val);
   };
@@ -543,9 +580,17 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       ean,
       brand: isAddingNewBrand ? newBrand : brand,
       name: title,
-      description: productDescription,
-      price: manualB2c ? parseFloat(manualB2c) : parseFloat(b2cPrice.toFixed(2)),
-      // STOCK LOGIC: Managed independently per channel
+      description: productDescription || "",
+      price: parseFloat(manualB2c || '0'),
+      b2bPrice: b2bPriceFinal,
+      b2bDiscount,
+      freeShipping,
+      shippingCost: freeShipping ? 0 : (shippingCost ? parseFloat(shippingCost) : (
+        selectedCourier === 'GLS Italy' ? 6.90 :
+        selectedCourier === 'DHL Express' ? 14.90 :
+        selectedCourier === 'BRT Corriere Espresso' ? 8.50 :
+        selectedCourier === 'Poste Italiane' ? 4.90 : 0
+      )),
       stock: webStock,
       amazonStock: isAmazonActive ? amazonStock : 0,
       ebayStock: isEbayActive ? ebayStock : 0,
@@ -565,8 +610,8 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       specs: specs.reduce((acc, s) => { if (s.key) acc[s.key] = s.value; return acc; }, {} as any),
       variants,
       image: gallery[0] || initialData?.image || "https://picsum.photos/seed/default/800/800",
-      gallery: gallery,
-      relatedProductIds: relatedProductIds,
+      gallery: gallery.length > 0 ? gallery : (initialData?.gallery || []),
+      relatedProductIds: relatedProductIds || [],
       metaTitle,
       metaDescription,
       amazonDescription,
@@ -576,11 +621,14 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       videoUrl,
       has3D,
       cost: baseCost,
-      markup: b2cMarkup,
       amazonMarkup,
       ebayMarkup,
       amazonTitle,
-      ebayTitle
+      ebayTitle,
+      // Campi obbligatori con default — evitano crash in ProductSheet su nuovi prodotti
+      rating: initialData?.rating ?? 0,
+      reviews: initialData?.reviews ?? 0,
+      tags: initialData?.tags || [],
     };
     onSave(finalProduct);
     setIsSaveSuccess(true);
@@ -625,6 +673,47 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                 </div>
               )}
             </div>
+
+            {/* Galleria Media (Spostata qui sotto il titolo) */}
+            <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+              <h3 className="text-sm font-black uppercase tracking-widest text-brand-dark mb-4 flex items-center justify-between">
+                Galleria Immagini Prodotto
+                <span className="text-[10px] font-bold text-gray-400">{gallery.length}/10 Max</span>
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                 {gallery.map((img, i) => (
+                    <div key={i} className={`aspect-square bg-white rounded-xl relative group overflow-hidden border-2 shadow-sm ${i===0 ? 'border-brand-yellow':'border-transparent'}`}>
+                      <img src={img} className="w-full h-full object-cover" alt="" />
+                      {i === 0 && <div className="absolute bottom-0 inset-x-0 bg-brand-yellow text-brand-dark text-[8px] font-black uppercase text-center py-0.5">Principale</div>}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                         <button 
+                           onClick={() => {
+                             setReplacingImageIndex(i);
+                             setIsImageModalOpen(true);
+                           }}
+                           className="p-1.5 bg-brand-yellow text-brand-dark rounded-full hover:scale-110 transition-transform"
+                         >
+                           <RefreshCw className="w-3.5 h-3.5" />
+                         </button>
+                         <button onClick={() => setGallery(g => g.filter((_, idx) => idx !== i))} className="p-1.5 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                 ))}
+                 {gallery.length < 10 && (
+                   <button 
+                     onClick={() => {
+                       setReplacingImageIndex(null);
+                       setIsImageModalOpen(true);
+                     }}
+                     className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-gray-400 hover:text-brand-blue group cursor-pointer"
+                   >
+                     <Plus className="w-7 h-7 group-hover:scale-110 transition-transform mb-1" />
+                     <span className="text-[9px] font-black uppercase text-center tracking-tighter">Aggiungi</span>
+                   </button>
+                 )}
+              </div>
+            </div>
+
             <div className="space-y-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1 block">Descrizione Prodotto</span>
               
@@ -651,6 +740,213 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                 Editor nativo ultra-stabile. Carica immagini da file o incolla URL esterni.
               </p>
             </div>
+
+            {/* === BLOCCO PREZZI RIDISEGNATO === */}
+            <div className="bg-brand-dark rounded-[2.5rem] p-8 relative overflow-hidden ring-4 ring-brand-yellow/20 shadow-2xl">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-brand-yellow rounded-full blur-[100px] opacity-10 -mr-20 -mt-20"></div>
+               <h3 className="text-lg font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3 relative z-10">
+                 <RefreshCw className="w-5 h-5 text-brand-yellow"/>
+                 Prezzi e Spedizione
+               </h3>
+
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10 items-start">
+
+                 {/* COL 1: Costo acquisto */}
+                 <div className="flex flex-col gap-3">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 block h-8 flex items-center">Costo d'Acquisto (Imponibile)</span>
+                   <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-500">€</span>
+                     <input
+                       type="number"
+                       value={baseCost}
+                       onFocus={e => baseCost === 0 && setBaseCost('' as any)}
+                       onChange={e => setBaseCost(Number(e.target.value))}
+                       className="w-full bg-black/40 border-2 border-gray-800 text-white rounded-2xl pl-9 pr-4 py-3 text-xl font-black focus:border-brand-yellow focus:ring-brand-yellow outline-none transition-all"
+                       placeholder="0.00"
+                     />
+                   </div>
+                   <div className="bg-black/20 rounded-xl px-4 py-2 flex justify-between items-center">
+                     <span className="text-[9px] font-black uppercase text-gray-500">Prezzo Netto</span>
+                     <span className="text-sm font-black text-gray-400">€{baseCost.toFixed(2)}</span>
+                   </div>
+                   <div className="bg-black/20 rounded-xl px-4 py-2 flex justify-between items-center opacity-0 pointer-events-none">
+                     <span className="text-[9px]">&nbsp;</span>
+                   </div>
+                 </div>
+
+                 {/* COL 2: Prezzo al Pubblico */}
+                 <div className="flex flex-col gap-3">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-yellow block h-8 flex items-center">Prezzo al Pubblico (IVA Inclusa)</span>
+                   <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-brand-dark/50">€</span>
+                     <input
+                       type="number"
+                       value={manualB2c}
+                       onChange={e => setManualB2c(e.target.value)}
+                       onFocus={e => manualB2c === "0" && setManualB2c('')}
+                       className="w-full bg-brand-yellow text-brand-dark border-none rounded-2xl pl-9 pr-4 py-3 text-xl font-black focus:ring-4 focus:ring-white outline-none transition-all"
+                       placeholder="0.00"
+                     />
+                   </div>
+                   <div className="bg-black/30 rounded-xl px-4 py-2 flex justify-between items-center">
+                     <span className="text-[9px] font-black uppercase text-gray-500">Senza IVA (22%)</span>
+                     <span className="text-sm font-black text-white">
+                       €{manualB2c ? (parseFloat(manualB2c) / 1.22).toFixed(2) : "0.00"}
+                     </span>
+                   </div>
+                    {/* Totale cliente inclusa spedizione */}
+                    {!freeShipping && (() => {
+                      const effShip = shippingCost ? parseFloat(shippingCost) : (
+                        selectedCourier === 'GLS Italy' ? 6.90 :
+                        selectedCourier === 'DHL Express' ? 14.90 :
+                        selectedCourier === 'BRT Corriere Espresso' ? 8.50 :
+                        selectedCourier === 'Poste Italiane' ? 4.90 : 0
+                      );
+                      const total = parseFloat(manualB2c || '0') + effShip;
+                      return (
+                        <div className="bg-brand-yellow/20 border border-brand-yellow/40 rounded-xl px-4 py-2 flex justify-between items-center">
+                          <span className="text-[9px] font-black uppercase text-brand-yellow">Totale + Sped. (€{effShip.toFixed(2)})</span>
+                          <span className="text-sm font-black text-brand-yellow">€{total.toFixed(2)}</span>
+                        </div>
+                      );
+                    })()}
+                   <div className="bg-black/20 rounded-xl px-4 py-2 flex justify-between items-center">
+                     <span className="text-[9px] font-black uppercase text-gray-500">Margine Lordo</span>
+                     <span className={`text-sm font-black ${ (parseFloat(manualB2c || '0') - baseCost) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                       €{(parseFloat(manualB2c || '0') - baseCost).toFixed(2)}
+                     </span>
+                   </div>
+                 </div>
+
+                 {/* COL 3: Prezzo Rivenditori */}
+                 <div className="flex flex-col gap-3">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 block h-8 flex items-center">Prezzo Rivenditori (B2B)</span>
+                   <div className="relative">
+                     <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-white/40 text-sm">€</span>
+                     <input
+                       type="number"
+                       readOnly
+                       value={manualB2c ? (parseFloat(manualB2c) * (1 - b2bDiscount / 100)).toFixed(2) : "0.00"}
+                       className="w-full bg-blue-600 text-white border-none rounded-2xl pl-8 pr-3 py-3 text-xl font-black outline-none cursor-default"
+                     />
+                   </div>
+                   {/* Slider + input numerico sincronizzati */}
+                   <div className="bg-black/30 rounded-xl px-4 py-2.5 space-y-2">
+                     <span className="text-[9px] font-black uppercase text-gray-500 block">Sconto % dal Prezzo Pubblico</span>
+                     <div className="flex items-center gap-2">
+                       <input
+                         type="range"
+                         min={1} max={60} step={1}
+                         value={b2bDiscount}
+                         onChange={e => setB2bDiscount(Number(e.target.value))}
+                         className="flex-1 accent-blue-500 h-1.5"
+                       />
+                       <input
+                         type="number"
+                         min={1} max={60}
+                         value={b2bDiscount}
+                         onChange={e => setB2bDiscount(Math.min(60, Math.max(1, Number(e.target.value))))}
+                         className="w-14 bg-black/60 border border-gray-700 text-white rounded-lg px-2 py-1 text-sm font-black text-center focus:border-blue-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       />
+                       <span className="text-white font-black text-sm -ml-[3px]">%</span>
+                     </div>
+                   </div>
+                   <div className="bg-black/20 rounded-xl px-4 py-2 flex justify-between items-center">
+                     <span className="text-[9px] font-black uppercase text-gray-500">Margine B2B</span>
+                     <span className={`text-sm font-black ${ (parseFloat(manualB2c || '0') * (1 - b2bDiscount/100) - baseCost) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                       €{(parseFloat(manualB2c || '0') * (1 - b2bDiscount / 100) - baseCost).toFixed(2)}
+                     </span>
+                   </div>
+                 </div>
+
+               </div>
+
+
+               {/* SPEDIZIONE */}
+               <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
+                 <div className="flex items-center justify-between mb-5">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300 flex items-center gap-2">
+                     <Truck className="w-4 h-4 text-brand-yellow" />
+                     Modalità Spedizione
+                   </span>
+                   {/* Toggle Gratuita / A pagamento */}
+                   <div className="flex items-center gap-3 bg-black/30 rounded-2xl p-1">
+                     <button
+                       onClick={() => setFreeShipping(true)}
+                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                         freeShipping ? 'bg-green-500 text-white shadow-lg' : 'text-gray-500 hover:text-white'
+                       }`}
+                     >
+                       Gratuita
+                     </button>
+                     <button
+                       onClick={() => setFreeShipping(false)}
+                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                         !freeShipping ? 'bg-brand-yellow text-brand-dark shadow-lg' : 'text-gray-500 hover:text-white'
+                       }`}
+                     >
+                       A Pagamento
+                     </button>
+                   </div>
+                 </div>
+
+                 {freeShipping ? (
+                   <div className="flex items-center gap-4 bg-green-500/10 border border-green-500/20 rounded-2xl px-5 py-4">
+                     <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                       <Check className="w-5 h-5 text-green-400" />
+                     </div>
+                     <div>
+                       <p className="text-sm font-black text-green-400">Spedizione Gratuita Attiva</p>
+                       <p className="text-[9px] text-green-600 uppercase font-bold">Il cliente non paga spese di spedizione</p>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                       <span className="text-[9px] font-black uppercase text-gray-500 pl-1">
+                         Costo Spedizione 
+                         <span className="text-gray-600 ml-1">
+                           (Corriere: {selectedCourier})
+                         </span>
+                       </span>
+                       <div className="relative">
+                         <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-500">€</span>
+                         <input
+                           type="number"
+                           value={shippingCost}
+                           onChange={e => setShippingCost(e.target.value)}
+                           placeholder={
+                             selectedCourier === 'GLS Italy' ? '6.90' :
+                             selectedCourier === 'DHL Express' ? '14.90' :
+                             selectedCourier === 'BRT Corriere Espresso' ? '8.50' :
+                             selectedCourier === 'Poste Italiane' ? '4.90' : '0.00'
+                           }
+                           className="w-full bg-brand-yellow/10 border border-brand-yellow/30 text-white rounded-2xl pl-9 pr-4 py-3 text-base font-black focus:border-brand-yellow outline-none transition-all"
+                         />
+                       </div>
+                       <p className="text-[9px] text-gray-600 font-bold uppercase tracking-wider pl-1">
+                         Lascia vuoto per usare il costo standard del corriere
+                       </p>
+                     </div>
+                     <div className="bg-black/20 rounded-2xl p-4 flex flex-col justify-center gap-2">
+                       <p className="text-[9px] font-black uppercase text-gray-500">Costi Standard Corrieri</p>
+                       {[
+                         { name: 'GLS Italy', cost: '6.90' },
+                         { name: 'DHL Express', cost: '14.90' },
+                         { name: 'BRT Corriere Espresso', cost: '8.50' },
+                         { name: 'Poste Italiane', cost: '4.90' },
+                       ].map(c => (
+                         <div key={c.name} className={`flex justify-between items-center text-[9px] ${ selectedCourier === c.name ? 'text-brand-yellow font-black' : 'text-gray-600 font-bold'}`}>
+                           <span>{c.name}</span>
+                           <span>€{c.cost}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+               </div>
+            </div>
+
             
             {/* Frontend Specs: 3D, Video, Specifiche */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
@@ -707,6 +1003,59 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                   <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Modello Vista 3D / AR</span>
                 </div>
             </div>
+          </div>
+
+          {/* New Stock Section moved here */}
+          <div className="space-y-4 pt-4">
+             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2">
+               <Package className="w-5 h-5 text-indigo-500"/> Disponibilità & Stock Canali
+             </h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+               {/* Independent Channel Stocks Interface */}
+               <label className="lg:col-span-1">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
+                 <input 
+                   type="number" 
+                   value={webStock} 
+                   onFocus={e => webStock === 0 && setWebStock('' as any)} 
+                   onChange={e => setWebStock(Number(e.target.value))} 
+                   className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700" 
+                 />
+               </label>
+
+               {isAmazonActive && (
+                 <label className="lg:col-span-1">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
+                   <input 
+                     type="number" 
+                     value={amazonStock} 
+                     onFocus={e => amazonStock === 0 && setAmazonStock('' as any)} 
+                     onChange={e => setAmazonStock(Number(e.target.value))} 
+                     className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" 
+                   />
+                 </label>
+               )}
+               
+               {isEbayActive && (
+                 <label className="lg:col-span-1">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
+                   <input 
+                     type="number" 
+                     value={ebayStock} 
+                     onFocus={e => ebayStock === 0 && setEbayStock('' as any)} 
+                     onChange={e => setEbayStock(Number(e.target.value))} 
+                     className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" 
+                   />
+                 </label>
+               )}
+
+               <label className="lg:col-span-1">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale (Somma)</span>
+                 <div className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700 flex items-center h-[46px]">
+                   {webStock + (isAmazonActive ? amazonStock : 0) + (isEbayActive ? ebayStock : 0)}
+                 </div>
+               </label>
+             </div>
           </div>
             
           <div className="space-y-6 pt-4">
@@ -834,54 +1183,8 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                  )}
                </label>
                <div className="hidden">
-                 {/* Peso spostato in Specifiche Tecniche */}
-               </div>
-
-               {/* Independent Channel Stocks Interface */}
-               <label className="lg:col-span-1">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 block">Web Shop</span>
-                 <input 
-                   type="number" 
-                   value={webStock} 
-                   onFocus={e => webStock === 0 && setWebStock('' as any)} 
-                   onChange={e => setWebStock(Number(e.target.value))} 
-                   className="w-full bg-indigo-50 border-indigo-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-700" 
-                 />
-               </label>
-
-               {isAmazonActive && (
-                 <label className="lg:col-span-1">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1 block">Amazon</span>
-                   <input 
-                     type="number" 
-                     value={amazonStock} 
-                     onFocus={e => amazonStock === 0 && setAmazonStock('' as any)} 
-                     onChange={e => setAmazonStock(Number(e.target.value))} 
-                     className="w-full bg-orange-50 border-orange-100 rounded-xl px-4 py-3 text-sm font-black text-orange-700" 
-                   />
-                 </label>
-               )}
-               
-               {isEbayActive && (
-                 <label className="lg:col-span-1">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">eBay</span>
-                   <input 
-                     type="number" 
-                     value={ebayStock} 
-                     onFocus={e => ebayStock === 0 && setEbayStock('' as any)} 
-                     onChange={e => setEbayStock(Number(e.target.value))} 
-                     className="w-full bg-blue-50 border-blue-100 rounded-xl px-4 py-3 text-sm font-black text-blue-700" 
-                   />
-                 </label>
-               )}
-
-               <label className="lg:col-span-1">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1 block">Stock Totale (Somma)</span>
-                 <div className="w-full bg-green-50 border-green-100 rounded-xl px-4 py-3 text-sm font-black text-green-700 flex items-center h-[46px]">
-                   {webStock + (isAmazonActive ? amazonStock : 0) + (isEbayActive ? ebayStock : 0)}
-                 </div>
-               </label>
-            </div>
+                </div>
+              </div>
           </div>
 
           
@@ -1003,10 +1306,10 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
 
                  return (
                    <div key={v.id} className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
-                      <div className="flex flex-col gap-6">
+                      <div className="flex flex-col gap-2">
                         {/* Row 1: Core IDs & Cost */}
                         <div className="flex flex-wrap gap-4 items-start">
-                          <div className="flex flex-col gap-1.5 min-w-[120px]">
+                           <div className="flex flex-col gap-1.5 min-w-[120px]">
                             <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Parametro</span>
                             <select 
                               value={v.type}
@@ -1038,22 +1341,69 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                             />
                           </div>
 
-                          <div className="flex flex-col gap-1.5 min-w-[120px]">
-                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">SKU Variante</span>
-                            <input 
-                               type="text"
-                               value={v.sku}
-                               onChange={e => {
-                                 const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV);
-                               }}
-                               placeholder="SKU"
-                               className="w-full bg-white border-gray-200 rounded-xl px-4 py-3 text-[10px] font-bold shadow-sm"
-                             />
+                          {/* SKU + EAN + Image grouped on the right */}
+                          <div className="flex items-start gap-3 ml-auto">
+                            {/* SKU and EAN stacked */}
+                            <div className="flex flex-col gap-2 min-w-[150px]">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">SKU Variante</span>
+                                <input 
+                                   type="text"
+                                   value={v.sku}
+                                   onChange={e => {
+                                     const newV = [...variants]; newV[i].sku = e.target.value; setVariants(newV);
+                                   }}
+                                   placeholder="SKU"
+                                   className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-[10px] font-bold shadow-sm"
+                                 />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">EAN Variante</span>
+                                <input 
+                                   type="text"
+                                   value={v.ean}
+                                   onChange={e => {
+                                     const newV = [...variants]; newV[i].ean = e.target.value; setVariants(newV);
+                                   }}
+                                   placeholder="801234..."
+                                   className="w-full bg-white border-gray-200 rounded-xl px-3 py-2 text-[10px] font-bold shadow-sm"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Variant image picker */}
+                            <div className="flex flex-col gap-1 items-center">
+                              <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1 self-start">Foto</span>
+                              <div
+                                onClick={() => { setVariantImageTargetIndex(i); setIsVariantImageModalOpen(true); }}
+                                className="w-[130px] h-[130px] bg-gray-100 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-brand-blue hover:bg-brand-blue/5 transition-all flex items-center justify-center relative group/vimg"
+                              >
+                                {v.image ? (
+                                  <>
+                                    <img src={v.image} className="w-full h-full object-cover" alt="" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/vimg:opacity-100 transition-opacity flex items-center justify-center">
+                                      <RefreshCw className="w-4 h-4 text-white" />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 text-gray-400 group-hover/vimg:text-brand-blue transition-colors">
+                                    <Camera className="w-5 h-5" />
+                                    <span className="text-[7px] font-black uppercase">Aggiungi</span>
+                                  </div>
+                                )}
+                              </div>
+                              {v.image && (
+                                <button
+                                  onClick={() => { const newV = [...variants]; newV[i].image = ""; setVariants(newV); }}
+                                  className="text-[7px] font-black uppercase text-red-400 hover:text-red-600 transition-colors mt-0.5"
+                                >Rimuovi</button>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Cost Management */}
-                          <div className="flex flex-col gap-1.5 bg-gray-50/50 p-3 rounded-2xl border border-gray-100 min-w-[200px] shadow-inner">
-                            <span className="text-[8px] font-black uppercase text-brand-blue tracking-widest pl-1">Logica Costo Variante</span>
+                          {/* Variant Pricing Management */}
+                          <div className="flex flex-col gap-1.5 bg-gray-50/50 pt-3 px-3 pb-[10px] rounded-2xl border border-gray-100 min-w-[280px] shadow-inner">
+                            <span className="text-[8px] font-black uppercase text-brand-blue tracking-widest pl-1">Logica Prezzo Variante</span>
                             <div className="flex items-center gap-2">
                               <select 
                                 value={v.costType}
@@ -1062,11 +1412,11 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                                   newV[i].costType = e.target.value as any; 
                                   setVariants(newV);
                                 }}
-                                className="text-[10px] font-black uppercase bg-white border-gray-100 rounded-lg px-2 py-2 focus:ring-0 shadow-sm"
+                                className="flex-1 text-[10px] font-black uppercase bg-white border-gray-100 rounded-lg px-2 py-2 focus:ring-0 shadow-sm"
                               >
                                 <option value="fixed">Fisso €</option>
                                 <option value="delta">Delta €</option>
-                                <option value="percent">% Su Madre</option>
+                                <option value="percent">% Su Pubblico</option>
                               </select>
                               <input 
                                 type="number" 
@@ -1077,21 +1427,12 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                                   newV[i].costValue = Number(e.target.value); 
                                   setVariants(newV);
                                 }}
-                                className="w-20 bg-white border-gray-100 rounded-lg px-3 py-2 text-[11px] font-black text-center shadow-sm"
+                                className="w-32 bg-white border-gray-100 rounded-lg px-3 py-2 text-[11px] font-black text-center shadow-sm"
                               />
-                              <div className="flex flex-col items-end px-2 border-l border-gray-200 ml-1">
-                                <span className="text-[7px] font-black text-gray-400 uppercase leading-none mb-1">Finale</span>
-                                <span className="text-[11px] font-black text-brand-blue">
-                                  €{(() => {
-                                    if (v.costType === 'fixed') return v.costValue.toFixed(2);
-                                    if (v.costType === 'delta') return (baseCost + v.costValue).toFixed(2);
-                                    if (v.costType === 'percent') return (baseCost * (1 + v.costValue / 100)).toFixed(2);
-                                    return '0.00';
-                                  })()}
-                                </span>
-                              </div>
                             </div>
                           </div>
+                          
+
                         </div>
 
                         {/* Row 2: Stocks & Actions */}
@@ -1177,7 +1518,8 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                      costValue: baseCost,
                      webStock: variants.length === 0 ? webStock : 0,
                      amazonStock: variants.length === 0 ? amazonStock : 0,
-                     ebayStock: variants.length === 0 ? ebayStock : 0
+                     ebayStock: variants.length === 0 ? ebayStock : 0,
+                     ean: ""
                    }])} 
                    className="group flex items-center gap-3 px-6 py-4 bg-gray-50 hover:bg-brand-yellow hover:text-brand-dark rounded-3xl border-2 border-dashed border-gray-200 hover:border-brand-yellow transition-all duration-300"
                  >
@@ -1632,96 +1974,9 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
           <div className="sticky top-28 space-y-8">
             
             {/* Galleria Media */}
-            <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-              <h3 className="text-sm font-black uppercase tracking-widest text-brand-dark mb-4 flex items-center justify-between">
-                Galleria Media 
-                <span className="text-[10px] font-bold text-gray-400">{gallery.length}/6 Max</span>
-              </h3>
-              <div className="grid grid-cols-3 gap-2">
-                 {gallery.map((img, i) => (
-                    <div key={i} className={`aspect-square bg-gray-200 rounded-xl relative group overflow-hidden border-2 ${i===0 ? 'border-brand-yellow':'border-transparent'}`}>
-                      <img src={img} className="w-full h-full object-cover" alt="" />
-                      {i === 0 && <div className="absolute bottom-0 inset-x-0 bg-brand-yellow text-brand-dark text-[8px] font-black uppercase text-center py-0.5">Focus</div>}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                         <button 
-                           onClick={() => {
-                             setReplacingImageIndex(i);
-                             setIsImageModalOpen(true);
-                           }}
-                           className="p-1.5 bg-brand-yellow text-brand-dark rounded-full hover:scale-110 transition-transform"
-                         >
-                           <RefreshCw className="w-3 h-3" />
-                         </button>
-                         <button onClick={() => setGallery(g => g.filter((_, idx) => idx !== i))} className="p-1.5 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    </div>
-                 ))}
-                 {gallery.length < 6 && (
-                   <button 
-                     onClick={() => {
-                       setReplacingImageIndex(null);
-                       setIsImageModalOpen(true);
-                     }}
-                     className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-blue hover:bg-brand-blue/5 transition-all text-gray-400 hover:text-brand-blue group cursor-pointer"
-                   >
-                     <Plus className="w-6 h-6 group-hover:scale-110 transition-transform mb-1" />
-                     <span className="text-[8px] font-black uppercase text-center">Aggiungi</span>
-                   </button>
-                 )}
-              </div>
-            </div>
 
-            {/* Pricing Engine */}
-            <div className="bg-brand-dark rounded-2xl p-6 relative overflow-hidden ring-4 ring-brand-yellow/20">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-brand-yellow rounded-full blur-3xl opacity-10"></div>
-               <h3 className="text-sm font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2 relative z-10"><RefreshCw className="w-4 h-4 text-brand-yellow"/> Motore Prezzi Dinamico</h3>
-               
-               <div className="space-y-6 relative z-10">
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-300 mb-1 block">Costo Base d'Acquisto</span>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-gray-400">€</span>
-                      <input type="number" value={baseCost} onFocus={e => baseCost === 0 && setBaseCost('' as any)} onChange={e => setBaseCost(Number(e.target.value))} className="w-full bg-black/40 border border-gray-700 text-white rounded-xl pl-8 pr-4 py-3 text-lg font-black focus:ring-brand-yellow focus:border-brand-yellow transition-all" />
-                    </div>
-                  </label>
-                  
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
-                     <div>
-                       <div className="flex justify-between items-center mb-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-brand-yellow">Ricarico B2C Sito (%)</label>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-white">Prezzo Pubblico (Override)</label>
-                       </div>
-                       <div className="flex gap-2">
-                          <div className="relative w-1/3">
-                             <input type="number" value={b2cMarkup} onFocus={e => b2cMarkup === 0 && setB2cMarkup('' as any)} onChange={e => setB2cMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-brand-yellow focus:ring-brand-yellow" />
-                          </div>
-                          <div className="relative w-2/3">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-brand-dark/50">€</span>
-                            <input type="number" value={manualB2c || b2cPrice.toFixed(2)} onFocus={e => (manualB2c === "0" || manualB2c === "") && setManualB2c('')} onChange={e => handleManualPrice(e.target.value, 'b2c')} placeholder={b2cPrice.toFixed(2)} className={`w-full bg-brand-yellow text-brand-dark border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2c ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
-                            {manualB2c && <button onClick={() => setManualB2c("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
-                          </div>
-                       </div>
-                     </div>
 
-                     <div className="pt-2 border-t border-white/10 mt-4">
-                       <div className="flex justify-between items-center mb-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 mt-2">Ricarico VIP B2B (%)</label>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-white mt-2">Prezzo Rivenditori (Override)</label>
-                       </div>
-                       <div className="flex gap-2">
-                          <div className="relative w-1/3">
-                             <input type="number" value={b2bMarkup} onFocus={e => b2bMarkup === 0 && setB2bMarkup('' as any)} onChange={e => setB2bMarkup(Number(e.target.value))} className="w-full bg-black text-white border border-gray-700 rounded-lg px-2 py-2 text-sm font-bold text-center focus:border-blue-500 focus:ring-blue-500" />
-                          </div>
-                          <div className="relative w-2/3">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-white/50">€</span>
-                            <input type="number" value={manualB2b || b2bPrice.toFixed(2)} onFocus={e => (manualB2b === "0" || manualB2b === "") && setManualB2b('')} onChange={e => handleManualPrice(e.target.value, 'b2b')} placeholder={b2bPrice.toFixed(2)} className={`w-full bg-blue-500 text-white border-none rounded-lg pl-8 pr-2 py-2 text-base font-black text-right focus:ring-2 focus:ring-white transition-all ${manualB2b ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-dark' : ''}`} />
-                            {manualB2b && <button onClick={() => setManualB2b("")} className="absolute right-0 -bottom-5 text-[8px] text-gray-400 hover:text-white uppercase font-black tracking-wider transition-colors">Reset Calcolatore</button>}
-                          </div>
-                       </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
+
 
             <button 
               onClick={handleSave}
@@ -1831,6 +2086,72 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
             <p className="text-[9px] text-gray-400 font-bold text-center mt-8 italic">
               * La prima immagine della galleria sarà quella principale.
             </p>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+
+    {/* Modal Immagine Variante */}
+    <AnimatePresence>
+      {isVariantImageModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-brand-dark/60 backdrop-blur-md"
+            onClick={() => { setIsVariantImageModalOpen(false); setVariantImageTargetIndex(null); }}
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative bg-white w-full max-w-lg rounded-[2.5rem] p-10 overflow-hidden"
+          >
+            <button onClick={() => { setIsVariantImageModalOpen(false); setVariantImageTargetIndex(null); }} className="absolute top-6 right-6 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all">
+              <X className="w-6 h-6" />
+            </button>
+            <div className="mb-8 text-center md:text-left">
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Foto Variante</h3>
+              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">
+                {variantImageTargetIndex !== null ? `Variante #${variantImageTargetIndex + 1}` : ''} — carica o incolla un link
+              </p>
+            </div>
+            <div className="space-y-6">
+              <label className="block group cursor-pointer">
+                <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-gray-200 rounded-[2rem] bg-gray-50 group-hover:bg-brand-blue/5 group-hover:border-brand-blue transition-all">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-7 h-7 text-brand-blue" />
+                  </div>
+                  <span className="text-xs font-black uppercase text-gray-700">Carica dal Dispositivo</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">JPG, PNG, WEBP (MAX 5MB)</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleVariantImageUpload} />
+                </div>
+              </label>
+              <div className="flex items-center gap-4 py-2">
+                <div className="h-px bg-gray-100 flex-1"></div>
+                <span className="text-[10px] font-black text-gray-300 uppercase">Oppure tramite Link</span>
+                <div className="h-px bg-gray-100 flex-1"></div>
+              </div>
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-indigo-50 text-indigo-500 rounded-lg">
+                    <LinkIcon className="w-4 h-4" />
+                  </div>
+                  <input 
+                    type="url" value={variantImageUrlInput}
+                    onChange={e => setVariantImageUrlInput(e.target.value)}
+                    placeholder="Incolla URL immagine (es. https://...)" 
+                    className="w-full pl-16 pr-4 py-4 bg-gray-50 border-gray-100 rounded-2xl text-sm font-bold focus:ring-brand-yellow focus:bg-white placeholder:text-gray-300 transition-all border-none outline-none"
+                  />
+                </div>
+                <button 
+                  onClick={addVariantImageUrl}
+                  disabled={!variantImageUrlInput.trim()}
+                  className="w-full py-4 bg-brand-dark text-brand-yellow rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Importa Foto Variante da Link
+                </button>
+              </div>
+            </div>
           </motion.div>
         </div>
       )}
