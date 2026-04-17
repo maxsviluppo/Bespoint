@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+﻿import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
@@ -1305,7 +1305,7 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                  if (isEbayActive) gridCols++;
 
                  return (
-                   <div key={v.id} className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
+                   <div key={v.id} className="relative bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 space-y-4 transition-all hover:bg-white hover:shadow-xl group">
                       <div className="flex flex-col gap-2">
                         {/* Row 1: Core IDs & Cost */}
                         <div className="flex flex-wrap gap-4 items-start">
@@ -1341,8 +1341,8 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                             />
                           </div>
 
-                          {/* SKU + EAN + Image grouped on the right */}
-                          <div className="flex items-start gap-3 ml-auto">
+                          {/* SKU + EAN + Image grouped on the right (Image is now absolute) */}
+                          <div className="flex items-start gap-3 ml-auto mr-[150px]">
                             {/* SKU and EAN stacked */}
                             <div className="flex flex-col gap-2 min-w-[150px]">
                               <div className="flex flex-col gap-1">
@@ -1370,35 +1370,35 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
                                 />
                               </div>
                             </div>
+                          </div>
 
-                            {/* Variant image picker */}
-                            <div className="flex flex-col gap-1 items-center">
-                              <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1 self-start">Foto</span>
-                              <div
-                                onClick={() => { setVariantImageTargetIndex(i); setIsVariantImageModalOpen(true); }}
-                                className="w-[130px] h-[130px] bg-gray-100 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-brand-blue hover:bg-brand-blue/5 transition-all flex items-center justify-center relative group/vimg"
-                              >
-                                {v.image ? (
-                                  <>
-                                    <img src={v.image} className="w-full h-full object-cover" alt="" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/vimg:opacity-100 transition-opacity flex items-center justify-center">
-                                      <RefreshCw className="w-4 h-4 text-white" />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="flex flex-col items-center gap-1 text-gray-400 group-hover/vimg:text-brand-blue transition-colors">
-                                    <Camera className="w-5 h-5" />
-                                    <span className="text-[7px] font-black uppercase">Aggiungi</span>
+                          {/* Variant image picker (Fixed in corner) */}
+                          <div className="absolute top-6 right-6 flex flex-col gap-1 items-center z-10">
+                            <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1 self-start">Foto</span>
+                            <div
+                              onClick={() => { setVariantImageTargetIndex(i); setIsVariantImageModalOpen(true); }}
+                              className="w-[130px] h-[130px] bg-white border-2 border-dashed border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-brand-blue hover:bg-brand-blue/5 transition-all flex items-center justify-center relative group/vimg shadow-sm"
+                            >
+                              {v.image ? (
+                                <>
+                                  <img src={v.image} className="w-full h-full object-cover" alt="" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/vimg:opacity-100 transition-opacity flex items-center justify-center">
+                                    <RefreshCw className="w-4 h-4 text-white" />
                                   </div>
-                                )}
-                              </div>
-                              {v.image && (
-                                <button
-                                  onClick={() => { const newV = [...variants]; newV[i].image = ""; setVariants(newV); }}
-                                  className="text-[7px] font-black uppercase text-red-400 hover:text-red-600 transition-colors mt-0.5"
-                                >Rimuovi</button>
+                                </>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1 text-gray-400 group-hover/vimg:text-brand-blue transition-colors">
+                                  <Camera className="w-5 h-5" />
+                                  <span className="text-[7px] font-black uppercase">Aggiungi</span>
+                                </div>
                               )}
                             </div>
+                            {v.image && (
+                              <button
+                                onClick={() => { const newV = [...variants]; newV[i].image = ""; setVariants(newV); }}
+                                className="text-[7px] font-black uppercase text-red-400 hover:text-red-600 transition-colors mt-0.5"
+                              >Rimuovi</button>
+                            )}
                           </div>
 
                           {/* Variant Pricing Management */}
