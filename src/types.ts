@@ -52,6 +52,9 @@ export interface Product {
   }[];
   showBrand?: boolean;
   showEan?: boolean;
+  energyLabel?: string;
+  techSheet?: string;
+  manual?: string;
 }
 
 export interface CartItem extends Product {

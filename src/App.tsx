@@ -231,6 +231,86 @@ const ToastContainer = ({ toasts, onClose }: { toasts: { id: string; message: st
   );
 };
 
+const PdfViewerModal = ({ url, title, onClose }: { url: string; title: string; onClose: () => void }) => {
+  const [blobUrl, setBlobUrl] = useState<string>("");
+
+  useEffect(() => {
+    if (url && url.startsWith('data:application/pdf')) {
+      // Convert DataURL to Blob for better iframe performance/stability
+      const fetchBlob = async () => {
+        try {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          const bUrl = URL.createObjectURL(blob);
+          setBlobUrl(bUrl);
+        } catch (err) {
+          console.error("Error creating PDF blob:", err);
+          setBlobUrl(url); // Fallback
+        }
+      };
+      fetchBlob();
+    } else {
+      setBlobUrl(url);
+    }
+
+    return () => {
+      if (blobUrl && blobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [url]);
+
+  return (
+    <AnimatePresence>
+      {url && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000]"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="fixed inset-4 md:inset-10 bg-white rounded-[2.5rem] shadow-2xl z-[1001] overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white/80 backdrop-blur-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-brand-blue/10 rounded-2xl flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-brand-blue" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-brand-dark uppercase tracking-widest">{title}</h3>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Visualizzazione Documento Sicura</p>
+                </div>
+              </div>
+              <button 
+                onClick={onClose}
+                className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-red-500 hover:text-white rounded-2xl transition-all active:scale-90"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 bg-gray-50 relative">
+              <iframe 
+                src={blobUrl} 
+                className="w-full h-full border-none"
+                title={title}
+              />
+            </div>
+            <div className="p-4 bg-white border-t border-gray-100 flex justify-center">
+              <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em]">BesPoint Document Viewer — Protected Content</p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
+
 function ProductCard({ product, onClick, onAddToCart, index, reviews = [], isFavorite = false, onToggleFavorite, onShare }: { product: Product; onClick: () => void; onAddToCart: (p: Product) => void; index: number; reviews?: any[]; isFavorite?: boolean; onToggleFavorite?: (id: string) => void; onShare?: (p: Product) => void; key?: any }) {
   const productReviews = reviews.filter(r => r.productId === product.id && r.status === 'approved');
   const avgRating = productReviews.length > 0 
@@ -382,6 +462,10 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
   const [activeImage, setActiveImage] = useState(product.image);
   const isFavorite = favorites.includes(product.id);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  
+  // PDF Viewer State
+  const [activePdf, setActivePdf] = useState<{ url: string; title: string } | null>(null);
+
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const approvedReviews = reviews.filter(rev => rev.productId === product.id && rev.status === 'approved');
@@ -615,6 +699,69 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
                   ))}
                 </div>
               </div>
+              {/* Energy Label Preview */}
+              {product.energyLabel && (
+                <div className="space-y-4">
+                  <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-brand-yellow fill-brand-yellow" /> Efficienza Energetica
+                  </h4>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                    {product.energyLabel.startsWith('data:application/pdf') ? (
+                      <button 
+                        onClick={() => setActivePdf({ url: product.energyLabel!, title: "Etichetta Energetica" })}
+                        className="w-full flex items-center justify-between p-4 bg-brand-yellow/10 hover:bg-brand-yellow/20 border border-brand-yellow/20 rounded-2xl transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <FileText className="w-5 h-5 text-brand-yellow" />
+                          </div>
+                          <span className="text-xs font-black text-brand-dark uppercase tracking-tight">Apri Etichetta Energetica (PDF)</span>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-brand-yellow group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    ) : (
+                      <img src={product.energyLabel} alt="Energy Label" className="w-full h-auto rounded-lg" />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Document Download Links */}
+              {(product.techSheet || product.manual) && (
+                <div className="space-y-4">
+                  <h4 className="font-black text-sm uppercase tracking-widest text-brand-dark border-l-4 border-brand-yellow pl-3">Documentazione</h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    {product.techSheet && (
+                      <button 
+                        onClick={() => setActivePdf({ url: product.techSheet!, title: "Scheda Tecnica" })}
+                        className="flex items-center justify-between p-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-2xl transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <span className="text-xs font-black text-indigo-900 uppercase tracking-tight">Scarica Scheda Tecnica</span>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    )}
+                    {product.manual && (
+                      <button 
+                        onClick={() => setActivePdf({ url: product.manual!, title: "Manuale d'Uso" })}
+                        className="flex items-center justify-between p-4 bg-teal-50 hover:bg-teal-100 border border-teal-100 rounded-2xl transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <Compass className="w-5 h-5 text-teal-600" />
+                          </div>
+                          <span className="text-xs font-black text-teal-900 uppercase tracking-tight">Manuale d'Uso (PDF)</span>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-teal-400 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Video Tutorial */}
               {product.videoUrl && (
@@ -894,6 +1041,13 @@ const ProductSheet = ({ product, onClose, onAddToCart, isDesktop, reviews = [], 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* PDF Viewer Modal Integrated */}
+      <PdfViewerModal 
+        url={activePdf?.url || ""} 
+        title={activePdf?.title || ""} 
+        onClose={() => setActivePdf(null)} 
+      />
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser } from "lucide-react";
+import { Package, X, Trash2, Layers, Globe, ExternalLink, Camera, Plus, Check, RefreshCw, Search, ChevronDown, Truck, Info, Upload, Link as LinkIcon, Star, Maximize2, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Image as ImageIcon, Link as LucideLink, Eraser, Zap, FileText, FileSpreadsheet, Compass, FileCode } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES, SUBCATEGORIES } from "./data";
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
@@ -289,6 +289,10 @@ export const AdminSingleProduct = ({ onBack, onSave, onDelete, initialData, exis
   const [length, setLength] = useState<number>(Number(initialData?.length) || 0);
   const [width, setWidth] = useState<number>(Number(initialData?.width) || 0);
   const [height, setHeight] = useState<number>(Number(initialData?.height) || 0);
+
+  const [energyLabel, setEnergyLabel] = useState<string>(initialData?.energyLabel || "");
+  const [techSheet, setTechSheet] = useState<string>(initialData?.techSheet || "");
+  const [manual, setManual] = useState<string>(initialData?.manual || "");
 
   const [category, setCategory] = useState<string>(initialData?.category || existingCategories[0] || "");
   const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || "Tutti");
@@ -620,6 +624,9 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
       showEan,
       videoUrl,
       has3D,
+      energyLabel,
+      techSheet,
+      manual,
       cost: baseCost,
       amazonMarkup,
       ebayMarkup,
@@ -1579,7 +1586,133 @@ Rispondi SOLO con JSON valido, nessun testo extra: { "title": "...", "descriptio
               </label>
             </div>
           </div>
-          
+
+          {/* DOCUMENTAZIONE PRODOTTO */}
+          <div className="space-y-6 pt-4">
+            <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-brand-blue"/> Documentazione & Etichette
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Etichetta Energetica */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Etichetta Efficienza</span>
+                  <Zap className="w-4 h-4 text-brand-yellow fill-brand-yellow" />
+                </div>
+                
+                <div className="aspect-[3/4] bg-white rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+                  {energyLabel ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4">
+                      {energyLabel.startsWith('data:application/pdf') ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <FileText className="w-12 h-12 text-brand-yellow" />
+                          <span className="text-[10px] font-black text-brand-yellow uppercase">Etichetta PDF</span>
+                        </div>
+                      ) : (
+                        <img src={energyLabel} className="w-full h-full object-contain" alt="Energy Label" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {energyLabel.startsWith('data:application/pdf') && (
+                          <button onClick={() => window.open(energyLabel)} className="p-2 bg-brand-yellow text-brand-dark rounded-lg"><ExternalLink className="w-4 h-4"/></button>
+                        )}
+                        <button onClick={() => setEnergyLabel("")} className="p-2 bg-red-500 text-white rounded-lg"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center gap-2 cursor-pointer text-gray-400 hover:text-brand-blue transition-colors w-full h-full justify-center">
+                      <Upload className="w-8 h-8" />
+                      <span className="text-[10px] font-black uppercase">Carica JPG/PNG o PDF</span>
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setEnergyLabel(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }} />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-400 font-bold uppercase text-center leading-tight">Visibile in scheda prodotto e area cliente</p>
+              </div>
+
+              {/* Scheda Prodotto (PDF) */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Scheda Tecnica (PDF)</span>
+                  <FileSpreadsheet className="w-4 h-4 text-indigo-400" />
+                </div>
+                
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[120px] bg-white rounded-xl border-2 border-dashed border-gray-200 relative group">
+                  {techSheet ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <span className="text-[10px] font-black text-indigo-600 uppercase">PDF Caricato</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => window.open(techSheet)} className="p-2 bg-indigo-500 text-white rounded-lg"><ExternalLink className="w-4 h-4"/></button>
+                        <button onClick={() => setTechSheet("")} className="p-2 bg-red-500 text-white rounded-lg"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center gap-2 cursor-pointer text-gray-400 hover:text-indigo-600 transition-colors">
+                      <Upload className="w-8 h-8" />
+                      <span className="text-[10px] font-black uppercase">Carica PDF</span>
+                      <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setTechSheet(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }} />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-400 font-bold uppercase text-center leading-tight">Apertura diretta nel browser (No anteprima)</p>
+              </div>
+
+              {/* Manualistica (PDF) */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Manuale d'Uso (PDF)</span>
+                  <Compass className="w-4 h-4 text-teal-400" />
+                </div>
+                
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[120px] bg-white rounded-xl border-2 border-dashed border-gray-200 relative group">
+                  {manual ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center">
+                        <FileCode className="w-6 h-6 text-teal-600" />
+                      </div>
+                      <span className="text-[10px] font-black text-teal-600 uppercase">Manuale Caricato</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => window.open(manual)} className="p-2 bg-teal-500 text-white rounded-lg"><ExternalLink className="w-4 h-4"/></button>
+                        <button onClick={() => setManual("")} className="p-2 bg-red-500 text-white rounded-lg"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center gap-2 cursor-pointer text-gray-400 hover:text-teal-600 transition-colors">
+                      <Upload className="w-8 h-8" />
+                      <span className="text-[10px] font-black uppercase">Carica PDF</span>
+                      <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setManual(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }} />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-400 font-bold uppercase text-center leading-tight">Istruzioni tecniche per l'utente</p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <h3 className="text-lg font-black uppercase tracking-widest text-brand-dark border-b border-gray-100 pb-3 flex items-center gap-2"><Globe className="w-5 h-5 text-gray-400"/> Sincronizzazione Marketplace (Overrides)</h3>
             
